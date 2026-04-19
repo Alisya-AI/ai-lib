@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ailib.dev/schema/registry.schema.json",
+  "type": "object",
+  "required": ["version", "schema", "slots", "languages", "targets"],
+  "properties": {
+    "version": { "type": "string" },
+    "schema": { "type": "string" },
+    "slots": { "type": "array", "items": { "type": "string" } },
+    "languages": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["display", "path", "modules"],
+        "properties": {
+          "display": { "type": "string" },
+          "path": { "type": "string" },
+          "modules": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "required": ["slot"],
+              "properties": {
+                "slot": { "type": "string" },
+                "conflicts_with": { "type": "array", "items": { "type": "string" } }
+              }
+            }
+          }
+        }
+      }
+    },
+    "targets": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["output", "template"],
+        "properties": {
+          "output": { "type": "string" },
+          "template": { "type": "string" }
+        }
+      }
+    }
+  }
+}
