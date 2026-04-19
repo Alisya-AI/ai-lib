@@ -139,7 +139,7 @@ async function doctorCommand({ cwd, packageRoot }) {
       errors.push(err.message);
     }
 
-    const pointers = await resolvePointerPaths({ projectRoot, packageRoot, language: config.language, modules: config.modules });
+    const pointers = await resolvePointerPaths({ language: config.language, modules: config.modules });
     for (const file of pointers) {
       if (!(await exists(path.join(projectRoot, file)))) {
         errors.push(`Missing pointer file: ${file}`);
@@ -212,7 +212,7 @@ async function writeConfig({ projectRoot, packageRoot, language, modules, target
 }
 
 async function writeLock({ projectRoot, packageRoot, language, modules, targets }) {
-  const pointers = await resolvePointerPaths({ projectRoot, packageRoot, language, modules });
+  const pointers = await resolvePointerPaths({ language, modules });
   const lock = {
     generatedAt: new Date().toISOString(),
     language,
