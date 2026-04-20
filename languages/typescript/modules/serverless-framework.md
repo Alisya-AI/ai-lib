@@ -4,7 +4,7 @@ display: Serverless Framework
 version: 1.0.0
 updated: 2026-04-20
 language: typescript
-slot: infra
+slot: infra_framework
 requires: [aws-lambda]
 conflicts_with: [sst, cdk, sam]
 tested_with:

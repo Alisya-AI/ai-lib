@@ -7,6 +7,21 @@
     "version": { "type": "string" },
     "schema": { "type": "string" },
     "slots": { "type": "array", "items": { "type": "string" } },
+    "slot_aliases": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "slot_defs": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["kind", "description"],
+        "properties": {
+          "kind": { "type": "string", "enum": ["exclusive", "composable"] },
+          "description": { "type": "string" }
+        }
+      }
+    },
     "languages": {
       "type": "object",
       "additionalProperties": {
@@ -22,6 +37,7 @@
               "required": ["slot"],
               "properties": {
                 "slot": { "type": "string" },
+                "requires": { "type": "array", "items": { "type": "string" } },
                 "conflicts_with": { "type": "array", "items": { "type": "string" } }
               }
             }

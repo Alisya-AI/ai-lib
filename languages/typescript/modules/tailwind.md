@@ -4,7 +4,7 @@ display: Tailwind CSS
 version: 1.3.0
 updated: 2026-04-15
 language: typescript
-slot: styling
+slot: styling_system
 requires: []
 conflicts_with: [styled-components, emotion]
 tested_with:

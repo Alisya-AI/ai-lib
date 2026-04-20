@@ -4,7 +4,7 @@ display: Zod (runtime validation)
 version: 1.0.0
 updated: 2026-04-20
 language: typescript
-slot: validation
+slot: schema_validation
 requires: []
 conflicts_with: [io-ts, yup, joi]
 tested_with:

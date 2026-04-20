@@ -579,14 +579,16 @@ function mergeModules({ registry, language, parentModules, localModules }) {
       continue;
     }
 
-    if (localDef.slot) {
+    const localSlot = canonicalSlot(registry, localDef.slot);
+    if (localSlot) {
       const slotIdx = result.findIndex((existingMod) => {
         const def = lang.modules[existingMod];
-        return def?.slot && def.slot === localDef.slot;
+        const existingSlot = canonicalSlot(registry, def?.slot);
+        return existingSlot && existingSlot === localSlot;
       });
 
       if (slotIdx >= 0) {
-        warnings.push(`Slot override '${localDef.slot}': ${result[slotIdx]} -> ${mod}`);
+        warnings.push(`Slot override '${localSlot}': ${result[slotIdx]} -> ${mod}`);
         result[slotIdx] = mod;
         owners[slotIdx] = 'local';
         continue;
@@ -626,7 +628,7 @@ function diffSlots(rootModules, workspaceModules, registry, language) {
   const lang = registry.languages[language];
   if (!lang) return [];
 
-  const slotOf = (mod) => lang.modules[mod]?.slot;
+  const slotOf = (mod) => canonicalSlot(registry, lang.modules[mod]?.slot);
   const rootBySlot = new Map();
   const wsBySlot = new Map();
 
@@ -654,14 +656,17 @@ function validateModuleSelection({ registry, language, modules }) {
   ensure(lang, `Unsupported language: ${language}`);
 
   const slotMap = new Map();
+  const validSlots = new Set(registry.slots || []);
   for (const moduleId of modules) {
     const moduleDef = lang.modules[moduleId];
     ensure(moduleDef, `Unsupported module for ${language}: ${moduleId}`);
 
-    if (moduleDef.slot) {
-      const existing = slotMap.get(moduleDef.slot);
-      ensure(!existing, `Slot conflict '${moduleDef.slot}': ${existing} vs ${moduleId}`);
-      slotMap.set(moduleDef.slot, moduleId);
+    const slot = canonicalSlot(registry, moduleDef.slot);
+    if (slot) {
+      ensure(validSlots.has(slot), `Unknown slot '${slot}' for module '${moduleId}'`);
+      const existing = slotMap.get(slot);
+      ensure(!existing, `Slot conflict '${slot}': ${existing} vs ${moduleId}`);
+      slotMap.set(slot, moduleId);
     }
   }
 
@@ -1008,4 +1013,10 @@ function splitCsv(value) {
 
 function uniqueList(items) {
   return [...new Set(items)];
+}
+
+function canonicalSlot(registry, slot) {
+  if (!slot) return null;
+  const aliases = registry.slot_aliases || {};
+  return aliases[slot] || slot;
 }
