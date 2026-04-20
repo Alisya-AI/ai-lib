@@ -441,7 +441,7 @@ async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConfli
 
     for (const [dir, s] of scopedStates) {
       const rel = workspaceLabelFor(rootDir, dir);
-      const applyTo = rel === '.' ? '**' : `${rel.replaceAll('\\', '/')}/**`;
+      const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
       const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
       const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: 'GitHub Copilot', workspaceDir: dir, rootDir, state: s })}`;
       await writeManagedFile({ outPath: path.join(rootDir, '.github/instructions', fileName), rendered: content, onConflict });
@@ -985,7 +985,7 @@ function sha256(value) {
 }
 
 function sanitizeForFilename(input) {
-  return input.replaceAll('/', '__').replaceAll('\\', '__').replaceAll(':', '_');
+  return toPosix(input).replaceAll('/', '__').replaceAll(':', '_');
 }
 
 function toPosix(value) {
