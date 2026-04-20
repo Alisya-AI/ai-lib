@@ -8,10 +8,17 @@
     "test_runner",
     "styling",
     "framework",
+    "ui_library",
     "runtime",
     "infra",
     "bundler",
-    "validation"
+    "validation",
+    "cloud_platform",
+    "payments",
+    "database",
+    "auth_provider",
+    "outbound_email",
+    "object_storage"
   ],
   "languages": {
     "typescript": {
@@ -25,8 +32,16 @@
         "pnpm": { "slot": "package_manager", "conflicts_with": ["npm", "yarn", "bun"] },
         "vitest": { "slot": "test_runner", "conflicts_with": ["jest"] },
         "tailwind": { "slot": "styling" },
+        "react": { "slot": "ui_library", "conflicts_with": ["preact", "solid", "vue"] },
+        "nextjs": { "slot": "framework", "requires": ["react"], "conflicts_with": ["remix", "astro", "sveltekit", "nuxt"] },
         "serverless-framework": { "slot": "infra", "requires": ["aws-lambda"], "conflicts_with": ["sst", "cdk", "sam"] },
         "aws-lambda": { "slot": "runtime", "conflicts_with": ["cloudflare-workers", "vercel-functions"] },
+        "aws-amplify": { "slot": "cloud_platform", "conflicts_with": ["firebase", "supabase"] },
+        "stripe": { "slot": "payments" },
+        "dynamodb": { "slot": "database", "conflicts_with": ["postgres", "mysql", "mongodb"] },
+        "cognito": { "slot": "auth_provider", "conflicts_with": ["auth0", "clerk", "firebase-auth"] },
+        "ses": { "slot": "outbound_email", "conflicts_with": ["sendgrid", "mailgun", "postmark"] },
+        "s3": { "slot": "object_storage", "conflicts_with": ["cloudflare-r2", "gcs", "azure-blob"] },
         "esbuild": { "slot": "bundler", "conflicts_with": ["webpack", "rollup", "tsup"] },
         "zod": { "slot": "validation", "conflicts_with": ["io-ts", "yup", "joi"] }
       }
