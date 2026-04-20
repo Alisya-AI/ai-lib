@@ -48,6 +48,16 @@ async function captureStdout(fn) {
   }
 }
 
+async function runDoctorAndCapture(root) {
+  process.exitCode = 0;
+  const output = await captureStdout(async () => {
+    await run(['doctor'], { cwd: root, packageRoot });
+  });
+  const exitCode = process.exitCode ?? 0;
+  process.exitCode = 0;
+  return { output, exitCode };
+}
+
 test('run prints help for empty argv and --help', async () => {
   const outputEmpty = await captureStdout(async () => {
     await run([], { packageRoot });
@@ -130,15 +140,11 @@ test('doctor fails when required pointer files are missing', async () => {
 
   await fs.rm(path.join(root, 'apps', 'web', '.ailib', 'standards.md'));
 
-  process.exitCode = 0;
-  const output = await captureStdout(async () => {
-    await run(['doctor'], { cwd: root, packageRoot });
-  });
+  const { output, exitCode } = await runDoctorAndCapture(root);
 
   assert.match(output, /doctor failed:/);
   assert.match(output, /Missing pointer file: \.ailib\/standards\.md/);
-  assert.equal(process.exitCode ?? 0, 1);
-  process.exitCode = 0;
+  assert.equal(exitCode, 1);
 });
 
 test('doctor reports missing frontmatter fields for module pointers', async () => {
@@ -148,24 +154,19 @@ test('doctor reports missing frontmatter fields for module pointers', async () =
 
   const modulePath = path.join(root, 'apps', 'web', '.ailib', 'modules', 'biome.md');
   const original = await fs.readFile(modulePath, 'utf8');
-  const mutated = original
-    .replace(/^updated:.*\n/mu, '')
-    .replace(/^slot:.*\n/mu, '');
+  const fieldPatterns = [/^updated:.*\n/mu, /^slot:.*\n/mu];
+  const mutated = fieldPatterns.reduce((text, pattern) => text.replace(pattern, ''), original);
   await fs.writeFile(modulePath, mutated, 'utf8');
 
-  process.exitCode = 0;
-  const output = await captureStdout(async () => {
-    await run(['doctor'], { cwd: root, packageRoot });
-  });
+  const { output, exitCode } = await runDoctorAndCapture(root);
 
   assert.match(output, /doctor failed:/);
   assert.match(output, /Frontmatter missing 'updated': \.ailib\/modules\/biome\.md/);
   assert.match(output, /Frontmatter missing 'slot': \.ailib\/modules\/biome\.md/);
-  assert.equal(process.exitCode ?? 0, 1);
-  process.exitCode = 0;
+  assert.equal(exitCode, 1);
 });
 
-test('uninstall at monorepo root without --all removes only root workspace', async () => {
+test('uninstall at monorepo root without --all removes root workspace artifacts but keeps lock', async () => {
   const root = await makeMonorepo();
   const serviceDir = path.join(root, 'services', 'ml');
 
@@ -176,7 +177,10 @@ test('uninstall at monorepo root without --all removes only root workspace', asy
 
   assert.equal(await exists(path.join(root, '.ailib')), false);
   assert.equal(await exists(path.join(root, 'ailib.config.json')), false);
-  assert.equal(await exists(path.join(root, 'ailib.lock')), true);
+  const lockPath = path.join(root, 'ailib.lock');
+  assert.equal(await exists(lockPath), true);
+  const lock = JSON.parse(await fs.readFile(lockPath, 'utf8'));
+  assert.ok(lock.workspaces['services/ml']);
   assert.equal(await exists(path.join(serviceDir, '.ailib')), true);
   assert.equal(await exists(path.join(serviceDir, 'ailib.config.json')), true);
 });
