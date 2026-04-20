@@ -42,6 +42,12 @@ export async function run(argv, options = {}) {
     case 'uninstall':
       await uninstallCommand({ cwd, packageRoot, flags });
       break;
+    case 'slots':
+      await slotsCommand({ packageRoot, flags });
+      break;
+    case 'modules':
+      await modulesCommand({ packageRoot, flags });
+      break;
     default:
       throw new Error(`Unknown command: ${command}`);
   }
@@ -55,7 +61,10 @@ function printHelp() {
     '  ailib add <module> [--workspace=<path>]\n' +
     '  ailib remove <module> [--workspace=<path>]\n' +
     '  ailib doctor [--workspace=<path>]\n' +
-    '  ailib uninstall [--all]\n'
+    '  ailib uninstall [--all]\n' +
+    '  ailib slots list\n' +
+    '  ailib modules list [--language=<lang>]\n' +
+    '  ailib modules explain <module> [--language=<lang>]\n'
   );
 }
 
@@ -78,6 +87,76 @@ function parseFlags(args) {
     else flags[k] = raw;
   }
   return flags;
+}
+
+async function slotsCommand({ packageRoot, flags }) {
+  const sub = flags._[0] || 'list';
+  ensure(sub === 'list', `Usage: ailib slots list`);
+
+  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+  const slotDefs = registry.slot_defs || {};
+
+  const lines = ['slots:'];
+  for (const slot of registry.slots || []) {
+    const def = slotDefs[slot] || {};
+    const kind = def.kind ? ` (${def.kind})` : '';
+    const description = def.description ? ` - ${def.description}` : '';
+    lines.push(`- ${slot}${kind}${description}`);
+  }
+  process.stdout.write(`${lines.join('\n')}\n`);
+}
+
+async function modulesCommand({ packageRoot, flags }) {
+  const sub = flags._[0];
+  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+
+  if (sub === 'list') {
+    const language = flags.language || Object.keys(registry.languages)[0];
+    const lang = registry.languages[language];
+    ensure(lang, `Unsupported language: ${language}`);
+
+    const lines = [`modules (${language}):`];
+    const modules = Object.entries(lang.modules || {}).sort(([a], [b]) => a.localeCompare(b));
+    for (const [moduleId, moduleDef] of modules) {
+      lines.push(`- ${moduleId} (slot: ${moduleDef.slot})`);
+    }
+    process.stdout.write(`${lines.join('\n')}\n`);
+    return;
+  }
+
+  if (sub === 'explain') {
+    const moduleId = flags._[1];
+    ensure(moduleId, 'Usage: ailib modules explain <module> [--language=<lang>]');
+
+    const requestedLanguage = flags.language;
+    const candidates = requestedLanguage
+      ? [[requestedLanguage, registry.languages[requestedLanguage]]]
+      : Object.entries(registry.languages || {});
+
+    if (requestedLanguage) {
+      ensure(registry.languages[requestedLanguage], `Unsupported language: ${requestedLanguage}`);
+    }
+
+    for (const [language, lang] of candidates) {
+      const moduleDef = lang?.modules?.[moduleId];
+      if (!moduleDef) continue;
+      const lines = [
+        `module: ${moduleId}`,
+        `language: ${language}`,
+        `slot: ${moduleDef.slot}`,
+        `requires: ${(moduleDef.requires || []).join(', ') || '(none)'}`,
+        `conflicts_with: ${(moduleDef.conflicts_with || []).join(', ') || '(none)'}`,
+        `doc: languages/${language}/modules/${moduleId}.md`
+      ];
+      process.stdout.write(`${lines.join('\n')}\n`);
+      return;
+    }
+
+    const scope = requestedLanguage ? ` for ${requestedLanguage}` : '';
+    throw new Error(`Unknown module${scope}: ${moduleId}`);
+  }
+
+  throw new Error('Usage: ailib modules list [--language=<lang>] | ailib modules explain <module> [--language=<lang>]');
 }
 
 async function initCommand({ cwd, packageRoot, flags }) {

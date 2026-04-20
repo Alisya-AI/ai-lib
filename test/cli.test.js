@@ -77,6 +77,34 @@ test('run throws for unknown command', async () => {
   );
 });
 
+test('slots list prints canonical slots with metadata', async () => {
+  const output = await captureStdout(async () => {
+    await run(['slots', 'list'], { packageRoot });
+  });
+  assert.match(output, /slots:/);
+  assert.match(output, /- backend_framework \(exclusive\)/);
+  assert.match(output, /- frontend_framework \(exclusive\)/);
+});
+
+test('modules list prints modules for selected language', async () => {
+  const output = await captureStdout(async () => {
+    await run(['modules', 'list', '--language=typescript'], { packageRoot });
+  });
+  assert.match(output, /modules \(typescript\):/);
+  assert.match(output, /- eslint \(slot: linter\)/);
+  assert.match(output, /- nestjs \(slot: backend_framework\)/);
+});
+
+test('modules explain prints module details', async () => {
+  const output = await captureStdout(async () => {
+    await run(['modules', 'explain', 'nextjs'], { packageRoot });
+  });
+  assert.match(output, /module: nextjs/);
+  assert.match(output, /slot: frontend_framework/);
+  assert.match(output, /requires: react/);
+  assert.match(output, /doc: languages\/typescript\/modules\/nextjs\.md/);
+});
+
 test('init creates root config, root lock, and routers with new layout', async () => {
   const cwd = await makeProject();
   await run(['init', '--language=typescript', '--modules=eslint,vitest', '--targets=claude-code,copilot', '--on-conflict=overwrite', '--bare'], { cwd, packageRoot });

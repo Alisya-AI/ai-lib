@@ -77,6 +77,9 @@ ailib add <module> [--workspace=<path>]
 ailib remove <module> [--workspace=<path>]
 ailib doctor [--workspace=<path>]
 ailib uninstall [--all]
+ailib slots list
+ailib modules list [--language=<lang>]
+ailib modules explain <module> [--language=<lang>]
 ```
 
 ## Supported languages
