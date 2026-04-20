@@ -35,6 +35,7 @@ brew install ailib
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
 Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
 Generated module catalog: [docs/module-catalog.md](docs/module-catalog.md).
+Follow-up implementation roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md).
 
 ## Quick start
 
@@ -86,11 +87,11 @@ ailib modules explain <module> [--language=<lang>]
 ## Maintenance commands
 
 ```bash
-npm run registry:build
-npm run registry:check
-npm run catalog:build
-npm run catalog:check
-npm run check
+bun run registry:build
+bun run registry:check
+bun run catalog:build
+bun run catalog:check
+bun run check
 ```
 
 ## Supported languages

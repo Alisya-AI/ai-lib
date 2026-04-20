@@ -1,7 +1,7 @@
 # Module Catalog
 
 This catalog is generated from `registry.json`.
-Run `node tools/generate-module-catalog.mjs` after registry changes.
+Run `bun tools/generate-module-catalog.mjs` after registry changes.
 
 ## Slot Catalog
 

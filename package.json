@@ -18,12 +18,13 @@
     "registry.json"
   ],
   "scripts": {
-    "registry:build": "node tools/sync-registry.mjs",
-    "registry:check": "node tools/sync-registry.mjs --check",
-    "catalog:build": "node tools/generate-module-catalog.mjs",
-    "catalog:check": "node tools/generate-module-catalog.mjs --check",
-    "test": "node --test",
-    "check": "node --test && node tools/sync-registry.mjs --check && node tools/generate-module-catalog.mjs --check"
+    "registry:build": "bun tools/sync-registry.mjs",
+    "registry:check": "bun tools/sync-registry.mjs --check",
+    "catalog:build": "bun tools/generate-module-catalog.mjs",
+    "catalog:check": "bun tools/generate-module-catalog.mjs --check",
+    "typecheck": "bunx tsc --noEmit",
+    "test": "bun test",
+    "check": "bun test && bunx tsc --noEmit && bun tools/sync-registry.mjs --check && bun tools/generate-module-catalog.mjs --check"
   },
   "keywords": [
     "ai",
@@ -35,6 +36,9 @@
   ],
   "license": "Apache-2.0",
   "engines": {
-    "node": ">=18"
+    "bun": ">=1.3.0"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3"
   }
 }

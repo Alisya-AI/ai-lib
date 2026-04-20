@@ -48,7 +48,7 @@ async function run() {
   if (checkOnly) {
     const currentText = await fs.readFile(outputPath, 'utf8');
     if (currentText !== nextText) {
-      process.stderr.write('registry.json is out of sync. Run: node tools/sync-registry.mjs\n');
+      process.stderr.write('registry.json is out of sync. Run: bun tools/sync-registry.mjs\n');
       process.exitCode = 1;
       return;
     }
