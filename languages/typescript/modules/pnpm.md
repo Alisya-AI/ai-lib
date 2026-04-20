@@ -19,7 +19,7 @@ pnpm is the package manager for this repo — npm and yarn are not supported. Th
 ## Layout
 
 - `pnpm-workspace.yaml` declares workspace globs (typically `packages/*` and `services/*`).
-- Each package has its own `package.json` with a scoped name (`@leonardo/<package>`).
+- Each package has its own `package.json` with a scoped name (`@org/<package>`).
 - The root `package.json` holds only dev dependencies used across the repo (prettier, eslint config base, typescript, vitest) and top-level scripts.
 
 ## Catalog (pinned versions)
@@ -31,7 +31,7 @@ pnpm is the package manager for this repo — npm and yarn are not supported. Th
 
 - `pnpm -r <cmd>` runs a script across all packages.
 - `pnpm --filter <pkg> <cmd>` scopes to one package.
-- `pnpm --filter "@leonardo/foo..." <cmd>` runs for a package and its dependencies.
+- `pnpm --filter "@org/foo..." <cmd>` runs for a package and its dependencies.
 - Never `cd` into a package to run a script — always use filters from the repo root so the lockfile stays consistent.
 
 ## Lockfile

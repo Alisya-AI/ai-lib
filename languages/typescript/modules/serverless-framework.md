@@ -27,7 +27,7 @@ This service deploys to AWS Lambda via the Serverless Framework. All infrastruct
 ## Stages and environments
 
 - Stages: `dev`, `staging`, `prod`. The `stage` is `${opt:stage, 'dev'}`.
-- Never hardcode account IDs, ARNs, or environment-specific values. Pull from SSM Parameter Store or Secrets Manager via `${ssm:/leonardo/${self:provider.stage}/…}`.
+- Never hardcode account IDs, ARNs, or environment-specific values. Pull from SSM Parameter Store or Secrets Manager via `${ssm:/service/${self:provider.stage}/…}`.
 - `serverless-dotenv-plugin` is used for local dev only — never commit `.env.{stage}` files.
 
 ## Plugins
