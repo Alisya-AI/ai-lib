@@ -1,62 +1,96 @@
 # ailib
 
-`ailib` is a universal AI context-injection engine built around pointer-based context routing.
+`ailib` generates and maintains AI instruction files for your repo from a language + module + target configuration.
+
+## What it does
+
+- Creates and updates `.ailib/` pointer files from the built-in registry.
+- Generates target-specific instruction files (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`).
+- Supports monorepos with root + service workspaces.
+- Verifies generated files with `ailib doctor`.
 
 ## Install
+
+### npm
 
 ```bash
 npm install -g @ailib/cli
 ```
 
-### Homebrew (without npm)
+### Homebrew
 
-`ailib` can also be installed through Homebrew using a formula in this repository.
-
-#### Current install (in-repo formula, HEAD)
+Current in-repo formula (HEAD):
 
 ```bash
 brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
 ```
 
-This install path does not require npm on your machine; Homebrew installs the required Node runtime dependency.
-
-#### Target install UX (`brew install ailib`)
-
-To get native `brew install ailib`, publish a dedicated tap:
+Planned stable user flow via tap:
 
 ```bash
 brew tap Alisya-AI/ailib
 brew install ailib
 ```
 
-See [docs/homebrew-publishing.md](docs/homebrew-publishing.md) for full publishing steps (tap path and Homebrew Core path).
+Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
 
-### Why not a shell rewrite?
+## Quick start
 
-- The CLI performs non-trivial JSON/state merging and workspace orchestration that is safer in Node.
-- Shell portability across macOS/Linux and maintenance complexity would be significantly higher.
-- Homebrew distribution provides a better install UX without replacing the existing, tested JS CLI.
-
-### Homebrew maintenance notes
-
-- Publish immutable release artifacts (versioned tags) and use `url` + `sha256` in the tap formula for stable installs.
-- Keep the in-repo formula as HEAD/dev convenience, and publish stable updates in `Alisya-AI/homebrew-ailib`.
-
-## Commands
+Initialize in the current repo:
 
 ```bash
-ailib init
+ailib init --language=typescript --modules=eslint,vitest --targets=claude-code,copilot
+```
+
+Update generated outputs:
+
+```bash
 ailib update
-ailib add <module>
-ailib remove <module>
+```
+
+Add/remove a module:
+
+```bash
+ailib add prettier
+ailib remove prettier
+```
+
+Validate workspace files:
+
+```bash
 ailib doctor
+```
+
+Uninstall generated files:
+
+```bash
 ailib uninstall
 ```
 
-## Repository Layout
+## CLI commands
 
-- `registry.json` source-of-truth mapping for languages/modules/targets
-- `schema/` JSON schemas for registry and module metadata
-- `core/` global behavior and architecture guidance
-- `languages/` per-language core + modules
-- `targets/` IDE router templates
+```bash
+ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]
+ailib update [--workspace=<path>]
+ailib add <module> [--workspace=<path>]
+ailib remove <module> [--workspace=<path>]
+ailib doctor [--workspace=<path>]
+ailib uninstall [--all]
+```
+
+## Supported languages
+
+- `typescript`
+- `javascript`
+- `python`
+- `go`
+- `rust`
+- `java`
+
+## Repository layout
+
+- `registry.json`: source of truth for languages, modules, targets, and compatibility rules.
+- `schema/`: JSON schemas used by registry/config data.
+- `languages/`: core language docs and module docs used for generated pointers.
+- `targets/`: output templates per IDE/tool target.
+- `Formula/ailib.rb`: Homebrew formula used for installation.
