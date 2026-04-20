@@ -8,7 +8,10 @@
     "test_runner",
     "styling",
     "framework",
-    "runtime"
+    "runtime",
+    "infra",
+    "bundler",
+    "validation"
   ],
   "languages": {
     "typescript": {
@@ -19,8 +22,13 @@
         "biome": { "slot": "linter", "conflicts_with": ["eslint", "prettier"] },
         "prettier": { "slot": "formatter", "conflicts_with": ["biome"] },
         "bun": { "slot": "package_manager", "conflicts_with": ["npm", "pnpm", "yarn"] },
+        "pnpm": { "slot": "package_manager", "conflicts_with": ["npm", "yarn", "bun"] },
         "vitest": { "slot": "test_runner", "conflicts_with": ["jest"] },
-        "tailwind": { "slot": "styling" }
+        "tailwind": { "slot": "styling" },
+        "serverless-framework": { "slot": "infra", "requires": ["aws-lambda"], "conflicts_with": ["sst", "cdk", "sam"] },
+        "aws-lambda": { "slot": "runtime", "conflicts_with": ["cloudflare-workers", "vercel-functions"] },
+        "esbuild": { "slot": "bundler", "conflicts_with": ["webpack", "rollup", "tsup"] },
+        "zod": { "slot": "validation", "conflicts_with": ["io-ts", "yup", "joi"] }
       }
     },
     "javascript": {
