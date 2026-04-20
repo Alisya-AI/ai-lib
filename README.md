@@ -11,13 +11,25 @@ npm install -g @ailib/cli
 ### Homebrew (without npm)
 
 `ailib` can also be installed through Homebrew using a formula in this repository.
-This is currently a **HEAD install** (latest `main`) until versioned release artifacts are published.
+
+#### Current install (in-repo formula, HEAD)
 
 ```bash
 brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
 ```
 
 This install path does not require npm on your machine; Homebrew installs the required Node runtime dependency.
+
+#### Target install UX (`brew install ailib`)
+
+To get native `brew install ailib`, publish a dedicated tap:
+
+```bash
+brew tap Alisya-AI/ailib
+brew install ailib
+```
+
+See [docs/homebrew-publishing.md](docs/homebrew-publishing.md) for full publishing steps (tap path and Homebrew Core path).
 
 ### Why not a shell rewrite?
 
@@ -27,8 +39,8 @@ This install path does not require npm on your machine; Homebrew installs the re
 
 ### Homebrew maintenance notes
 
-- Publish immutable release artifacts (or versioned tags) and update `Formula/ailib.rb` URL + SHA256 per release.
-- If you move to a dedicated tap, copy this formula into that tap and keep automated version/checksum bumps in CI.
+- Publish immutable release artifacts (versioned tags) and use `url` + `sha256` in the tap formula for stable installs.
+- Keep the in-repo formula as HEAD/dev convenience, and publish stable updates in `Alisya-AI/homebrew-ailib`.
 
 ## Commands
 
