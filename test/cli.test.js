@@ -5,7 +5,7 @@ import { constants as fsConstants } from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 
-import { run } from '../src/cli.js';
+import { run } from '../src/cli.ts';
 
 const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 

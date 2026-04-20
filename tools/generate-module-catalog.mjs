@@ -16,7 +16,7 @@ function renderCatalog(registry) {
   lines.push('# Module Catalog');
   lines.push('');
   lines.push('This catalog is generated from `registry.json`.');
-  lines.push('Run `node tools/generate-module-catalog.mjs` after registry changes.');
+  lines.push('Run `bun tools/generate-module-catalog.mjs` after registry changes.');
   lines.push('');
   lines.push('## Slot Catalog');
   lines.push('');
@@ -76,7 +76,7 @@ async function run() {
   if (checkOnly) {
     const currentText = await fs.readFile(outputPath, 'utf8');
     if (currentText !== nextText) {
-      process.stderr.write('docs/module-catalog.md is out of sync. Run: node tools/generate-module-catalog.mjs\n');
+      process.stderr.write('docs/module-catalog.md is out of sync. Run: bun tools/generate-module-catalog.mjs\n');
       process.exitCode = 1;
       return;
     }

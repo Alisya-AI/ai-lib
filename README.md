@@ -86,11 +86,11 @@ ailib modules explain <module> [--language=<lang>]
 ## Maintenance commands
 
 ```bash
-npm run registry:build
-npm run registry:check
-npm run catalog:build
-npm run catalog:check
-npm run check
+bun run registry:build
+bun run registry:check
+bun run catalog:build
+bun run catalog:check
+bun run check
 ```
 
 ## Supported languages
