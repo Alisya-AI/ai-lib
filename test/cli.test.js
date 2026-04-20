@@ -31,6 +31,52 @@ async function exists(filePath) {
   }
 }
 
+async function captureStdout(fn) {
+  const writes = [];
+  const originalWrite = process.stdout.write;
+  process.stdout.write = (chunk, encoding, callback) => {
+    writes.push(typeof chunk === 'string' ? chunk : chunk.toString());
+    if (typeof callback === 'function') callback();
+    return true;
+  };
+
+  try {
+    await fn();
+    return writes.join('');
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+}
+
+async function runDoctorAndCapture(root) {
+  process.exitCode = 0;
+  const output = await captureStdout(async () => {
+    await run(['doctor'], { cwd: root, packageRoot });
+  });
+  const exitCode = process.exitCode ?? 0;
+  process.exitCode = 0;
+  return { output, exitCode };
+}
+
+test('run prints help for empty argv and --help', async () => {
+  const outputEmpty = await captureStdout(async () => {
+    await run([], { packageRoot });
+  });
+  assert.match(outputEmpty, /ailib commands:/);
+
+  const outputHelp = await captureStdout(async () => {
+    await run(['--help'], { packageRoot });
+  });
+  assert.match(outputHelp, /ailib init/);
+});
+
+test('run throws for unknown command', async () => {
+  await assert.rejects(
+    run(['unknown-command'], { packageRoot }),
+    /Unknown command: unknown-command/
+  );
+});
+
 test('init creates root config, root lock, and routers with new layout', async () => {
   const cwd = await makeProject();
   await run(['init', '--language=typescript', '--modules=eslint,vitest', '--targets=claude-code,copilot', '--on-conflict=overwrite', '--bare'], { cwd, packageRoot });
@@ -85,6 +131,73 @@ test('doctor validates all workspaces and keeps healthy status', async () => {
   process.exitCode = 0;
   await run(['doctor'], { cwd: root, packageRoot });
   assert.equal(process.exitCode ?? 0, 0);
+});
+
+test('doctor fails when required pointer files are missing', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+
+  await fs.rm(path.join(root, 'apps', 'web', '.ailib', 'standards.md'));
+
+  const { output, exitCode } = await runDoctorAndCapture(root);
+
+  assert.match(output, /doctor failed:/);
+  assert.match(output, /Missing pointer file: \.ailib\/standards\.md/);
+  assert.equal(exitCode, 1);
+});
+
+test('doctor reports missing frontmatter fields for module pointers', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+
+  const modulePath = path.join(root, 'apps', 'web', '.ailib', 'modules', 'biome.md');
+  const original = await fs.readFile(modulePath, 'utf8');
+  const fieldPatterns = [/^updated:.*\n/mu, /^slot:.*\n/mu];
+  const mutated = fieldPatterns.reduce((text, pattern) => text.replace(pattern, ''), original);
+  await fs.writeFile(modulePath, mutated, 'utf8');
+
+  const { output, exitCode } = await runDoctorAndCapture(root);
+
+  assert.match(output, /doctor failed:/);
+  assert.match(output, /Frontmatter missing 'updated': \.ailib\/modules\/biome\.md/);
+  assert.match(output, /Frontmatter missing 'slot': \.ailib\/modules\/biome\.md/);
+  assert.equal(exitCode, 1);
+});
+
+test('uninstall at monorepo root without --all removes root workspace artifacts but keeps lock', async () => {
+  const root = await makeMonorepo();
+  const serviceDir = path.join(root, 'services', 'ml');
+
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], { cwd: serviceDir, packageRoot });
+
+  await run(['uninstall'], { cwd: root, packageRoot });
+
+  assert.equal(await exists(path.join(root, '.ailib')), false);
+  assert.equal(await exists(path.join(root, 'ailib.config.json')), false);
+  const lockPath = path.join(root, 'ailib.lock');
+  assert.equal(await exists(lockPath), true);
+  const lock = JSON.parse(await fs.readFile(lockPath, 'utf8'));
+  assert.ok(lock.workspaces['services/ml']);
+  assert.equal(await exists(path.join(serviceDir, '.ailib')), true);
+  assert.equal(await exists(path.join(serviceDir, 'ailib.config.json')), true);
+});
+
+test('uninstall in service workspace removes service and keeps root managed', async () => {
+  const root = await makeMonorepo();
+  const serviceDir = path.join(root, 'services', 'ml');
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], { cwd: serviceDir, packageRoot });
+
+  await run(['uninstall'], { cwd: serviceDir, packageRoot });
+
+  assert.equal(await exists(path.join(serviceDir, '.ailib')), false);
+  assert.equal(await exists(path.join(serviceDir, 'ailib.config.json')), false);
+  assert.equal(await exists(path.join(root, '.ailib')), true);
+  assert.equal(await exists(path.join(root, 'ailib.config.json')), true);
+  assert.equal(await exists(path.join(root, 'ailib.lock')), true);
 });
 
 test('uninstall --all at root removes root and service outputs', async () => {
