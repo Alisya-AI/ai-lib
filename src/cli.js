@@ -313,12 +313,8 @@ async function uninstallWorkspace(workspaceDir, config, registry) {
     for (const target of config.targets) {
       const targetDef = registry.targets[target];
       if (!targetDef) continue;
-      if (target === 'windsurf') {
-        await rmIfExists(path.join(workspaceDir, '.windsurf/rules/ailib.md'));
-        if (isRootWorkspaceConfig(config)) await rmIfExists(path.join(workspaceDir, '.windsurfrules'));
-      } else {
-        await rmIfExists(path.join(workspaceDir, targetDef.output));
-      }
+      await rmIfExists(path.join(workspaceDir, targetDef.output));
+      if (targetDef.root_output && isRootWorkspaceConfig(config)) await rmIfExists(path.join(workspaceDir, targetDef.root_output));
       if (target === 'copilot' && isRootWorkspaceConfig(config)) {
         await rmIfExists(path.join(workspaceDir, '.github/instructions'));
       }
@@ -350,7 +346,7 @@ async function applyWorkspaceUpdate({ packageRoot, rootDir, workspaceOverride, f
   for (const workspaceDir of workspaceDirs) {
     const state = stateMap.get(workspaceDir);
     const onConflict = forceOnConflict || state.effective.on_conflict || 'merge';
-    await generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates: stateMap });
+    await generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates: stateMap, registry });
   }
 
   await writeRootLock({ rootDir, packageRoot, packageVersion: packageJson.version, registryRef: rootConfig.registry_ref || registry.version, allStates: stateMap });
@@ -395,47 +391,38 @@ async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir
   }
 }
 
-async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates }) {
+async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates, registry }) {
   const targetSet = new Set(state.effective.targets || []);
+  const atRoot = path.resolve(workspaceDir) === path.resolve(rootDir);
 
-  if (targetSet.has('claude-code')) {
-    const rendered = renderRouterDoc({ label: 'Claude Code', workspaceDir, rootDir, state });
-    await writeManagedFile({ outPath: path.join(workspaceDir, 'CLAUDE.md'), rendered, onConflict });
-  }
+  for (const targetId of targetSet) {
+    const targetDef = registry.targets[targetId];
+    if (!targetDef || targetDef.mode === 'copilot') continue;
 
-  if (targetSet.has('cursor')) {
-    const frontmatter = path.resolve(workspaceDir) === path.resolve(rootDir)
-      ? '---\ndescription: ailib context router\nalwaysApply: true\n---\n\n'
-      : '---\ndescription: ailib context router\nglobs:\n  - "./**"\nalwaysApply: false\n---\n\n';
-    const rendered = `${frontmatter}${renderRouterDoc({ label: 'Cursor', workspaceDir, rootDir, state })}`;
-    await writeManagedFile({ outPath: path.join(workspaceDir, '.cursor/rules/ailib.mdc'), rendered, onConflict });
-  }
+    const label = targetDef.display || targetId;
+    const frontmatter = targetDef.frontmatter
+      ? (atRoot ? targetDef.frontmatter.root : targetDef.frontmatter.workspace)
+      : '';
+    const rendered = `${frontmatter || ''}${renderRouterDoc({ label, workspaceDir, rootDir, state })}`;
+    await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.output), rendered, onConflict });
 
-  if (targetSet.has('windsurf')) {
-    const rendered = renderRouterDoc({ label: 'Windsurf', workspaceDir, rootDir, state });
-    await writeManagedFile({ outPath: path.join(workspaceDir, '.windsurf/rules/ailib.md'), rendered, onConflict });
-    if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
-      await writeManagedFile({ outPath: path.join(workspaceDir, '.windsurfrules'), rendered, onConflict });
+    if (atRoot && targetDef.root_output) {
+      await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.root_output), rendered, onConflict });
     }
   }
 
-  if (targetSet.has('jetbrains')) {
-    const rendered = renderRouterDoc({ label: 'JetBrains AI Assistant', workspaceDir, rootDir, state });
-    await writeManagedFile({ outPath: path.join(workspaceDir, '.junie/guidelines.md'), rendered, onConflict });
-  }
-
-  if (path.resolve(workspaceDir) === path.resolve(rootDir) && targetSet.has('copilot')) {
+  if (atRoot && targetSet.has('copilot')) {
     const scopedStates = [...allStates.entries()].filter(([, s]) => (s.effective.targets || []).includes('copilot'));
     const sections = scopedStates
       .map(([dir, s]) => {
         const label = workspaceLabelFor(rootDir, dir);
-        return `## Workspace: ${label}\n\n${renderRouterDoc({ label: 'GitHub Copilot', workspaceDir: dir, rootDir, state: s }).trim()}\n`;
+        return `## Workspace: ${label}\n\n${renderRouterDoc({ label: registry.targets.copilot?.display || 'GitHub Copilot', workspaceDir: dir, rootDir, state: s }).trim()}\n`;
       })
       .join('\n');
 
     await writeManagedFile({
-      outPath: path.join(rootDir, '.github/copilot-instructions.md'),
-      rendered: `# ailib Router (GitHub Copilot)\n\n${sections}`,
+      outPath: path.join(rootDir, registry.targets.copilot?.output || '.github/copilot-instructions.md'),
+      rendered: `# ailib Router (${registry.targets.copilot?.display || 'GitHub Copilot'})\n\n${sections}`,
       onConflict
     });
 
@@ -443,7 +430,7 @@ async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConfli
       const rel = workspaceLabelFor(rootDir, dir);
       const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
       const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
-      const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: 'GitHub Copilot', workspaceDir: dir, rootDir, state: s })}`;
+      const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: registry.targets.copilot?.display || 'GitHub Copilot', workspaceDir: dir, rootDir, state: s })}`;
       await writeManagedFile({ outPath: path.join(rootDir, '.github/instructions', fileName), rendered: content, onConflict });
     }
   }
