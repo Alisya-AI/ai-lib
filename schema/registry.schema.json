@@ -11,6 +11,18 @@
       "type": "object",
       "additionalProperties": { "type": "string" }
     },
+    "slot_alias_meta": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["replacement", "deprecated_since", "remove_in"],
+        "properties": {
+          "replacement": { "type": "string" },
+          "deprecated_since": { "type": "string" },
+          "remove_in": { "type": "string" }
+        }
+      }
+    },
     "slot_defs": {
       "type": "object",
       "additionalProperties": {

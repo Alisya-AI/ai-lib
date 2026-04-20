@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -39,6 +40,7 @@ test('registry slots follow naming and coverage rules', async () => {
   const slots = registry.slots || [];
   const slotDefs = registry.slot_defs || {};
   const slotAliases = registry.slot_aliases || {};
+  const aliasMeta = registry.slot_alias_meta || {};
 
   assert.ok(slots.length > 0, 'registry.slots must not be empty');
 
@@ -66,6 +68,27 @@ test('registry slots follow naming and coverage rules', async () => {
   for (const [alias, target] of Object.entries(slotAliases)) {
     assert.ok(!slotSet.has(alias), `slot_aliases key '${alias}' must not be canonical slot`);
     assert.ok(slotSet.has(target), `slot_aliases target '${target}' must exist in slots`);
+  }
+
+  assert.deepEqual(
+    Object.keys(aliasMeta).sort(),
+    Object.keys(slotAliases).sort(),
+    'slot_alias_meta keys must match slot_aliases keys'
+  );
+
+  for (const [alias, meta] of Object.entries(aliasMeta)) {
+    assert.equal(
+      meta.replacement,
+      slotAliases[alias],
+      `slot_alias_meta.${alias}.replacement must match slot_aliases target`
+    );
+    for (const key of ['deprecated_since', 'remove_in']) {
+      assert.match(
+        meta[key],
+        /^\d+\.\d+\.\d+$/u,
+        `slot_alias_meta.${alias}.${key} must be semver-like`
+      );
+    }
   }
 });
 
@@ -106,4 +129,15 @@ test('registry modules use canonical slots and docs match', async () => {
       );
     }
   }
+});
+
+test('split registry and generated catalog are in sync', () => {
+  const run = (script, ...args) => execFileSync(
+    process.execPath,
+    [path.join(packageRoot, script), ...args],
+    { stdio: 'pipe', encoding: 'utf8' }
+  );
+
+  run('tools/sync-registry.mjs', '--check');
+  run('tools/generate-module-catalog.mjs', '--check');
 });
