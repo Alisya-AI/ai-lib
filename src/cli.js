@@ -580,7 +580,6 @@ function mergeModules({ registry, language, parentModules, localModules }) {
 
     const existingIdx = result.indexOf(mod);
     if (existingIdx >= 0) {
-      if (owners[existingIdx] === 'inherited') owners[existingIdx] = 'inherited';
       continue;
     }
 
