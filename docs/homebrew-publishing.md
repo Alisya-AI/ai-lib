@@ -1,22 +1,27 @@
-# Publishing `ailib` to Homebrew
+# Homebrew publishing for `ailib`
 
-This project supports two Homebrew distribution paths.
+This document explains exactly how to publish and update `ailib` for Homebrew users.
 
-## Path 1 (recommended now): dedicated tap (`Alisya-AI/homebrew-ailib`)
+## Current state
 
-Use this path to provide `brew install ailib` after users tap once.
+- In this repo, `Formula/ailib.rb` is a HEAD formula.
+- Users can install directly from this repo:
 
-### 1) Create the tap repository
+```bash
+brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
+```
 
-- Create GitHub repository: `Alisya-AI/homebrew-ailib`
-- Add file: `Formula/ailib.rb`
-- Copy the formula from this repository as your starting point.
+## Recommended distribution: dedicated tap
 
-### 2) Switch the tap formula to stable releases
+Use a tap repo so users can run `brew install ailib` after one-time tap setup.
 
-Use immutable source artifacts (tag tarballs) instead of HEAD-only installs.
+### One-time setup
 
-Example stable formula shape:
+1. Create tap repository: `Alisya-AI/homebrew-ailib`.
+2. Add `Formula/ailib.rb`.
+3. Start from the formula in this repository, then make it a stable formula (`url` + `sha256`).
+
+Stable formula shape:
 
 ```ruby
 class Ailib < Formula
@@ -38,20 +43,18 @@ class Ailib < Formula
 end
 ```
 
-### 3) Release workflow per version
+### Release workflow (every version)
 
-For each new version:
-
-1. Create and push tag in `Alisya-AI/ai-lib` (for example `v1.0.1`).
-2. Download the tag tarball and compute SHA256:
+1. Tag and push a release in `Alisya-AI/ai-lib` (example: `v1.0.1`).
+2. Compute tarball SHA256:
    ```bash
    curl -L -o /tmp/ailib-v1.0.1.tar.gz https://github.com/Alisya-AI/ai-lib/archive/refs/tags/v1.0.1.tar.gz
    shasum -a 256 /tmp/ailib-v1.0.1.tar.gz
    ```
-3. Update tap `Formula/ailib.rb` with new `url` and `sha256`.
-4. Commit and push in `Alisya-AI/homebrew-ailib`.
+3. Update tap formula `url` and `sha256`.
+4. Commit and push to `Alisya-AI/homebrew-ailib`.
 
-### 4) User install command
+### User install commands
 
 ```bash
 brew tap Alisya-AI/ailib
@@ -64,20 +67,20 @@ Equivalent explicit form:
 brew install Alisya-AI/ailib/ailib
 ```
 
-## Path 2: Homebrew Core (`brew install ailib` globally, no tap)
+## Optional path: Homebrew Core
 
-To remove the tap requirement:
+If accepted into `Homebrew/homebrew-core`, users can install without tapping:
 
-1. Ensure formula is stable (`url` + `sha256`, no mutable-only HEAD dependence).
-2. Run local checks:
+```bash
+brew install ailib
+```
+
+Before submitting to Homebrew Core:
+
+1. Ensure the formula uses immutable release artifacts (`url` + `sha256`).
+2. Run:
    ```bash
    brew audit --new-formula --strict Formula/ailib.rb
    brew test Formula/ailib.rb
    ```
-3. Submit formula PR to `Homebrew/homebrew-core`.
-4. After merge, users can run:
-   ```bash
-   brew install ailib
-   ```
-
-Homebrew Core acceptance depends on its review standards (quality, maintenance, and ecosystem fit).
+3. Open PR to `Homebrew/homebrew-core`.
