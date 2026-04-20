@@ -11,6 +11,7 @@ const LOCK_FILE = 'ailib.lock';
 const AUTO_DISCOVERY_MAX_DEPTH = 4;
 const GLOB_DISCOVERY_MAX_DEPTH = 32;
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.venv']);
+const WARNED_SLOT_ALIASES = new Set();
 
 export async function run(argv, options = {}) {
   const cwd = options.cwd ?? process.cwd();
@@ -1097,5 +1098,14 @@ function uniqueList(items) {
 function canonicalSlot(registry, slot) {
   if (!slot) return null;
   const aliases = registry.slot_aliases || {};
-  return aliases[slot] || slot;
+  const resolved = aliases[slot] || slot;
+  if (resolved !== slot && !WARNED_SLOT_ALIASES.has(slot)) {
+    const aliasMeta = registry.slot_alias_meta?.[slot];
+    const removeIn = aliasMeta?.remove_in ? ` and is planned for removal in ${aliasMeta.remove_in}` : '';
+    process.stderr.write(
+      `warning: slot alias '${slot}' is deprecated; use '${resolved}'${removeIn}\n`
+    );
+    WARNED_SLOT_ALIASES.add(slot);
+  }
+  return resolved;
 }

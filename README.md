@@ -34,6 +34,7 @@ brew install ailib
 
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
 Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
+Generated module catalog: [docs/module-catalog.md](docs/module-catalog.md).
 
 ## Quick start
 
@@ -82,6 +83,16 @@ ailib modules list [--language=<lang>]
 ailib modules explain <module> [--language=<lang>]
 ```
 
+## Maintenance commands
+
+```bash
+npm run registry:build
+npm run registry:check
+npm run catalog:build
+npm run catalog:check
+npm run check
+```
+
 ## Supported languages
 
 - `typescript`
@@ -103,8 +114,10 @@ ailib modules explain <module> [--language=<lang>]
 
 ## Repository layout
 
-- `registry.json`: source of truth for languages, modules, targets, and compatibility rules.
+- `registry/`: split registry sources (`core.json` and `registry/languages/*.json`).
+- `registry.json`: generated registry artifact consumed by the CLI.
 - `schema/`: JSON schemas used by registry/config data.
 - `languages/`: core language docs and module docs used for generated pointers.
 - `targets/`: output templates per IDE/tool target.
+- `tools/`: generation utilities for registry and docs catalogs.
 - `Formula/ailib.rb`: Homebrew formula used for installation.

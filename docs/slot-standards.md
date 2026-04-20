@@ -35,9 +35,16 @@ All canonical slots must be listed in both:
 
 - Renamed legacy slots are captured in `slot_aliases`.
 - `slot_aliases` map legacy names to canonical slot names.
+- `slot_alias_meta` records deprecation lifecycle for each alias.
 - Alias keys must not also appear in `slots`.
 - Alias targets must always exist in `slots`.
 - New module definitions should always use canonical slot names.
+
+Each alias metadata entry includes:
+
+- `replacement`: canonical slot name
+- `deprecated_since`: semver string
+- `remove_in`: target semver for removal
 
 ## Module constraints
 

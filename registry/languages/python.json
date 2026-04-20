@@ -1,0 +1,12 @@
+{
+  "display": "Python",
+  "path": "languages/python/core.md",
+  "modules": {
+    "ruff": { "slot": "linter" },
+    "black": { "slot": "formatter", "conflicts_with": ["ruff-format"] },
+    "poetry": { "slot": "package_manager", "conflicts_with": ["uv", "pdm", "pipenv"] },
+    "uv": { "slot": "package_manager", "conflicts_with": ["poetry", "pdm", "pipenv"] },
+    "pytest": { "slot": "test_runner" },
+    "fastapi": { "slot": "backend_framework" }
+  }
+}

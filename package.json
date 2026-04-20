@@ -12,12 +12,18 @@
     "schema",
     "core",
     "languages",
+    "registry",
     "targets",
+    "tools",
     "registry.json"
   ],
   "scripts": {
+    "registry:build": "node tools/sync-registry.mjs",
+    "registry:check": "node tools/sync-registry.mjs --check",
+    "catalog:build": "node tools/generate-module-catalog.mjs",
+    "catalog:check": "node tools/generate-module-catalog.mjs --check",
     "test": "node --test",
-    "check": "node --test"
+    "check": "node --test && node tools/sync-registry.mjs --check && node tools/generate-module-catalog.mjs --check"
   },
   "keywords": [
     "ai",
