@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ailib.dev/schema/module.schema.json",
+  "type": "object",
+  "required": ["id", "version", "updated"],
+  "properties": {
+    "id": { "type": "string" },
+    "display": { "type": "string" },
+    "version": { "type": "string" },
+    "updated": { "type": "string", "format": "date" },
+    "language": { "type": "string" },
+    "core": { "type": ["boolean", "string"] },
+    "slot": { "type": "string" },
+    "requires": { "type": "array", "items": { "type": "string" } },
+    "conflicts_with": { "type": "array", "items": { "type": "string" } },
+    "tested_with": { "type": "array", "items": { "type": "string" } },
+    "deprecated": { "type": ["boolean", "string"] }
+  },
+  "anyOf": [
+    { "required": ["language"] },
+    { "required": ["core"] }
+  ]
+}

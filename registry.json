@@ -1,0 +1,66 @@
+{
+  "version": "1.0.0",
+  "schema": "schema/registry.schema.json",
+  "slots": [
+    "linter",
+    "formatter",
+    "package_manager",
+    "test_runner",
+    "styling",
+    "framework",
+    "runtime"
+  ],
+  "languages": {
+    "typescript": {
+      "display": "TypeScript",
+      "path": "languages/typescript/core.md",
+      "modules": {
+        "eslint": { "slot": "linter", "conflicts_with": ["biome"] },
+        "biome": { "slot": "linter", "conflicts_with": ["eslint", "prettier"] },
+        "prettier": { "slot": "formatter", "conflicts_with": ["biome"] },
+        "bun": { "slot": "package_manager", "conflicts_with": ["npm", "pnpm", "yarn"] },
+        "vitest": { "slot": "test_runner", "conflicts_with": ["jest"] },
+        "tailwind": { "slot": "styling" }
+      }
+    },
+    "javascript": {
+      "display": "JavaScript",
+      "path": "languages/javascript/core.md",
+      "modules": {}
+    },
+    "python": {
+      "display": "Python",
+      "path": "languages/python/core.md",
+      "modules": {
+        "ruff": { "slot": "linter" },
+        "black": { "slot": "formatter", "conflicts_with": ["ruff-format"] },
+        "poetry": { "slot": "package_manager", "conflicts_with": ["uv", "pdm", "pipenv"] },
+        "uv": { "slot": "package_manager", "conflicts_with": ["poetry", "pdm", "pipenv"] },
+        "pytest": { "slot": "test_runner" },
+        "fastapi": { "slot": "framework" }
+      }
+    },
+    "go": {
+      "display": "Go",
+      "path": "languages/go/core.md",
+      "modules": {}
+    },
+    "rust": {
+      "display": "Rust",
+      "path": "languages/rust/core.md",
+      "modules": {}
+    },
+    "java": {
+      "display": "Java",
+      "path": "languages/java/core.md",
+      "modules": {}
+    }
+  },
+  "targets": {
+    "claude-code": { "output": "CLAUDE.md", "template": "targets/claude-code.md.tmpl" },
+    "cursor": { "output": ".cursor/rules/ailib.mdc", "template": "targets/cursor.mdc.tmpl" },
+    "windsurf": { "output": ".windsurfrules", "template": "targets/windsurf.md.tmpl" },
+    "copilot": { "output": ".github/copilot-instructions.md", "template": "targets/copilot.md.tmpl" },
+    "jetbrains": { "output": ".junie/guidelines.md", "template": "targets/jetbrains.md.tmpl" }
+  }
+}
