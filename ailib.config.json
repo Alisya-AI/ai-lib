@@ -12,7 +12,7 @@
     "zod",
     "pnpm"
   ],
-  "targets": ["claude-code", "cursor", "windsurf", "copilot"],
+  "targets": ["claude-code", "cursor", "windsurf", "copilot", "openai", "gemini"],
   "docs_path": "docs/",
   "on_conflict": "merge"
 }

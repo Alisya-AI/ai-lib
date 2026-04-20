@@ -90,6 +90,18 @@ test('init creates root config, root lock, and routers with new layout', async (
   assert.equal(await exists(path.join(cwd, '.github/copilot-instructions.md')), true);
 });
 
+test('init supports generic target outputs including openai and gemini', async () => {
+  const cwd = await makeProject();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,cursor,windsurf,openai,gemini', '--on-conflict=overwrite', '--bare'], { cwd, packageRoot });
+
+  assert.equal(await exists(path.join(cwd, 'CLAUDE.md')), true);
+  assert.equal(await exists(path.join(cwd, '.cursor/rules/ailib.mdc')), true);
+  assert.equal(await exists(path.join(cwd, '.windsurf/rules/ailib.md')), true);
+  assert.equal(await exists(path.join(cwd, '.windsurfrules')), true);
+  assert.equal(await exists(path.join(cwd, 'AGENTS.md')), true);
+  assert.equal(await exists(path.join(cwd, 'GEMINI.md')), true);
+});
+
 test('monorepo update inherits root and supports service override modules', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,cursor,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });

@@ -87,6 +87,16 @@ ailib uninstall [--all]
 - `rust`
 - `java`
 
+## Supported targets
+
+- `claude-code`
+- `cursor`
+- `windsurf`
+- `copilot`
+- `jetbrains`
+- `openai`
+- `gemini`
+
 ## Repository layout
 
 - `registry.json`: source of truth for languages, modules, targets, and compatibility rules.
