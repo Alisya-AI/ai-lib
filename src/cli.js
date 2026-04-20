@@ -9,6 +9,7 @@ const AILIB_BLOCK_END = '<!-- ailib:end -->';
 const CONFIG_FILE = 'ailib.config.json';
 const LOCK_FILE = 'ailib.lock';
 const AUTO_DISCOVERY_MAX_DEPTH = 4;
+const GLOB_DISCOVERY_MAX_DEPTH = 32;
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.venv']);
 
 export async function run(argv, options = {}) {
@@ -65,8 +66,16 @@ function parseFlags(args) {
       flags._.push(arg);
       continue;
     }
-    const [k, v = 'true'] = arg.slice(2).split('=');
-    flags[k] = v;
+    const eqIndex = arg.indexOf('=');
+    if (eqIndex < 0) {
+      flags[arg.slice(2)] = true;
+      continue;
+    }
+    const k = arg.slice(2, eqIndex);
+    const raw = arg.slice(eqIndex + 1);
+    if (raw === 'true') flags[k] = true;
+    else if (raw === 'false') flags[k] = false;
+    else flags[k] = raw;
   }
   return flags;
 }
@@ -85,7 +94,7 @@ async function initCommand({ cwd, packageRoot, flags }) {
 
   validateModuleSelection({ registry, language, modules });
 
-  if (inServiceContext && flags['no-inherit'] !== 'true') {
+  if (inServiceContext && flags['no-inherit'] !== true) {
     const projectRoot = path.resolve(cwd);
     const rel = toPosix(path.relative(projectRoot, path.join(nearestRoot, CONFIG_FILE)));
     const config = {
@@ -115,7 +124,7 @@ async function initCommand({ cwd, packageRoot, flags }) {
   };
 
   const workspacePatterns = splitCsv(flags.workspaces);
-  if (flags.bare !== 'true') {
+  if (flags.bare !== true) {
     config.workspaces = workspacePatterns.length ? workspacePatterns : ['apps/*', 'services/*'];
   }
 
@@ -265,13 +274,13 @@ async function uninstallCommand({ cwd, packageRoot, flags }) {
   const atRoot = path.resolve(context.workspaceDir) === path.resolve(context.rootDir);
   const monorepo = Boolean(rootConfig?.workspaces);
 
-  if (atRoot && monorepo && flags.all !== 'true') {
+  if (atRoot && monorepo && flags.all !== true) {
     await uninstallWorkspace(context.rootDir, rootConfig, registry);
     process.stdout.write('ailib uninstalled\n');
     return;
   }
 
-  if (atRoot && monorepo && flags.all === 'true') {
+  if (atRoot && monorepo && flags.all === true) {
     const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig });
     for (const workspaceDir of workspaceDirs) {
       const cfgPath = path.join(workspaceDir, CONFIG_FILE);
@@ -737,7 +746,11 @@ async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }) {
 
 async function discoverServiceWorkspaces({ rootDir, rootConfig }) {
   const hasPatterns = Array.isArray(rootConfig.workspaces) && rootConfig.workspaces.length > 0;
-  const allConfigs = await walkForWorkspaceConfigs({ rootDir, maxDepth: hasPatterns ? 32 : AUTO_DISCOVERY_MAX_DEPTH, applyGitignore: !hasPatterns });
+  const allConfigs = await walkForWorkspaceConfigs({
+    rootDir,
+    maxDepth: hasPatterns ? GLOB_DISCOVERY_MAX_DEPTH : AUTO_DISCOVERY_MAX_DEPTH,
+    applyGitignore: !hasPatterns
+  });
   const out = [];
 
   for (const dir of allConfigs) {
