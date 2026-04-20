@@ -11,6 +11,7 @@ npm install -g @ailib/cli
 ### Homebrew (without npm)
 
 `ailib` can also be installed through Homebrew using a formula in this repository.
+This is currently a **HEAD install** (latest `main`) until versioned release artifacts are published.
 
 ```bash
 brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb

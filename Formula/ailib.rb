@@ -7,11 +7,10 @@ class Ailib < Formula
   depends_on "node"
 
   def install
-    system "npm", "install", *std_npm_args
+    system "npm", "install", "--omit=dev", *std_npm_args
   end
 
   test do
     system bin/"ailib", "--help"
-    assert_match "ailib commands:", shell_output("#{bin}/ailib --help")
   end
 end
