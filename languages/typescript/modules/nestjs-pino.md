@@ -4,7 +4,7 @@ display: NestJS Pino
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: logging
+slot: logger
 requires: [nestjs]
 conflicts_with: [nestjs-winston]
 ---

@@ -4,7 +4,7 @@ display: Next.js
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: framework
+slot: frontend_framework
 requires: [react]
 conflicts_with: [remix, astro, sveltekit, nuxt]
 ---

@@ -4,7 +4,7 @@ display: DynamoDB
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: database
+slot: database_engine
 requires: []
 conflicts_with: [postgres, mysql, mongodb]
 ---

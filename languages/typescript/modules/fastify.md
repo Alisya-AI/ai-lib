@@ -4,7 +4,7 @@ display: Fastify
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: http_server
+slot: http_adapter
 requires: []
 conflicts_with: [express, koa, hapi]
 ---

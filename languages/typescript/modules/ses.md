@@ -4,7 +4,7 @@ display: Amazon SES
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: outbound_email
+slot: email_provider
 requires: []
 conflicts_with: [sendgrid, mailgun, postmark]
 ---

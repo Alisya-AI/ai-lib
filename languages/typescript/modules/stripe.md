@@ -4,7 +4,7 @@ display: Stripe
 version: 1.0.0
 updated: 2026-04-21
 language: typescript
-slot: payments
+slot: payments_provider
 requires: []
 conflicts_with: []
 ---

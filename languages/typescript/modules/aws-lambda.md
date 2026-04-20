@@ -4,7 +4,7 @@ display: AWS Lambda (Node.js)
 version: 1.0.0
 updated: 2026-04-20
 language: typescript
-slot: runtime
+slot: runtime_platform
 requires: []
 conflicts_with: [cloudflare-workers, vercel-functions]
 tested_with:
