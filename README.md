@@ -33,6 +33,7 @@ brew install ailib
 ```
 
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
+Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
 
 ## Quick start
 
