@@ -93,6 +93,7 @@ bun run registry:build
 bun run registry:check
 bun run catalog:build
 bun run catalog:check
+bun run standards:check
 bun run check
 ```
 
