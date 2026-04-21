@@ -101,6 +101,7 @@ bun run coverage:check
 bun run lint
 bun run typecheck
 bun run test
+bun run tools:build
 bun run standards:check
 bun run check
 ```
