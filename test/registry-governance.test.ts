@@ -231,6 +231,6 @@ test('split registry and generated catalog are in sync', () => {
     { stdio: 'pipe', encoding: 'utf8' }
   );
 
-  run('tools/sync-registry.mjs', '--check');
+  run('tools/sync-registry.ts', '--check');
   run('tools/generate-module-catalog.mjs', '--check');
 });
