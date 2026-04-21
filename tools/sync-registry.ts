@@ -10,11 +10,11 @@ const outputPath = path.join(packageRoot, 'registry.json');
 
 const checkOnly = process.argv.includes('--check');
 
-async function readJson(filePath) {
+async function readJson(filePath: string): Promise<any> {
   return JSON.parse(await fs.readFile(filePath, 'utf8'));
 }
 
-async function listLanguageFiles() {
+async function listLanguageFiles(): Promise<string[]> {
   const entries = await fs.readdir(languageDir, { withFileTypes: true });
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith('.json'))
@@ -22,13 +22,13 @@ async function listLanguageFiles() {
     .sort();
 }
 
-async function buildRegistry() {
+async function buildRegistry(): Promise<any> {
   const core = await readJson(corePath);
   if ('languages' in core) {
     throw new Error('registry/core.json must not contain a top-level `languages` key');
   }
 
-  const languages = {};
+  const languages: Record<string, any> = {};
   for (const file of await listLanguageFiles()) {
     const languageId = file.replace(/\.json$/u, '');
     languages[languageId] = await readJson(path.join(languageDir, file));
@@ -37,18 +37,18 @@ async function buildRegistry() {
   return { ...core, languages };
 }
 
-function toJsonText(value) {
+function toJsonText(value: any): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
-async function run() {
+async function run(): Promise<void> {
   const built = await buildRegistry();
   const nextText = toJsonText(built);
 
   if (checkOnly) {
     const currentText = await fs.readFile(outputPath, 'utf8');
     if (currentText !== nextText) {
-      process.stderr.write('registry.json is out of sync. Run: bun tools/sync-registry.mjs\n');
+      process.stderr.write('registry.json is out of sync. Run: bun tools/sync-registry.ts\n');
       process.exitCode = 1;
       return;
     }
@@ -60,7 +60,8 @@ async function run() {
   process.stdout.write('registry.json updated from split sources\n');
 }
 
-run().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
+run().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });

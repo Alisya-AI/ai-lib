@@ -20,8 +20,8 @@
   "scripts": {
     "lint": "bun tools/check-standards.ts",
     "tools:build": "bunx tsc -p tsconfig.tools.json",
-    "registry:build": "bun tools/sync-registry.mjs",
-    "registry:check": "bun tools/sync-registry.mjs --check",
+    "registry:build": "bun tools/sync-registry.ts",
+    "registry:check": "bun tools/sync-registry.ts --check",
     "catalog:build": "bun tools/generate-module-catalog.mjs",
     "catalog:check": "bun tools/generate-module-catalog.mjs --check",
     "coverage-audit:build": "bun tools/generate-coverage-audit.mjs",
