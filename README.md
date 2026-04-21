@@ -35,6 +35,7 @@ brew install ailib
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
 Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
 Development standards for contributions: [docs/development-standards.md](docs/development-standards.md).
+Test standards and coverage thresholds: [docs/test-standards.md](docs/test-standards.md).
 Generated module catalog: [docs/module-catalog.md](docs/module-catalog.md).
 Follow-up implementation roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md).
 
