@@ -18,16 +18,19 @@
     "registry.json"
   ],
   "scripts": {
+    "lint": "bun tools/check-standards.mjs",
     "registry:build": "bun tools/sync-registry.mjs",
     "registry:check": "bun tools/sync-registry.mjs --check",
     "catalog:build": "bun tools/generate-module-catalog.mjs",
     "catalog:check": "bun tools/generate-module-catalog.mjs --check",
     "coverage-audit:build": "bun tools/generate-coverage-audit.mjs",
     "coverage-audit:check": "bun tools/generate-coverage-audit.mjs --check",
+    "coverage:build": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
+    "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.mjs --file coverage/lcov.info --min-lines=80",
     "standards:check": "bun tools/check-standards.mjs",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
-    "check": "bun test && bunx tsc --noEmit && bun tools/sync-registry.mjs --check && bun tools/generate-module-catalog.mjs --check && bun tools/generate-coverage-audit.mjs --check && bun tools/check-standards.mjs"
+    "check": "bun run lint && bun run test && bun run typecheck && bun run coverage-audit:check && bun run registry:check && bun run catalog:check && bun run coverage:check"
   },
   "keywords": [
     "ai",
