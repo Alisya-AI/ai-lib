@@ -96,6 +96,11 @@ bun run catalog:build
 bun run catalog:check
 bun run coverage-audit:build
 bun run coverage-audit:check
+bun run coverage:build
+bun run coverage:check
+bun run lint
+bun run typecheck
+bun run test
 bun run standards:check
 bun run check
 ```
