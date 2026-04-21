@@ -3,8 +3,9 @@
     "target": "ES2022",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+    "allowImportingTsExtensions": true,
+    "types": ["node"],
     "strict": false,
-    "noCheck": true,
     "noEmit": true,
     "allowJs": false,
     "skipLibCheck": true

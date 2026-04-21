@@ -8,11 +8,11 @@ const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname)
 const registryPath = path.join(packageRoot, 'registry.json');
 const slotNamePattern = /^[a-z]+(?:_[a-z]+)*$/u;
 
-async function loadRegistry() {
+async function loadRegistry(): Promise<any> {
   return JSON.parse(await fs.readFile(registryPath, 'utf8'));
 }
 
-function parseFrontmatter(markdown) {
+function parseFrontmatter(markdown: string): any {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
   if (!match) return null;
   const fields = {};
@@ -22,7 +22,7 @@ function parseFrontmatter(markdown) {
     const idx = line.indexOf(':');
     if (idx < 0) continue;
     const key = line.slice(0, idx).trim();
-    let value = line.slice(idx + 1).trim();
+    let value: any = line.slice(idx + 1).trim();
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value
         .slice(1, -1)
@@ -56,7 +56,7 @@ test('registry slots follow naming and coverage rules', async () => {
     'slot_defs keys must match slots exactly'
   );
 
-  for (const [slot, def] of Object.entries(slotDefs)) {
+  for (const [slot, def] of Object.entries(slotDefs as Record<string, any>)) {
     assert.equal(typeof def.description, 'string', `slot_defs.${slot}.description must be string`);
     assert.ok(def.description.trim().length > 0, `slot_defs.${slot}.description must not be empty`);
     assert.ok(
@@ -76,7 +76,7 @@ test('registry slots follow naming and coverage rules', async () => {
     'slot_alias_meta keys must match slot_aliases keys'
   );
 
-  for (const [alias, meta] of Object.entries(aliasMeta)) {
+  for (const [alias, meta] of Object.entries(aliasMeta as Record<string, any>)) {
     assert.equal(
       meta.replacement,
       slotAliases[alias],
@@ -97,8 +97,8 @@ test('registry modules use canonical slots and docs match', async () => {
   const slots = new Set(registry.slots || []);
   const aliases = registry.slot_aliases || {};
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
-    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
       const rawSlot = moduleDef.slot;
       assert.ok(rawSlot, `Missing slot for module '${languageId}:${moduleId}'`);
       const canonical = aliases[rawSlot] || rawSlot;

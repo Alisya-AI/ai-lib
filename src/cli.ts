@@ -13,7 +13,7 @@ const GLOB_DISCOVERY_MAX_DEPTH = 32;
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.venv']);
 const WARNED_SLOT_ALIASES = new Set();
 
-export async function run(argv, options = {}) {
+export async function run(argv: string[], options: { cwd?: string; packageRoot?: string } = {}) {
   const cwd = options.cwd ?? process.cwd();
   const packageRoot = options.packageRoot ?? path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -117,7 +117,7 @@ async function modulesCommand({ packageRoot, flags }) {
     ensure(lang, `Unsupported language: ${language}`);
 
     const lines = [`modules (${language}):`];
-    const modules = Object.entries(lang.modules || {}).sort(([a], [b]) => a.localeCompare(b));
+    const modules = (Object.entries(lang.modules || {}) as Array<[string, any]>).sort(([a], [b]) => a.localeCompare(b));
     for (const [moduleId, moduleDef] of modules) {
       lines.push(`- ${moduleId} (slot: ${moduleDef.slot})`);
     }
@@ -177,7 +177,7 @@ async function initCommand({ cwd, packageRoot, flags }) {
   if (inServiceContext && flags['no-inherit'] !== true) {
     const projectRoot = path.resolve(cwd);
     const rel = toPosix(path.relative(projectRoot, path.join(nearestRoot, CONFIG_FILE)));
-    const config = {
+    const config: any = {
       $schema: 'https://ailib.dev/schema/config.schema.json',
       extends: rel,
       language,
@@ -193,7 +193,7 @@ async function initCommand({ cwd, packageRoot, flags }) {
   }
 
   const projectRoot = await detectProjectRoot(cwd);
-  const config = {
+  const config: any = {
     $schema: 'https://ailib.dev/schema/config.schema.json',
     registry_ref: registry.version,
     language,
@@ -402,7 +402,10 @@ async function uninstallWorkspace(workspaceDir, config, registry) {
   }
 }
 
-async function applyWorkspaceUpdate({ packageRoot, rootDir, workspaceOverride, forceOnConflict }) {
+async function applyWorkspaceUpdate(
+  { packageRoot, rootDir, workspaceOverride, forceOnConflict }:
+  { packageRoot: string; rootDir: string; workspaceOverride?: string; forceOnConflict?: string }
+) {
   const rootConfigPath = path.join(rootDir, CONFIG_FILE);
   ensure(await exists(rootConfigPath), `Missing ${CONFIG_FILE} at root: ${rootDir}`);
 
@@ -472,7 +475,7 @@ async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir
 }
 
 async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates, registry }) {
-  const targetSet = new Set(state.effective.targets || []);
+  const targetSet = new Set<string>(state.effective.targets || []);
   const atRoot = path.resolve(workspaceDir) === path.resolve(rootDir);
 
   for (const targetId of targetSet) {
@@ -634,19 +637,19 @@ function normalizeRootConfig(rootConfig, registry) {
   };
 }
 
-function mergeModules({ registry, language, parentModules, localModules }) {
+function mergeModules({ registry, language, parentModules, localModules }: any) {
   const lang = registry.languages[language];
   const result = [];
   const owners = [];
   const warnings = [];
 
-  for (const mod of uniqueList(parentModules)) {
+  for (const mod of uniqueList(parentModules) as string[]) {
     if (!lang.modules[mod]) continue;
     result.push(mod);
     owners.push('inherited');
   }
 
-  for (const mod of uniqueList(localModules)) {
+  for (const mod of uniqueList(localModules) as string[]) {
     const localDef = lang.modules[mod];
     if (!localDef) {
       result.push(mod);
@@ -801,7 +804,7 @@ async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef
   await fs.writeFile(path.join(rootDir, LOCK_FILE), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
 }
 
-async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }) {
+async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }: { rootDir: string; rootConfig: any; workspaceOverride?: string }) {
   if (workspaceOverride) {
     const abs = resolveWorkspacePath(rootDir, workspaceOverride);
     ensure(await exists(path.join(abs, CONFIG_FILE)), `Workspace has no ${CONFIG_FILE}: ${workspaceOverride}`);
