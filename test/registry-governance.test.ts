@@ -165,6 +165,65 @@ test('registry modules use canonical slots and docs match', async () => {
   );
 });
 
+test('registry module relationships and frontmatter metadata are valid', async () => {
+  const registry = await loadRegistry();
+
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+    const moduleIds = new Set(Object.keys(languageDef.modules || {}));
+
+    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
+      const requires = moduleDef.requires || [];
+      const conflicts = moduleDef.conflicts_with || [];
+      const requiresSet = new Set(requires);
+      const conflictsSet = new Set(conflicts);
+
+      assert.equal(
+        requires.length,
+        requiresSet.size,
+        `Duplicate requires entries in '${languageId}:${moduleId}'`
+      );
+      assert.equal(
+        conflicts.length,
+        conflictsSet.size,
+        `Duplicate conflicts entries in '${languageId}:${moduleId}'`
+      );
+      assert.ok(
+        !requiresSet.has(moduleId),
+        `Module '${languageId}:${moduleId}' cannot require itself`
+      );
+      assert.ok(
+        !conflictsSet.has(moduleId),
+        `Module '${languageId}:${moduleId}' cannot conflict with itself`
+      );
+      for (const dependency of requiresSet) {
+        assert.ok(
+          !conflictsSet.has(dependency),
+          `Module '${languageId}:${moduleId}' cannot both require and conflict with '${dependency}'`
+        );
+      }
+
+      const modulePath = path.join(
+        packageRoot,
+        'languages',
+        languageId,
+        'modules',
+        `${moduleId}.md`
+      );
+      const markdown = await fs.readFile(modulePath, 'utf8');
+      const frontmatter = parseFrontmatter(markdown);
+      assert.ok(frontmatter, `Missing frontmatter in '${modulePath}'`);
+      for (const key of ['id', 'display', 'version', 'updated']) {
+        assert.ok(frontmatter[key], `Frontmatter missing '${key}' in '${languageId}:${moduleId}'`);
+      }
+      assert.match(
+        String(frontmatter.version),
+        /^\d+\.\d+\.\d+$/u,
+        `Frontmatter version must be semver-like in '${languageId}:${moduleId}'`
+      );
+    }
+  }
+});
+
 test('split registry and generated catalog are in sync', () => {
   const run = (script, ...args) => execFileSync(
     process.execPath,
