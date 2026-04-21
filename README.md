@@ -37,6 +37,7 @@ Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.m
 Development standards for contributions: [docs/development-standards.md](docs/development-standards.md).
 Test standards and coverage thresholds: [docs/test-standards.md](docs/test-standards.md).
 Generated module catalog: [docs/module-catalog.md](docs/module-catalog.md).
+Module/slot coverage audit report: [docs/module-coverage-audit.md](docs/module-coverage-audit.md).
 Follow-up implementation roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md).
 
 ## Quick start
@@ -93,6 +94,8 @@ bun run registry:build
 bun run registry:check
 bun run catalog:build
 bun run catalog:check
+bun run coverage-audit:build
+bun run coverage-audit:check
 bun run standards:check
 bun run check
 ```

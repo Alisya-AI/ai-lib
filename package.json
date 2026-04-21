@@ -22,10 +22,12 @@
     "registry:check": "bun tools/sync-registry.mjs --check",
     "catalog:build": "bun tools/generate-module-catalog.mjs",
     "catalog:check": "bun tools/generate-module-catalog.mjs --check",
+    "coverage-audit:build": "bun tools/generate-coverage-audit.mjs",
+    "coverage-audit:check": "bun tools/generate-coverage-audit.mjs --check",
     "standards:check": "bun tools/check-standards.mjs",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
-    "check": "bun test && bunx tsc --noEmit && bun tools/sync-registry.mjs --check && bun tools/generate-module-catalog.mjs --check && bun tools/check-standards.mjs"
+    "check": "bun test && bunx tsc --noEmit && bun tools/sync-registry.mjs --check && bun tools/generate-module-catalog.mjs --check && bun tools/generate-coverage-audit.mjs --check && bun tools/check-standards.mjs"
   },
   "keywords": [
     "ai",
