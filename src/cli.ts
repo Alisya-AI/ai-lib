@@ -548,6 +548,12 @@ async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir
 
   await copySourceFile({
     packageRoot,
+    sourceRel: 'core/test-standards.md',
+    target: path.join(outRoot, 'test-standards.md')
+  });
+
+  await copySourceFile({
+    packageRoot,
     sourceRel: `languages/${state.effective.language}/core.md`,
     target: path.join(outRoot, 'standards.md')
   });
@@ -654,7 +660,7 @@ function renderRouterDoc({ label, workspaceDir, rootDir, state }: { label: strin
     : `# PROJECT-SPECIFIC CONTEXT\nPrioritize service-local business logic in @./docs/.\nFor cross-service context, consult @${toPosix(path.join(relToRoot, 'docs/'))}.\nIf guidance conflicts, service-local docs win for service-scoped work.\n`;
 
   const modulesText = moduleLines.length ? moduleLines.join('\n') : '- (none)';
-  return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
+  return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\nApply test and coverage rules in @.ailib/test-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
 }
 
 async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }: { workspaceDir: string; rootDir: string; rootConfig: WorkspaceConfig; registry: Registry }): Promise<WorkspaceState> {
@@ -663,6 +669,7 @@ async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry
 
   const requiredFiles = [
     '.ailib/development-standards.md',
+    '.ailib/test-standards.md',
     '.ailib/standards.md',
     ...effective.localModules.map((m) => `.ailib/modules/${m}.md`)
   ];
@@ -940,6 +947,12 @@ async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef
       const rel = '.ailib/development-standards.md';
       const text = await fs.readFile(path.join(workspaceDir, rel), 'utf8');
       files[rel] = { source: 'core/development-standards.md', sha256: sha256(text) };
+    }
+
+    {
+      const rel = '.ailib/test-standards.md';
+      const text = await fs.readFile(path.join(workspaceDir, rel), 'utf8');
+      files[rel] = { source: 'core/test-standards.md', sha256: sha256(text) };
     }
 
     {
