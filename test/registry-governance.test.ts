@@ -96,12 +96,30 @@ test('registry modules use canonical slots and docs match', async () => {
   const registry = await loadRegistry();
   const slots = new Set(registry.slots || []);
   const aliases = registry.slot_aliases || {};
+  const usedSlots = new Set<string>();
 
   for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+    const moduleDir = path.join(packageRoot, 'languages', languageId, 'modules');
+    const docModuleIds = await fs.readdir(moduleDir, { withFileTypes: true })
+      .then((entries) => entries
+        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+        .map((entry) => entry.name.replace(/\.md$/u, ''))
+        .sort()
+      )
+      .catch(() => []);
+    const registryModuleIds = Object.keys(languageDef.modules || {}).sort();
+
+    assert.deepEqual(
+      docModuleIds,
+      registryModuleIds,
+      `Registry/docs module mismatch for language '${languageId}'`
+    );
+
     for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
       const rawSlot = moduleDef.slot;
       assert.ok(rawSlot, `Missing slot for module '${languageId}:${moduleId}'`);
       const canonical = aliases[rawSlot] || rawSlot;
+      usedSlots.add(canonical);
       assert.ok(
         slots.has(canonical),
         `Unknown canonical slot '${canonical}' for module '${languageId}:${moduleId}'`
@@ -127,8 +145,24 @@ test('registry modules use canonical slots and docs match', async () => {
         canonical,
         `Frontmatter slot mismatch for '${languageId}:${moduleId}'`
       );
+      assert.equal(
+        frontmatter.id,
+        moduleId,
+        `Frontmatter id mismatch for '${languageId}:${moduleId}'`
+      );
+      assert.equal(
+        frontmatter.language,
+        languageId,
+        `Frontmatter language mismatch for '${languageId}:${moduleId}'`
+      );
     }
   }
+
+  assert.deepEqual(
+    [...usedSlots].sort(),
+    [...slots].sort(),
+    'Every canonical slot should be represented by at least one module'
+  );
 });
 
 test('split registry and generated catalog are in sync', () => {
