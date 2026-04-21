@@ -112,6 +112,7 @@ test('init creates root config, root lock, and routers with new layout', async (
   assert.equal(await exists(path.join(cwd, 'ailib.config.json')), true);
   assert.equal(await exists(path.join(cwd, 'ailib.lock')), true);
   assert.equal(await exists(path.join(cwd, '.ailib/behavior.md')), true);
+  assert.equal(await exists(path.join(cwd, '.ailib/development-standards.md')), true);
   assert.equal(await exists(path.join(cwd, '.ailib/standards.md')), true);
   assert.equal(await exists(path.join(cwd, '.ailib/modules/eslint.md')), true);
   assert.equal(await exists(path.join(cwd, 'CLAUDE.md')), true);
@@ -140,6 +141,7 @@ test('monorepo update inherits root and supports service override modules', asyn
   await run(['update'], { cwd: root, packageRoot });
 
   assert.equal(await exists(path.join(root, '.ailib/behavior.md')), true);
+  assert.equal(await exists(path.join(root, '.ailib/development-standards.md')), true);
   assert.equal(await exists(path.join(root, 'apps', 'web', '.ailib/modules/biome.md')), true);
   assert.equal(await exists(path.join(root, 'apps', 'web', '.ailib/modules/eslint.md')), false);
   assert.equal(await exists(path.join(root, 'services', 'ml', '.ailib/standards.md')), true);
