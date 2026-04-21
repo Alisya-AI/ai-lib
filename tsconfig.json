@@ -9,5 +9,5 @@
     "allowJs": false,
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "tools/**/*.mjs", "test/**/*.js"]
+  "include": ["src/**/*.ts", "tools/**/*.mjs", "test/**/*.ts"]
 }
