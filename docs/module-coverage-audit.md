@@ -1,7 +1,7 @@
 # Module/Slot Coverage Audit
 
 This report is generated from `registry.json` and `languages/*/modules/*.md`.
-Run `bun tools/generate-coverage-audit.mjs` after registry/module documentation changes.
+Run `bun tools/generate-coverage-audit.ts` after registry/module documentation changes.
 
 ## Summary
 

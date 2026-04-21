@@ -7,14 +7,44 @@ const registryPath = path.join(packageRoot, 'registry.json');
 const outputPath = path.join(packageRoot, 'docs', 'module-coverage-audit.md');
 const checkOnly = process.argv.includes('--check');
 
-async function readJson(filePath) {
+type DocModuleInfo = {
+  moduleId: string;
+  filePath: string;
+  frontmatter: Record<string, string>;
+};
+
+type RegistryModuleInfo = {
+  moduleId: string;
+  slot: string;
+};
+
+type LanguageReport = {
+  languageId: string;
+  display: string;
+  registryCount: number;
+  docCount: number;
+  missingDocs: string[];
+  orphanDocs: string[];
+  frontmatterIssues: string[];
+};
+
+type CoverageReport = {
+  byLanguage: LanguageReport[];
+  global: {
+    registryModules: number;
+    docModules: number;
+  };
+  slotUsage: Map<string, string[]>;
+};
+
+async function readJson(filePath: string): Promise<any> {
   return JSON.parse(await fs.readFile(filePath, 'utf8'));
 }
 
-function parseFrontmatter(markdown) {
+function parseFrontmatter(markdown: string): Record<string, string> | null {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
   if (!match) return null;
-  const fields = {};
+  const fields: Record<string, string> = {};
   for (const line of match[1].split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
@@ -26,15 +56,15 @@ function parseFrontmatter(markdown) {
   return fields;
 }
 
-async function collectDocModuleInfo(languageId) {
+async function collectDocModuleInfo(languageId: string): Promise<DocModuleInfo[]> {
   const dir = path.join(packageRoot, 'languages', languageId, 'modules');
-  let entries = [];
+  let entries: Array<{ isFile: () => boolean; name: string }> = [];
   try {
-    entries = await fs.readdir(dir, { withFileTypes: true });
+    entries = await fs.readdir(dir, { withFileTypes: true, encoding: 'utf8' });
   } catch {
     return [];
   }
-  const modules = [];
+  const modules: DocModuleInfo[] = [];
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
     const moduleId = entry.name.replace(/\.md$/u, '');
@@ -46,8 +76,8 @@ async function collectDocModuleInfo(languageId) {
   return modules;
 }
 
-async function buildAudit(registry) {
-  const report = {
+async function buildAudit(registry: any): Promise<CoverageReport> {
+  const report: CoverageReport = {
     byLanguage: [],
     global: {
       registryModules: 0,
@@ -58,11 +88,13 @@ async function buildAudit(registry) {
 
   for (const slot of registry.slots || []) report.slotUsage.set(slot, []);
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
-    const registryModules = Object.entries(languageDef.modules || {}).map(([moduleId, moduleDef]) => ({
-      moduleId,
-      slot: moduleDef.slot
-    }));
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+    const registryModules: RegistryModuleInfo[] = Object.entries(languageDef.modules || {}).map(
+      ([moduleId, moduleDef]: [string, any]) => ({
+        moduleId,
+        slot: moduleDef.slot
+      })
+    );
     const docModules = await collectDocModuleInfo(languageId);
 
     const registryIds = new Set(registryModules.map((m) => m.moduleId));
@@ -71,11 +103,11 @@ async function buildAudit(registry) {
     const missingDocs = registryModules.filter((m) => !docIds.has(m.moduleId)).map((m) => m.moduleId);
     const orphanDocs = docModules.filter((m) => !registryIds.has(m.moduleId)).map((m) => m.moduleId);
 
-    const frontmatterIssues = [];
+    const frontmatterIssues: string[] = [];
     for (const doc of docModules) {
       const expectedSlot = languageDef.modules?.[doc.moduleId]?.slot;
       if (expectedSlot) {
-        const issues = [];
+        const issues: string[] = [];
         if (doc.frontmatter.id !== doc.moduleId) issues.push(`id=${doc.frontmatter.id || '(missing)'}`);
         if (doc.frontmatter.language !== languageId) issues.push(`language=${doc.frontmatter.language || '(missing)'}`);
         if (doc.frontmatter.slot !== expectedSlot) issues.push(`slot=${doc.frontmatter.slot || '(missing)'}`);
@@ -88,7 +120,7 @@ async function buildAudit(registry) {
     for (const mod of registryModules) {
       const slot = mod.slot;
       if (!report.slotUsage.has(slot)) report.slotUsage.set(slot, []);
-      report.slotUsage.get(slot).push(`${languageId}:${mod.moduleId}`);
+      report.slotUsage.get(slot)?.push(`${languageId}:${mod.moduleId}`);
     }
 
     report.global.registryModules += registryModules.length;
@@ -107,12 +139,12 @@ async function buildAudit(registry) {
   return report;
 }
 
-function renderReport(registry, report) {
-  const lines = [];
+function renderReport(registry: any, report: CoverageReport): string {
+  const lines: string[] = [];
   lines.push('# Module/Slot Coverage Audit');
   lines.push('');
   lines.push('This report is generated from `registry.json` and `languages/*/modules/*.md`.');
-  lines.push('Run `bun tools/generate-coverage-audit.mjs` after registry/module documentation changes.');
+  lines.push('Run `bun tools/generate-coverage-audit.ts` after registry/module documentation changes.');
   lines.push('');
   lines.push('## Summary');
   lines.push('');
@@ -159,7 +191,7 @@ function renderReport(registry, report) {
   return `${lines.join('\n')}\n`;
 }
 
-async function run() {
+async function run(): Promise<void> {
   const registry = await readJson(registryPath);
   const report = await buildAudit(registry);
   const nextText = renderReport(registry, report);
@@ -167,7 +199,7 @@ async function run() {
   if (checkOnly) {
     const currentText = await fs.readFile(outputPath, 'utf8');
     if (currentText !== nextText) {
-      process.stderr.write('docs/module-coverage-audit.md is out of sync. Run: bun tools/generate-coverage-audit.mjs\n');
+      process.stderr.write('docs/module-coverage-audit.md is out of sync. Run: bun tools/generate-coverage-audit.ts\n');
       process.exitCode = 1;
       return;
     }
@@ -179,7 +211,8 @@ async function run() {
   process.stdout.write('docs/module-coverage-audit.md updated\n');
 }
 
-run().catch((error) => {
-  process.stderr.write(`${error.message}\n`);
+run().catch((error: unknown) => {
+  const message = error instanceof Error ? error.message : String(error);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });
