@@ -18,7 +18,8 @@
     "registry.json"
   ],
   "scripts": {
-    "lint": "bun tools/check-standards.mjs",
+    "lint": "bun tools/check-standards.ts",
+    "tools:build": "bunx tsc -p tsconfig.tools.json",
     "registry:build": "bun tools/sync-registry.mjs",
     "registry:check": "bun tools/sync-registry.mjs --check",
     "catalog:build": "bun tools/generate-module-catalog.mjs",
@@ -27,7 +28,7 @@
     "coverage-audit:check": "bun tools/generate-coverage-audit.mjs --check",
     "coverage:build": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
     "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.mjs --file coverage/lcov.info --min-lines=80",
-    "standards:check": "bun tools/check-standards.mjs",
+    "standards:check": "bun tools/check-standards.ts",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
     "check": "bun run lint && bun run test && bun run typecheck && bun run coverage-audit:check && bun run registry:check && bun run catalog:check && bun run coverage:check"

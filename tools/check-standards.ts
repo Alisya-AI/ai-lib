@@ -25,7 +25,7 @@ const requiredReadmeLinks = [
   '[docs/test-standards.md](docs/test-standards.md)'
 ];
 
-async function ensureFileExists(relPath) {
+async function ensureFileExists(relPath: string): Promise<void> {
   const fullPath = path.join(root, relPath);
   try {
     await fs.access(fullPath);
@@ -34,7 +34,7 @@ async function ensureFileExists(relPath) {
   }
 }
 
-async function assertContains(relPath, snippets) {
+async function assertContains(relPath: string, snippets: string[]): Promise<void> {
   const fullPath = path.join(root, relPath);
   const content = await fs.readFile(fullPath, 'utf8');
   for (const snippet of snippets) {
@@ -44,7 +44,7 @@ async function assertContains(relPath, snippets) {
   }
 }
 
-async function main() {
+async function main(): Promise<void> {
   for (const relPath of requiredFiles) {
     await ensureFileExists(relPath);
   }
@@ -55,7 +55,8 @@ async function main() {
   process.stdout.write('standards checks passed\n');
 }
 
-main().catch((err) => {
-  process.stderr.write(`${err.message}\n`);
+main().catch((err: unknown) => {
+  const message = err instanceof Error ? err.message : String(err);
+  process.stderr.write(`${message}\n`);
   process.exit(1);
 });
