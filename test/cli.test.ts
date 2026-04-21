@@ -22,7 +22,7 @@ async function makeMonorepo() {
   return root;
 }
 
-async function exists(filePath) {
+async function exists(filePath: string) {
   try {
     await fs.access(filePath, fsConstants.F_OK);
     return true;
@@ -31,10 +31,10 @@ async function exists(filePath) {
   }
 }
 
-async function captureStdout(fn) {
-  const writes = [];
-  const originalWrite = process.stdout.write;
-  process.stdout.write = (chunk, encoding, callback) => {
+async function captureStdout(fn: () => Promise<void>) {
+  const writes: string[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  (process.stdout as any).write = (chunk: string | Uint8Array, encoding?: BufferEncoding, callback?: (err?: Error) => void) => {
     writes.push(typeof chunk === 'string' ? chunk : chunk.toString());
     if (typeof callback === 'function') callback();
     return true;
@@ -44,11 +44,11 @@ async function captureStdout(fn) {
     await fn();
     return writes.join('');
   } finally {
-    process.stdout.write = originalWrite;
+    (process.stdout as any).write = originalWrite;
   }
 }
 
-async function runDoctorAndCapture(root) {
+async function runDoctorAndCapture(root: string) {
   process.exitCode = 0;
   const output = await captureStdout(async () => {
     await run(['doctor'], { cwd: root, packageRoot });
