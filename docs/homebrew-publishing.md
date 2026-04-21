@@ -13,6 +13,27 @@ brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib
 
 ## Recommended distribution: dedicated tap
 
+## Build artifacts for npm and formula work
+
+Generate release artifacts from the repository:
+
+```bash
+bun run release:build
+```
+
+Outputs are written to `dist/release/`:
+
+- npm package tarball (`*.tgz`)
+- source tarball (`ailib-v<version>-<sha>-source.tar.gz`)
+- checksum manifest (`release-checksums.txt`)
+- formula snippet helper (`homebrew-formula-snippet.txt`)
+
+For a quicker local run that skips full checks:
+
+```bash
+bun run release:build -- --skip-check
+```
+
 Use a tap repo so users can run `brew install ailib` after one-time tap setup.
 
 ### One-time setup

@@ -33,6 +33,12 @@ brew install ailib
 ```
 
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
+
+### Local install from repository
+
+```bash
+bun run local:install
+```
 Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
 Development standards for contributions: [docs/development-standards.md](docs/development-standards.md).
 Test standards and coverage thresholds: [docs/test-standards.md](docs/test-standards.md).
@@ -98,7 +104,9 @@ bun run coverage-audit:build
 bun run coverage-audit:check
 bun run coverage:build
 bun run coverage:check
+bun run release:build
 bun run lint
+bun run local:install
 bun run typecheck
 bun run test
 bun run tools:build
