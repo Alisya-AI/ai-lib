@@ -13,7 +13,93 @@ const GLOB_DISCOVERY_MAX_DEPTH = 32;
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.venv']);
 const WARNED_SLOT_ALIASES = new Set();
 
-export async function run(argv: string[], options: { cwd?: string; packageRoot?: string } = {}) {
+type CliFlags = { _: string[] } & Record<string, string | boolean | string[] | undefined>;
+
+interface RunOptions {
+  cwd?: string;
+  packageRoot?: string;
+}
+
+interface ModuleDefinition {
+  slot: string;
+  requires?: string[];
+  conflicts_with?: string[];
+}
+
+interface LanguageDefinition {
+  modules: Record<string, ModuleDefinition>;
+}
+
+interface TargetDefinition {
+  output: string;
+  root_output?: string;
+  mode?: string;
+  display?: string;
+  frontmatter?: {
+    root?: string;
+    workspace?: string;
+  };
+}
+
+interface SlotDefinition {
+  kind?: 'exclusive' | 'composable';
+  description?: string;
+}
+
+interface SlotAliasMeta {
+  replacement: string;
+  deprecated_since?: string;
+  remove_in?: string;
+}
+
+interface Registry {
+  version: string;
+  slots?: string[];
+  slot_defs?: Record<string, SlotDefinition>;
+  slot_aliases?: Record<string, string>;
+  slot_alias_meta?: Record<string, SlotAliasMeta>;
+  languages: Record<string, LanguageDefinition>;
+  targets: Record<string, TargetDefinition>;
+}
+
+interface WorkspaceConfig {
+  $schema?: string;
+  extends?: string;
+  registry_ref?: string;
+  on_conflict?: string;
+  language?: string;
+  modules?: string[];
+  targets?: string[];
+  targets_removed?: string[];
+  docs_path?: string;
+  workspaces?: string[];
+}
+
+interface EffectiveWorkspaceConfig extends WorkspaceConfig {
+  language: string;
+  modules: string[];
+  targets: string[];
+  docs_path: string;
+  inheritedModules: string[];
+  localModules: string[];
+  warnings: string[];
+}
+
+interface WorkspaceState {
+  effective: EffectiveWorkspaceConfig;
+  inheritedModules: string[];
+  localModules: string[];
+  requiredFiles: string[];
+  warnings: string[];
+}
+
+interface CommandContext {
+  cwd: string;
+  packageRoot: string;
+  flags: CliFlags;
+}
+
+export async function run(argv: string[], options: RunOptions = {}) {
   const cwd = options.cwd ?? process.cwd();
   const packageRoot = options.packageRoot ?? path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -69,8 +155,8 @@ function printHelp() {
   );
 }
 
-function parseFlags(args) {
-  const flags = { _: [] };
+function parseFlags(args: string[]): CliFlags {
+  const flags: CliFlags = { _: [] };
   for (const arg of args) {
     if (!arg.startsWith('--')) {
       flags._.push(arg);
@@ -90,11 +176,16 @@ function parseFlags(args) {
   return flags;
 }
 
-async function slotsCommand({ packageRoot, flags }) {
+function getStringFlag(flags: CliFlags, key: string): string | undefined {
+  const value = flags[key];
+  return typeof value === 'string' ? value : undefined;
+}
+
+async function slotsCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
   const sub = flags._[0] || 'list';
   ensure(sub === 'list', `Usage: ailib slots list`);
 
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
   const slotDefs = registry.slot_defs || {};
 
   const lines = ['slots:'];
@@ -107,17 +198,17 @@ async function slotsCommand({ packageRoot, flags }) {
   process.stdout.write(`${lines.join('\n')}\n`);
 }
 
-async function modulesCommand({ packageRoot, flags }) {
+async function modulesCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
   const sub = flags._[0];
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
 
   if (sub === 'list') {
-    const language = flags.language || Object.keys(registry.languages)[0];
+    const language = getStringFlag(flags, 'language') || Object.keys(registry.languages)[0];
     const lang = registry.languages[language];
     ensure(lang, `Unsupported language: ${language}`);
 
     const lines = [`modules (${language}):`];
-    const modules = (Object.entries(lang.modules || {}) as Array<[string, any]>).sort(([a], [b]) => a.localeCompare(b));
+    const modules = Object.entries(lang.modules || {}).sort(([a], [b]) => a.localeCompare(b));
     for (const [moduleId, moduleDef] of modules) {
       lines.push(`- ${moduleId} (slot: ${moduleDef.slot})`);
     }
@@ -129,8 +220,8 @@ async function modulesCommand({ packageRoot, flags }) {
     const moduleId = flags._[1];
     ensure(moduleId, 'Usage: ailib modules explain <module> [--language=<lang>]');
 
-    const requestedLanguage = flags.language;
-    const candidates = requestedLanguage
+    const requestedLanguage = getStringFlag(flags, 'language');
+    const candidates: Array<[string, LanguageDefinition | undefined]> = requestedLanguage
       ? [[requestedLanguage, registry.languages[requestedLanguage]]]
       : Object.entries(registry.languages || {});
 
@@ -160,24 +251,24 @@ async function modulesCommand({ packageRoot, flags }) {
   throw new Error('Usage: ailib modules list [--language=<lang>] | ailib modules explain <module> [--language=<lang>]');
 }
 
-async function initCommand({ cwd, packageRoot, flags }) {
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
   const nearestRoot = await findNearestMonorepoRoot(path.resolve(cwd));
   const inServiceContext = Boolean(nearestRoot && path.resolve(cwd) !== nearestRoot);
 
-  const language = flags.language || Object.keys(registry.languages)[0];
+  const language = getStringFlag(flags, 'language') || Object.keys(registry.languages)[0];
   ensure(registry.languages[language], `Unsupported language: ${language}`);
 
   const modules = uniqueList(splitCsv(flags.modules));
   const targets = uniqueList(splitCsv(flags.targets).length ? splitCsv(flags.targets) : Object.keys(registry.targets));
-  const onConflict = flags['on-conflict'] || 'merge';
+  const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
 
   validateModuleSelection({ registry, language, modules });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
     const projectRoot = path.resolve(cwd);
     const rel = toPosix(path.relative(projectRoot, path.join(nearestRoot, CONFIG_FILE)));
-    const config: any = {
+    const config: WorkspaceConfig = {
       $schema: 'https://ailib.dev/schema/config.schema.json',
       extends: rel,
       language,
@@ -193,7 +284,7 @@ async function initCommand({ cwd, packageRoot, flags }) {
   }
 
   const projectRoot = await detectProjectRoot(cwd);
-  const config: any = {
+  const config: WorkspaceConfig = {
     $schema: 'https://ailib.dev/schema/config.schema.json',
     registry_ref: registry.version,
     language,
@@ -213,27 +304,28 @@ async function initCommand({ cwd, packageRoot, flags }) {
   process.stdout.write('ailib initialized\n');
 }
 
-async function updateCommand({ cwd, packageRoot, flags }) {
+async function updateCommand({ cwd, packageRoot, flags }: CommandContext) {
   const context = await resolveContext(cwd);
-  const workspaceOverride = flags.workspace ? resolveWorkspacePath(context.rootDir, flags.workspace) : undefined;
+  const workspaceFlag = getStringFlag(flags, 'workspace');
+  const workspaceOverride = workspaceFlag ? resolveWorkspacePath(context.rootDir, workspaceFlag) : undefined;
   await applyWorkspaceUpdate({ packageRoot, rootDir: context.rootDir, workspaceOverride, forceOnConflict: 'overwrite' });
   process.stdout.write('ailib updated\n');
 }
 
-async function addCommand({ cwd, packageRoot, flags, moduleId }) {
+async function addCommand({ cwd, packageRoot, flags, moduleId }: CommandContext & { moduleId?: string }) {
   ensure(moduleId, 'Usage: ailib add <module>');
   const context = await resolveContext(cwd);
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
 
-  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, flags.workspace);
+  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
   const configPath = path.join(targetWorkspace, CONFIG_FILE);
   ensure(await exists(configPath), `Missing ${CONFIG_FILE} in workspace: ${targetWorkspace}`);
 
-  const config = await readJson(configPath);
+  const config = await readJson<WorkspaceConfig>(configPath);
   const effective = await getEffectiveWorkspaceConfig({
     workspaceDir: targetWorkspace,
     rootDir: context.rootDir,
-    rootConfig: await readJson(path.join(context.rootDir, CONFIG_FILE)),
+    rootConfig: await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE)),
     registry
   });
   validateModuleSelection({ registry, language: effective.language, modules: uniqueList([...(config.modules || []), moduleId]) });
@@ -252,14 +344,14 @@ async function addCommand({ cwd, packageRoot, flags, moduleId }) {
   process.stdout.write(`module added: ${moduleId}\n`);
 }
 
-async function removeCommand({ cwd, packageRoot, flags, moduleId }) {
+async function removeCommand({ cwd, packageRoot, flags, moduleId }: CommandContext & { moduleId?: string }) {
   ensure(moduleId, 'Usage: ailib remove <module>');
   const context = await resolveContext(cwd);
-  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, flags.workspace);
+  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
 
   const configPath = path.join(targetWorkspace, CONFIG_FILE);
   ensure(await exists(configPath), `Missing ${CONFIG_FILE} in workspace: ${targetWorkspace}`);
-  const config = await readJson(configPath);
+  const config = await readJson<WorkspaceConfig>(configPath);
   config.modules = (config.modules || []).filter((m) => m !== moduleId);
   await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
 
@@ -274,11 +366,15 @@ async function removeCommand({ cwd, packageRoot, flags, moduleId }) {
   process.stdout.write(`module removed: ${moduleId}\n`);
 }
 
-async function doctorCommand({ cwd, packageRoot, flags }) {
+async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
   const context = await resolveContext(cwd);
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
-  const rootConfig = await readJson(path.join(context.rootDir, CONFIG_FILE));
-  const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig, workspaceOverride: flags.workspace });
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
+  const rootConfig = await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE));
+  const workspaceDirs = await listWorkspaceDirs({
+    rootDir: context.rootDir,
+    rootConfig,
+    workspaceOverride: getStringFlag(flags, 'workspace')
+  });
 
   const errors = [];
   const warnings = [];
@@ -292,11 +388,12 @@ async function doctorCommand({ cwd, packageRoot, flags }) {
       continue;
     }
 
-    let state;
+    let state: WorkspaceState;
     try {
       state = await buildWorkspaceState({ workspaceDir, rootDir: context.rootDir, rootConfig, registry });
     } catch (err) {
-      errors.push(`[${workspaceLabel}] ${err.message}`);
+      const message = err instanceof Error ? err.message : String(err);
+      errors.push(`[${workspaceLabel}] ${message}`);
       continue;
     }
 
@@ -345,12 +442,12 @@ async function doctorCommand({ cwd, packageRoot, flags }) {
   process.stdout.write('doctor ok\n');
 }
 
-async function uninstallCommand({ cwd, packageRoot, flags }) {
+async function uninstallCommand({ cwd, packageRoot, flags }: CommandContext) {
   const context = await resolveContext(cwd);
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
 
   const rootConfigPath = path.join(context.rootDir, CONFIG_FILE);
-  const rootConfig = (await exists(rootConfigPath)) ? await readJson(rootConfigPath) : null;
+  const rootConfig = (await exists(rootConfigPath)) ? await readJson<WorkspaceConfig>(rootConfigPath) : null;
   const atRoot = path.resolve(context.workspaceDir) === path.resolve(context.rootDir);
   const monorepo = Boolean(rootConfig?.workspaces);
 
@@ -364,7 +461,7 @@ async function uninstallCommand({ cwd, packageRoot, flags }) {
     const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig });
     for (const workspaceDir of workspaceDirs) {
       const cfgPath = path.join(workspaceDir, CONFIG_FILE);
-      const cfg = (await exists(cfgPath)) ? await readJson(cfgPath) : rootConfig;
+      const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : rootConfig;
       await uninstallWorkspace(workspaceDir, cfg, registry);
     }
     await rmIfExists(path.join(context.rootDir, LOCK_FILE));
@@ -374,7 +471,7 @@ async function uninstallCommand({ cwd, packageRoot, flags }) {
 
   const targetDir = context.workspaceDir;
   const cfgPath = path.join(targetDir, CONFIG_FILE);
-  const cfg = (await exists(cfgPath)) ? await readJson(cfgPath) : null;
+  const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : null;
   await uninstallWorkspace(targetDir, cfg, registry);
 
   if (path.resolve(targetDir) === path.resolve(context.rootDir)) {
@@ -386,7 +483,7 @@ async function uninstallCommand({ cwd, packageRoot, flags }) {
   process.stdout.write('ailib uninstalled\n');
 }
 
-async function uninstallWorkspace(workspaceDir, config, registry) {
+async function uninstallWorkspace(workspaceDir: string, config: WorkspaceConfig | null, registry: Registry) {
   await rmIfExists(path.join(workspaceDir, '.ailib'));
   await rmIfExists(path.join(workspaceDir, CONFIG_FILE));
   if (config?.targets) {
@@ -409,14 +506,14 @@ async function applyWorkspaceUpdate(
   const rootConfigPath = path.join(rootDir, CONFIG_FILE);
   ensure(await exists(rootConfigPath), `Missing ${CONFIG_FILE} at root: ${rootDir}`);
 
-  const registry = await readJson(path.join(packageRoot, 'registry.json'));
-  const packageJson = await readJson(path.join(packageRoot, 'package.json'));
-  const rootConfig = await readJson(rootConfigPath);
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
+  const packageJson = await readJson<{ version: string }>(path.join(packageRoot, 'package.json'));
+  const rootConfig = await readJson<WorkspaceConfig>(rootConfigPath);
 
   const workspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride });
   const allWorkspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig });
 
-  const stateMap = new Map();
+  const stateMap = new Map<string, WorkspaceState>();
   for (const workspaceDir of allWorkspaceDirs) {
     stateMap.set(workspaceDir, await buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }));
   }
@@ -435,7 +532,7 @@ async function applyWorkspaceUpdate(
   await writeRootLock({ rootDir, packageRoot, packageVersion: packageJson.version, registryRef: rootConfig.registry_ref || registry.version, allStates: stateMap });
 }
 
-async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir }) {
+async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir }: { workspaceDir: string; packageRoot: string; state: WorkspaceState; rootDir: string }) {
   const outRoot = path.join(workspaceDir, '.ailib');
   await fs.mkdir(path.join(outRoot, 'modules'), { recursive: true });
 
@@ -474,7 +571,21 @@ async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir
   }
 }
 
-async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates, registry }) {
+async function generateWorkspaceRouters({
+  workspaceDir,
+  rootDir,
+  state,
+  onConflict,
+  allStates,
+  registry
+}: {
+  workspaceDir: string;
+  rootDir: string;
+  state: WorkspaceState;
+  onConflict: string;
+  allStates: Map<string, WorkspaceState>;
+  registry: Registry;
+}) {
   const targetSet = new Set<string>(state.effective.targets || []);
   const atRoot = path.resolve(workspaceDir) === path.resolve(rootDir);
 
@@ -519,7 +630,7 @@ async function generateWorkspaceRouters({ workspaceDir, rootDir, state, onConfli
   }
 }
 
-function renderRouterDoc({ label, workspaceDir, rootDir, state }) {
+function renderRouterDoc({ label, workspaceDir, rootDir, state }: { label: string; workspaceDir: string; rootDir: string; state: WorkspaceState }) {
   const relToRoot = relativePathForPointers(workspaceDir, rootDir);
   const behaviorRef = path.resolve(workspaceDir) === path.resolve(rootDir)
     ? '@.ailib/behavior.md'
@@ -540,7 +651,7 @@ function renderRouterDoc({ label, workspaceDir, rootDir, state }) {
   return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
 }
 
-async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }) {
+async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }: { workspaceDir: string; rootDir: string; rootConfig: WorkspaceConfig; registry: Registry }): Promise<WorkspaceState> {
   const effective = await getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, registry });
   validateModuleSelection({ registry, language: effective.language, modules: effective.modules });
 
@@ -559,8 +670,18 @@ async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry
   };
 }
 
-async function getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, registry }) {
-  const workspaceRaw = await readJson(path.join(workspaceDir, CONFIG_FILE));
+async function getEffectiveWorkspaceConfig({
+  workspaceDir,
+  rootDir,
+  rootConfig,
+  registry
+}: {
+  workspaceDir: string;
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+}): Promise<EffectiveWorkspaceConfig> {
+  const workspaceRaw = await readJson<WorkspaceConfig>(path.join(workspaceDir, CONFIG_FILE));
   const isRootWorkspace = path.resolve(workspaceDir) === path.resolve(rootDir);
 
   const base = await resolveExtendsBase({ workspaceDir, rootDir, rootConfig, registry });
@@ -595,8 +716,18 @@ async function getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, 
   };
 }
 
-async function resolveExtendsBase({ workspaceDir, rootDir, rootConfig, registry }) {
-  const raw = await readJson(path.join(workspaceDir, CONFIG_FILE));
+async function resolveExtendsBase({
+  workspaceDir,
+  rootDir,
+  rootConfig,
+  registry
+}: {
+  workspaceDir: string;
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+}): Promise<WorkspaceConfig> {
+  const raw = await readJson<WorkspaceConfig>(path.join(workspaceDir, CONFIG_FILE));
   if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
     return normalizeRootConfig(rootConfig, registry);
   }
@@ -610,7 +741,7 @@ async function resolveExtendsBase({ workspaceDir, rootDir, rootConfig, registry 
   return normalizeRootConfig(rootConfig, registry);
 }
 
-async function resolveConfigByExtends(workspaceDir, extendsValue, seen) {
+async function resolveConfigByExtends(workspaceDir: string, extendsValue: string, seen: Set<string>): Promise<WorkspaceConfig> {
   const targetPath = extendsValue.endsWith('.json')
     ? path.resolve(workspaceDir, extendsValue)
     : path.join(path.resolve(workspaceDir, extendsValue), CONFIG_FILE);
@@ -619,12 +750,12 @@ async function resolveConfigByExtends(workspaceDir, extendsValue, seen) {
   if (seen.has(absTarget)) throw new Error('Circular extends detected');
   seen.add(absTarget);
 
-  const raw = await readJson(absTarget);
+  const raw = await readJson<WorkspaceConfig>(absTarget);
   if (!raw.extends) return raw;
   return resolveConfigByExtends(path.dirname(absTarget), raw.extends, seen);
 }
 
-function normalizeRootConfig(rootConfig, registry) {
+function normalizeRootConfig(rootConfig: WorkspaceConfig, registry: Registry): WorkspaceConfig {
   return {
     $schema: rootConfig.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: rootConfig.registry_ref || registry.version,
@@ -637,19 +768,34 @@ function normalizeRootConfig(rootConfig, registry) {
   };
 }
 
-function mergeModules({ registry, language, parentModules, localModules }: any) {
+function mergeModules({
+  registry,
+  language,
+  parentModules,
+  localModules
+}: {
+  registry: Registry;
+  language: string;
+  parentModules: string[];
+  localModules: string[];
+}): {
+  modules: string[];
+  inheritedModules: string[];
+  localModules: string[];
+  warnings: string[];
+} {
   const lang = registry.languages[language];
-  const result = [];
-  const owners = [];
-  const warnings = [];
+  const result: string[] = [];
+  const owners: Array<'inherited' | 'local'> = [];
+  const warnings: string[] = [];
 
-  for (const mod of uniqueList(parentModules) as string[]) {
+  for (const mod of uniqueList(parentModules)) {
     if (!lang.modules[mod]) continue;
     result.push(mod);
     owners.push('inherited');
   }
 
-  for (const mod of uniqueList(localModules) as string[]) {
+  for (const mod of uniqueList(localModules)) {
     const localDef = lang.modules[mod];
     if (!localDef) {
       result.push(mod);
@@ -682,8 +828,8 @@ function mergeModules({ registry, language, parentModules, localModules }: any) 
     owners.push('local');
   }
 
-  const inheritedModules = [];
-  const localOut = [];
+  const inheritedModules: string[] = [];
+  const localOut: string[] = [];
   for (let i = 0; i < result.length; i += 1) {
     if (owners[i] === 'inherited') inheritedModules.push(result[i]);
     else localOut.push(result[i]);
@@ -697,7 +843,7 @@ function mergeModules({ registry, language, parentModules, localModules }: any) 
   };
 }
 
-function mergeTargets({ parentTargets, localTargets, targetsRemoved }) {
+function mergeTargets({ parentTargets, localTargets, targetsRemoved }: { parentTargets: string[]; localTargets: string[]; targetsRemoved: string[] }) {
   const parent = uniqueList(parentTargets || []);
   const removed = new Set(targetsRemoved || []);
   const local = uniqueList(localTargets || []);
@@ -707,7 +853,7 @@ function mergeTargets({ parentTargets, localTargets, targetsRemoved }) {
   return [...merged];
 }
 
-function diffSlots(rootModules, workspaceModules, registry, language) {
+function diffSlots(rootModules: string[], workspaceModules: string[], registry: Registry, language: string) {
   const lang = registry.languages[language];
   if (!lang) return [];
 
@@ -734,7 +880,7 @@ function diffSlots(rootModules, workspaceModules, registry, language) {
   return diffs;
 }
 
-function validateModuleSelection({ registry, language, modules }) {
+function validateModuleSelection({ registry, language, modules }: { registry: Registry; language: string; modules: string[] }) {
   const lang = registry.languages[language];
   ensure(lang, `Unsupported language: ${language}`);
 
@@ -763,7 +909,7 @@ function validateModuleSelection({ registry, language, modules }) {
   }
 }
 
-async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef, allStates }) {
+async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef, allStates }: { rootDir: string; packageRoot: string; packageVersion: string; registryRef: string; allStates: Map<string, WorkspaceState> }) {
   const registryText = await fs.readFile(path.join(packageRoot, 'registry.json'), 'utf8');
   const lock = {
     lockfile_version: 1,
@@ -804,7 +950,7 @@ async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef
   await fs.writeFile(path.join(rootDir, LOCK_FILE), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
 }
 
-async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }: { rootDir: string; rootConfig: any; workspaceOverride?: string }) {
+async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }: { rootDir: string; rootConfig: WorkspaceConfig; workspaceOverride?: string }) {
   if (workspaceOverride) {
     const abs = resolveWorkspacePath(rootDir, workspaceOverride);
     ensure(await exists(path.join(abs, CONFIG_FILE)), `Workspace has no ${CONFIG_FILE}: ${workspaceOverride}`);
@@ -819,7 +965,7 @@ async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }: { r
   return dirs;
 }
 
-async function discoverServiceWorkspaces({ rootDir, rootConfig }) {
+async function discoverServiceWorkspaces({ rootDir, rootConfig }: { rootDir: string; rootConfig: WorkspaceConfig }) {
   const hasPatterns = Array.isArray(rootConfig.workspaces) && rootConfig.workspaces.length > 0;
   const allConfigs = await walkForWorkspaceConfigs({
     rootDir,
@@ -845,7 +991,7 @@ async function discoverServiceWorkspaces({ rootDir, rootConfig }) {
   return out;
 }
 
-async function walkForWorkspaceConfigs({ rootDir, maxDepth, applyGitignore }) {
+async function walkForWorkspaceConfigs({ rootDir, maxDepth, applyGitignore }: { rootDir: string; maxDepth: number; applyGitignore: boolean }) {
   const matches = [];
   const ignoreMatchers = applyGitignore ? await loadGitignoreMatchers(rootDir) : [];
 
@@ -883,7 +1029,7 @@ async function walkForWorkspaceConfigs({ rootDir, maxDepth, applyGitignore }) {
   return matches;
 }
 
-async function loadGitignoreMatchers(rootDir) {
+async function loadGitignoreMatchers(rootDir: string) {
   const ignorePath = path.join(rootDir, '.gitignore');
   if (!(await exists(ignorePath))) return [];
   const raw = await fs.readFile(ignorePath, 'utf8');
@@ -927,7 +1073,7 @@ function globToRegex(pattern) {
   return new RegExp(out);
 }
 
-async function resolveContext(cwd) {
+async function resolveContext(cwd: string): Promise<{ rootDir: string; workspaceDir: string }> {
   const workspaceDir = await findNearestWorkspace(path.resolve(cwd));
   if (!workspaceDir) {
     const rootDir = await detectProjectRoot(cwd);
@@ -938,7 +1084,7 @@ async function resolveContext(cwd) {
   return { rootDir, workspaceDir };
 }
 
-async function findNearestWorkspace(startDir) {
+async function findNearestWorkspace(startDir: string): Promise<string | null> {
   let current = path.resolve(startDir);
   while (true) {
     if (await exists(path.join(current, CONFIG_FILE))) return current;
@@ -948,13 +1094,13 @@ async function findNearestWorkspace(startDir) {
   }
 }
 
-async function findNearestMonorepoRoot(startDir) {
+async function findNearestMonorepoRoot(startDir: string): Promise<string | null> {
   let current = path.resolve(startDir);
   let found = null;
   while (true) {
     const cfgPath = path.join(current, CONFIG_FILE);
     if (await exists(cfgPath)) {
-      const cfg = await readJson(cfgPath);
+      const cfg = await readJson<WorkspaceConfig>(cfgPath);
       if (cfg.workspaces) found = current;
     }
     const parent = path.dirname(current);
@@ -964,32 +1110,32 @@ async function findNearestMonorepoRoot(startDir) {
   return found;
 }
 
-function resolveDefaultWorkspaceForMutation(context, workspaceFlag) {
+function resolveDefaultWorkspaceForMutation(context: { rootDir: string; workspaceDir: string }, workspaceFlag?: string) {
   if (workspaceFlag) return resolveWorkspacePath(context.rootDir, workspaceFlag);
   if (path.resolve(context.workspaceDir) !== path.resolve(context.rootDir)) return context.workspaceDir;
   return context.rootDir;
 }
 
-function resolveWorkspacePath(rootDir, value) {
+function resolveWorkspacePath(rootDir: string, value: string) {
   const resolved = path.isAbsolute(value) ? path.resolve(value) : path.resolve(rootDir, value);
   return resolved;
 }
 
-function isRootWorkspaceConfig(config) {
+function isRootWorkspaceConfig(config: WorkspaceConfig | null | undefined) {
   return Boolean(config?.workspaces);
 }
 
-function workspaceLabelFor(rootDir, workspaceDir) {
+function workspaceLabelFor(rootDir: string, workspaceDir: string) {
   const rel = toPosix(path.relative(rootDir, workspaceDir));
   return rel || '.';
 }
 
-function relativePathForPointers(fromDir, toDir) {
+function relativePathForPointers(fromDir: string, toDir: string) {
   const rel = toPosix(path.relative(fromDir, toDir));
   return rel || '.';
 }
 
-async function writeManagedFile({ outPath, rendered, onConflict }) {
+async function writeManagedFile({ outPath, rendered, onConflict }: { outPath: string; rendered: string; onConflict: string }) {
   await fs.mkdir(path.dirname(outPath), { recursive: true });
 
   if (await exists(outPath)) {
@@ -1013,23 +1159,23 @@ async function writeManagedFile({ outPath, rendered, onConflict }) {
   await fs.writeFile(outPath, `${rendered.trim()}\n`, 'utf8');
 }
 
-async function copySourceFile({ packageRoot, sourceRel, target }) {
+async function copySourceFile({ packageRoot, sourceRel, target }: { packageRoot: string; sourceRel: string; target: string }) {
   const source = path.join(packageRoot, sourceRel);
   ensure(await exists(source), `Missing module source: ${sourceRel}`);
   await fs.mkdir(path.dirname(target), { recursive: true });
   await fs.copyFile(source, target);
 }
 
-function parseFrontmatter(markdown) {
+function parseFrontmatter(markdown: string): Record<string, string | string[]> | null {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
   if (!match) return null;
-  const fields = {};
+  const fields: Record<string, string | string[]> = {};
   for (const line of match[1].split('\n')) {
     if (!line.trim() || line.trim().startsWith('#')) continue;
     const idx = line.indexOf(':');
     if (idx < 0) continue;
     const key = line.slice(0, idx).trim();
-    let value = line.slice(idx + 1).trim();
+    let value: string | string[] = line.slice(idx + 1).trim();
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value.slice(1, -1).split(',').map((x) => x.trim()).filter(Boolean);
     }
@@ -1038,7 +1184,7 @@ function parseFrontmatter(markdown) {
   return fields;
 }
 
-async function detectProjectRoot(startDir) {
+async function detectProjectRoot(startDir: string): Promise<string> {
   let current = path.resolve(startDir);
   while (true) {
     if (
@@ -1055,19 +1201,19 @@ async function detectProjectRoot(startDir) {
   throw new Error('Could not detect project root');
 }
 
-function sha256(value) {
+function sha256(value: string) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
 
-function sanitizeForFilename(input) {
+function sanitizeForFilename(input: string) {
   return toPosix(input).replaceAll('/', '__').replaceAll(':', '_');
 }
 
-function toPosix(value) {
+function toPosix(value: string) {
   return value.split(path.sep).join('/');
 }
 
-async function exists(filePath) {
+async function exists(filePath: string) {
   try {
     await fs.access(filePath, fsConstants.F_OK);
     return true;
@@ -1076,29 +1222,31 @@ async function exists(filePath) {
   }
 }
 
-async function rmIfExists(filePath) {
+async function rmIfExists(filePath: string) {
   if (!(await exists(filePath))) return;
   await fs.rm(filePath, { recursive: true, force: true });
 }
 
-async function readJson(filePath) {
-  return JSON.parse(await fs.readFile(filePath, 'utf8'));
+async function readJson<T = unknown>(filePath: string): Promise<T> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
 }
 
-function ensure(condition, message) {
+function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-function splitCsv(value) {
+function splitCsv(value: string | boolean | string[] | undefined) {
   if (!value) return [];
+  if (Array.isArray(value)) return value;
+  if (typeof value !== 'string') return [];
   return value.split(',').map((v) => v.trim()).filter(Boolean);
 }
 
-function uniqueList(items) {
+function uniqueList(items: string[]) {
   return [...new Set(items)];
 }
 
-function canonicalSlot(registry, slot) {
+function canonicalSlot(registry: Registry, slot: string | undefined) {
   if (!slot) return null;
   const aliases = registry.slot_aliases || {};
   const resolved = aliases[slot] || slot;
