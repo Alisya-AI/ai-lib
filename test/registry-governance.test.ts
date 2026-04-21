@@ -232,5 +232,5 @@ test('split registry and generated catalog are in sync', () => {
   );
 
   run('tools/sync-registry.ts', '--check');
-  run('tools/generate-module-catalog.mjs', '--check');
+  run('tools/generate-module-catalog.ts', '--check');
 });
