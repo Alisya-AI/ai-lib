@@ -27,7 +27,7 @@
     "coverage-audit:build": "bun tools/generate-coverage-audit.mjs",
     "coverage-audit:check": "bun tools/generate-coverage-audit.mjs --check",
     "coverage:build": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
-    "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.mjs --file coverage/lcov.info --min-lines=80",
+    "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.ts --file coverage/lcov.info --min-lines=80",
     "standards:check": "bun tools/check-standards.ts",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",

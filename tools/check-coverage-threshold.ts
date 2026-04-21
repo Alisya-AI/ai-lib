@@ -4,7 +4,7 @@ import process from 'node:process';
 
 const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
-function readArg(name, fallback) {
+function readArg(name: string, fallback: string): string {
   const prefix = `--${name}=`;
   const direct = process.argv.find((arg) => arg.startsWith(prefix));
   if (direct) return direct.slice(prefix.length);
@@ -15,7 +15,7 @@ function readArg(name, fallback) {
   return fallback;
 }
 
-async function run() {
+async function run(): Promise<void> {
   const minLinesRaw = readArg('min-lines', '80');
   const lcovFile = readArg('file', path.join('coverage', 'lcov.info'));
 
@@ -59,7 +59,7 @@ async function run() {
   );
 }
 
-run().catch((error) => {
+run().catch((error: unknown) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
