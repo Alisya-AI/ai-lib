@@ -359,6 +359,37 @@ test('doctor reports invalid local override configuration', async () => {
   assert.equal(exitCode, 1);
 });
 
+test('update fails fast for malformed local override json', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+
+  await fs.writeFile(path.join(root, 'ailib.local.json'), '{ invalid json }\n', 'utf8');
+
+  await assert.rejects(run(['update'], { cwd: root, packageRoot }), /Invalid ailib\.local\.json: invalid JSON/);
+});
+
+test('update fails fast for override schema-level validation errors', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+
+  const localOverride = {
+    unknown_key: true,
+    workspace_overrides: [] as unknown
+  };
+  await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
+
+  await assert.rejects(
+    run(['update'], { cwd: root, packageRoot }),
+    /missing required string 'version'|unexpected root key 'unknown_key'|'workspace_overrides' must be an object/
+  );
+});
+
 test('doctor reports missing frontmatter fields for module pointers', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
