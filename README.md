@@ -44,12 +44,21 @@ End-to-end CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md).
 ```bash
 bun run local:install
 ```
-Slot governance and naming rules: [docs/slot-standards.md](docs/slot-standards.md).
-Development standards for contributions: [docs/development-standards.md](docs/development-standards.md).
-Test standards and coverage thresholds: [docs/test-standards.md](docs/test-standards.md).
-Generated module catalog: [docs/module-catalog.md](docs/module-catalog.md).
-Module/slot coverage audit report: [docs/module-coverage-audit.md](docs/module-coverage-audit.md).
-Follow-up implementation roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md).
+
+## Documentation index
+
+- CLI usage: [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
+- Add targets: [docs/targets-guide.md](docs/targets-guide.md)
+- Add modules/slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md)
+- Slot governance rules: [docs/slot-standards.md](docs/slot-standards.md)
+- Development standards: [docs/development-standards.md](docs/development-standards.md)
+- Test standards: [docs/test-standards.md](docs/test-standards.md)
+- Workflow hardening: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md)
+- Branch protection policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md)
+- Homebrew publishing: [docs/homebrew-publishing.md](docs/homebrew-publishing.md)
+- Module catalog: [docs/module-catalog.md](docs/module-catalog.md)
+- Module/slot coverage audit: [docs/module-coverage-audit.md](docs/module-coverage-audit.md)
+- Follow-up roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md)
 
 ## Quick start
 
@@ -84,41 +93,8 @@ Uninstall generated files:
 ailib uninstall
 ```
 
-## CLI commands
-
-```bash
-ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]
-ailib update [--workspace=<path>]
-ailib add <module> [--workspace=<path>]
-ailib remove <module> [--workspace=<path>]
-ailib doctor [--workspace=<path>]
-ailib uninstall [--all]
-ailib slots list
-ailib modules list [--language=<lang>]
-ailib modules explain <module> [--language=<lang>]
-```
-
-## Maintenance commands
-
-```bash
-bun run registry:build
-bun run registry:check
-bun run catalog:build
-bun run catalog:check
-bun run coverage-audit:build
-bun run coverage-audit:check
-bun run coverage:build
-bun run coverage:check
-bun run release:build
-bun run security:audit
-bun run lint
-bun run local:install
-bun run typecheck
-bun run test
-bun run tools:build
-bun run standards:check
-bun run check
-```
+For complete CLI and maintenance command coverage, see:
+- [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
 
 ## Supported languages
 
