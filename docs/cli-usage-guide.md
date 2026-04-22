@@ -124,19 +124,19 @@ ailib modules explain prisma --language=typescript
 
 Use `ailib.local.json` to customize local targets/modules/slots without changing managed `ailib.config.json`.
 
-1) Define overrides at root:
+1. Define overrides at root:
 
 ```bash
 touch ailib.local.json
 ```
 
-2) Apply updates:
+2. Apply updates:
 
 ```bash
 ailib update
 ```
 
-3) Verify local override integrity:
+3. Verify local override integrity:
 
 ```bash
 ailib doctor

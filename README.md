@@ -96,6 +96,7 @@ ailib uninstall
 ```
 
 For complete CLI and maintenance command coverage, see:
+
 - [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
 
 ## Supported languages

@@ -18,6 +18,7 @@ Coverage targets are minimums for changed code paths:
 - **Critical command flows (`init/update/doctor/uninstall`):** 90% path coverage via integration tests
 
 Notes:
+
 - Thresholds are quality gates, not a substitute for meaningful assertions.
 - Do not inflate coverage with low-value tests.
 
@@ -43,6 +44,7 @@ Notes:
 ## 6) Definition of Done
 
 A test-related change is done when:
+
 - required test types are addressed,
 - coverage targets are respected for changed areas,
 - and checks pass in CI/local validation flow.

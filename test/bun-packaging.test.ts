@@ -54,11 +54,7 @@ test('package files list points to existing release paths', async () => {
   assert.ok(fileEntries.length > 0, 'package.json files array should not be empty');
 
   for (const entry of fileEntries) {
-    assert.equal(
-      await exists(path.join(packageRoot, entry)),
-      true,
-      `missing packaged path: ${entry}`
-    );
+    assert.equal(await exists(path.join(packageRoot, entry)), true, `missing packaged path: ${entry}`);
   }
 });
 

@@ -10,6 +10,7 @@ This guide defines the minimum implementation standards for `ailib` changes.
 - Keep tests deterministic and local to the changed behavior.
 
 Expected loop:
+
 1. Red: write/adjust tests and confirm failure.
 2. Green: implement minimal code to pass.
 3. Refactor: improve readability/structure without changing behavior.
@@ -40,6 +41,7 @@ Expected loop:
 
 ## 5) Quality Gates for PRs
 
+- `bun run lint` (includes standards + Prettier checks) must pass.
 - `bun run typecheck` must pass.
 - `bun run check` must pass.
 - New behavior should include/adjust tests.
@@ -48,6 +50,7 @@ Expected loop:
 ## 6) Definition of Done
 
 A change is done when:
+
 - implementation follows this guide,
 - relevant tests are in place and passing,
 - required docs are updated,
