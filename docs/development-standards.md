@@ -21,6 +21,7 @@ Expected loop:
 - Keep side effects isolated and visible at call sites.
 - Remove dead code during the same change where it becomes obsolete.
 - Avoid broad "catch-all" utilities when a narrow helper is clearer.
+- Avoid explicit `any` typing in `src/`, `tools/`, and `test/`; use explicit interfaces/type aliases instead.
 
 ## 3) SOLID Expectations (Practical)
 
