@@ -59,3 +59,14 @@ This roadmap tracks post-foundation work for `ailib`.
   - upstream `ailib` upgrades do not wipe consumer-local customizations.
 
 Model draft and schema reference: [docs/local-override-model.md](local-override-model.md), [schema/override.schema.json](../schema/override.schema.json).
+
+## Phase 7: End-to-end standards and quality uplift
+
+- Run a full repository review to enforce development standards end to end.
+- Close remaining standardization gaps in implementation, tests, and docs alignment.
+- Strengthen formatting and static checks with linting and Prettier coverage across maintained files.
+- Push toward maximal practical coverage (target 100% where feasible), including:
+  - explicit uncovered-area audit
+  - prioritized remediation plan for non-trivial paths
+  - documented exceptions when 100% is not realistically achievable
+- Identify and fix missing validations, quality risks, and latent errors found during review.
