@@ -35,6 +35,7 @@ brew install ailib
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
 Workflow hardening patterns for external PRs: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md).
 Branch protection and required check policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md).
+Guide for adding new targets: [docs/targets-guide.md](docs/targets-guide.md).
 
 ### Local install from repository
 
