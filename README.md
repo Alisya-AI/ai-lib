@@ -33,6 +33,7 @@ brew install ailib
 ```
 
 Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
+Workflow hardening patterns for external PRs: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md).
 
 ### Local install from repository
 
