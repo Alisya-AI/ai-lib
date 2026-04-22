@@ -512,3 +512,49 @@ test('uninstall --all at root removes root and service outputs', async () => {
   assert.equal(await exists(path.join(root, 'services', 'ml', '.ailib')), false);
   assert.equal(await exists(path.join(root, 'services', 'ml', 'ailib.config.json')), false);
 });
+
+test('auto-discovery honors wildcard .gitignore directory patterns', async () => {
+  const root = await makeProject();
+  await run(
+    ['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite', '--bare'],
+    {
+      cwd: root,
+      packageRoot
+    }
+  );
+
+  const keepDir = path.join(root, 'service-keep');
+  const ignoreDir = path.join(root, 'service-ignore');
+  await fs.mkdir(keepDir, { recursive: true });
+  await fs.mkdir(ignoreDir, { recursive: true });
+
+  const workspaceConfig = (modules: string[]) =>
+    JSON.stringify(
+      {
+        $schema: 'https://ailib.dev/schema/config.schema.json',
+        language: 'typescript',
+        modules,
+        targets: ['claude-code'],
+        docs_path: './docs/'
+      },
+      null,
+      2
+    ) + '\n';
+
+  await fs.writeFile(path.join(keepDir, 'ailib.config.json'), workspaceConfig(['biome']), 'utf8');
+  await fs.writeFile(path.join(ignoreDir, 'ailib.config.json'), workspaceConfig(['prettier']), 'utf8');
+
+  await fs.writeFile(path.join(root, '.gitignore'), 'service-ign*\n', 'utf8');
+  await run(['update'], { cwd: root, packageRoot });
+
+  assert.equal(
+    await exists(path.join(keepDir, '.ailib', 'standards.md')),
+    true,
+    'non-ignored service should be discovered'
+  );
+  assert.equal(
+    await exists(path.join(ignoreDir, '.ailib', 'standards.md')),
+    false,
+    'ignored wildcard service should be excluded'
+  );
+});

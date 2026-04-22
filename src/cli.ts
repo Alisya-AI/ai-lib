@@ -1658,7 +1658,12 @@ async function loadGitignoreMatchers(rootDir: string) {
   return patterns.map((pattern) => {
     const normalized = toPosix(pattern.replace(/\/$/u, ''));
     return (relPath, baseName) => {
-      if (normalized.includes('/')) return relPath === normalized || relPath.startsWith(`${normalized}/`);
+      if (normalized.includes('/')) {
+        return globMatch(relPath, normalized) || relPath.startsWith(`${normalized}/`);
+      }
+      if (normalized.includes('*')) {
+        return globMatch(baseName, normalized);
+      }
       return baseName === normalized;
     };
   });
