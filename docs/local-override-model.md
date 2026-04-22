@@ -72,6 +72,58 @@ Within each scope:
 - New `ailib` versions must preserve valid local override files.
 - Future model changes must increment `version` and define migration behavior.
 
+## Authoring workflow
+
+1. Create `ailib.local.json` at repository root.
+2. Start with `version`, then add `default_override` and/or `workspace_overrides`.
+3. Run `ailib update` to apply overrides to generated outputs.
+4. Run `ailib doctor` to verify override + generated state consistency.
+
+Recommended loop:
+
+```bash
+ailib update
+ailib doctor
+```
+
+## Validation and failure behavior
+
+- `ailib update` fails fast when `ailib.local.json` is invalid.
+- `ailib doctor` surfaces override validation errors before pointer-file checks.
+- Validation covers:
+  - JSON structure and allowed keys
+  - known workspace keys
+  - known targets/modules/slots
+  - slot-to-module compatibility (`slots.<slot>.set` must match slot ownership)
+
+Example failure patterns:
+
+- `Invalid ailib.local.json: missing required string 'version'`
+- `Invalid ailib.local.json: unknown workspace override key 'apps/missing'`
+- `Invalid ailib.local.json: default_override.targets.add contains unknown target 'foo'`
+
+## Upgrade guarantees
+
+- `ailib update` never rewrites `ailib.local.json`.
+- Valid overrides continue to apply after registry or CLI upgrades.
+- Incompatibilities are explicit and blocking (fail-fast), never silent partial apply.
+- Future breaking model changes require a `version` bump and migration guidance.
+
+## Troubleshooting and recovery
+
+- `Invalid ailib.local.json` during `update`:
+  - run `ailib doctor` for full diagnostics
+  - fix reported key/reference mismatch
+  - rerun `ailib update`
+
+- Override references module not available in workspace language:
+  - switch module to one supported by the workspace language
+  - or remove that override and rely on base config
+
+- Workspace-specific override not taking effect:
+  - confirm key matches workspace relative path exactly (`.` for root)
+  - rerun `ailib doctor --workspace=<path>` to validate scope
+
 ## Example
 
 ```json
