@@ -8,21 +8,53 @@ const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname)
 const registryPath = path.join(packageRoot, 'registry.json');
 const slotNamePattern = /^[a-z]+(?:_[a-z]+)*$/u;
 
-async function loadRegistry(): Promise<any> {
+type FrontmatterValue = string | string[];
+type Frontmatter = Record<string, FrontmatterValue>;
+
+interface ModuleDef {
+  slot: string;
+  requires?: string[];
+  conflicts_with?: string[];
+}
+
+interface LanguageDef {
+  modules?: Record<string, ModuleDef>;
+}
+
+interface SlotDef {
+  kind: 'exclusive' | 'composable';
+  description: string;
+}
+
+interface AliasMeta {
+  replacement: string;
+  deprecated_since: string;
+  remove_in: string;
+}
+
+interface Registry {
+  slots?: string[];
+  slot_defs?: Record<string, SlotDef>;
+  slot_aliases?: Record<string, string>;
+  slot_alias_meta?: Record<string, AliasMeta>;
+  languages?: Record<string, LanguageDef>;
+}
+
+async function loadRegistry(): Promise<Registry> {
   return JSON.parse(await fs.readFile(registryPath, 'utf8'));
 }
 
-function parseFrontmatter(markdown: string): any {
+function parseFrontmatter(markdown: string): Frontmatter | null {
   const match = markdown.match(/^---\n([\s\S]*?)\n---\n/u);
   if (!match) return null;
-  const fields = {};
+  const fields: Frontmatter = {};
   for (const line of match[1].split('\n')) {
     const trimmed = line.trim();
     if (!trimmed || trimmed.startsWith('#')) continue;
     const idx = line.indexOf(':');
     if (idx < 0) continue;
     const key = line.slice(0, idx).trim();
-    let value: any = line.slice(idx + 1).trim();
+    let value: FrontmatterValue = line.slice(idx + 1).trim();
     if (value.startsWith('[') && value.endsWith(']')) {
       value = value
         .slice(1, -1)
@@ -56,7 +88,7 @@ test('registry slots follow naming and coverage rules', async () => {
     'slot_defs keys must match slots exactly'
   );
 
-  for (const [slot, def] of Object.entries(slotDefs as Record<string, any>)) {
+  for (const [slot, def] of Object.entries(slotDefs)) {
     assert.equal(typeof def.description, 'string', `slot_defs.${slot}.description must be string`);
     assert.ok(def.description.trim().length > 0, `slot_defs.${slot}.description must not be empty`);
     assert.ok(
@@ -76,7 +108,7 @@ test('registry slots follow naming and coverage rules', async () => {
     'slot_alias_meta keys must match slot_aliases keys'
   );
 
-  for (const [alias, meta] of Object.entries(aliasMeta as Record<string, any>)) {
+  for (const [alias, meta] of Object.entries(aliasMeta)) {
     assert.equal(
       meta.replacement,
       slotAliases[alias],
@@ -98,7 +130,7 @@ test('registry modules use canonical slots and docs match', async () => {
   const aliases = registry.slot_aliases || {};
   const usedSlots = new Set<string>();
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
     const moduleDir = path.join(packageRoot, 'languages', languageId, 'modules');
     const docModuleIds = await fs.readdir(moduleDir, { withFileTypes: true })
       .then((entries) => entries
@@ -115,7 +147,7 @@ test('registry modules use canonical slots and docs match', async () => {
       `Registry/docs module mismatch for language '${languageId}'`
     );
 
-    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
+    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
       const rawSlot = moduleDef.slot;
       assert.ok(rawSlot, `Missing slot for module '${languageId}:${moduleId}'`);
       const canonical = aliases[rawSlot] || rawSlot;
@@ -168,10 +200,10 @@ test('registry modules use canonical slots and docs match', async () => {
 test('registry module relationships and frontmatter metadata are valid', async () => {
   const registry = await loadRegistry();
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
     const moduleIds = new Set(Object.keys(languageDef.modules || {}));
 
-    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
+    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
       const requires = moduleDef.requires || [];
       const conflicts = moduleDef.conflicts_with || [];
       const requiresSet = new Set(requires);
@@ -225,7 +257,7 @@ test('registry module relationships and frontmatter metadata are valid', async (
 });
 
 test('split registry and generated catalog are in sync', () => {
-  const run = (script, ...args) => execFileSync(
+  const run = (script: string, ...args: string[]) => execFileSync(
     process.execPath,
     [path.join(packageRoot, script), ...args],
     { stdio: 'pipe', encoding: 'utf8' }

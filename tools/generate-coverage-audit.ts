@@ -37,8 +37,22 @@ type CoverageReport = {
   slotUsage: Map<string, string[]>;
 };
 
-async function readJson(filePath: string): Promise<any> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8'));
+interface ModuleDef {
+  slot: string;
+}
+
+interface LanguageDef {
+  display: string;
+  modules?: Record<string, ModuleDef>;
+}
+
+interface Registry {
+  slots?: string[];
+  languages?: Record<string, LanguageDef>;
+}
+
+async function readJson<T>(filePath: string): Promise<T> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
 }
 
 function parseFrontmatter(markdown: string): Record<string, string> | null {
@@ -76,7 +90,7 @@ async function collectDocModuleInfo(languageId: string): Promise<DocModuleInfo[]
   return modules;
 }
 
-async function buildAudit(registry: any): Promise<CoverageReport> {
+async function buildAudit(registry: Registry): Promise<CoverageReport> {
   const report: CoverageReport = {
     byLanguage: [],
     global: {
@@ -88,9 +102,9 @@ async function buildAudit(registry: any): Promise<CoverageReport> {
 
   for (const slot of registry.slots || []) report.slotUsage.set(slot, []);
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
     const registryModules: RegistryModuleInfo[] = Object.entries(languageDef.modules || {}).map(
-      ([moduleId, moduleDef]: [string, any]) => ({
+      ([moduleId, moduleDef]) => ({
         moduleId,
         slot: moduleDef.slot
       })
@@ -139,7 +153,7 @@ async function buildAudit(registry: any): Promise<CoverageReport> {
   return report;
 }
 
-function renderReport(registry: any, report: CoverageReport): string {
+function renderReport(registry: Registry, report: CoverageReport): string {
   const lines: string[] = [];
   lines.push('# Module/Slot Coverage Audit');
   lines.push('');
@@ -192,7 +206,7 @@ function renderReport(registry: any, report: CoverageReport): string {
 }
 
 async function run(): Promise<void> {
-  const registry = await readJson(registryPath);
+  const registry = await readJson<Registry>(registryPath);
   const report = await buildAudit(registry);
   const nextText = renderReport(registry, report);
 

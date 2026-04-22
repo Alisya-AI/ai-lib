@@ -7,11 +7,34 @@ const registryPath = path.join(packageRoot, 'registry.json');
 const outputPath = path.join(packageRoot, 'docs', 'module-catalog.md');
 const checkOnly = process.argv.includes('--check');
 
-async function readJson(filePath: string): Promise<any> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8'));
+interface SlotDef {
+  kind?: 'exclusive' | 'composable' | string;
+  description?: string;
 }
 
-function renderCatalog(registry: any): string {
+interface ModuleDef {
+  slot: string;
+  requires?: string[];
+  conflicts_with?: string[];
+}
+
+interface LanguageDef {
+  display: string;
+  path: string;
+  modules?: Record<string, ModuleDef>;
+}
+
+interface Registry {
+  slots?: string[];
+  slot_defs?: Record<string, SlotDef>;
+  languages?: Record<string, LanguageDef>;
+}
+
+async function readJson<T>(filePath: string): Promise<T> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
+}
+
+function renderCatalog(registry: Registry): string {
   const lines: string[] = [];
   lines.push('# Module Catalog');
   lines.push('');
@@ -32,15 +55,15 @@ function renderCatalog(registry: any): string {
   lines.push('## Language Modules');
   lines.push('');
 
-  for (const [languageId, languageDef] of Object.entries(registry.languages || {}) as Array<[string, any]>) {
+  for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
     lines.push(`### ${languageDef.display} (\`${languageId}\`)`);
     lines.push('');
     lines.push(`Core: \`${languageDef.path}\``);
     lines.push('');
 
-    const modulesBySlot = new Map<string, Array<[string, any]>>();
+    const modulesBySlot = new Map<string, Array<[string, ModuleDef]>>();
     for (const slot of registry.slots || []) modulesBySlot.set(slot, []);
-    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {}) as Array<[string, any]>) {
+    for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
       const slot = moduleDef.slot;
       if (!modulesBySlot.has(slot)) modulesBySlot.set(slot, []);
       modulesBySlot.get(slot)?.push([moduleId, moduleDef]);
@@ -70,7 +93,7 @@ function renderCatalog(registry: any): string {
 }
 
 async function run(): Promise<void> {
-  const registry = await readJson(registryPath);
+  const registry = await readJson<Registry>(registryPath);
   const nextText = renderCatalog(registry);
 
   if (checkOnly) {
