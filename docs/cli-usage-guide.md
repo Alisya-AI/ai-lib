@@ -120,6 +120,39 @@ Explain one module:
 ailib modules explain prisma --language=typescript
 ```
 
+## Local override workflow
+
+Use `ailib.local.json` to customize local targets/modules/slots without changing managed `ailib.config.json`.
+
+1) Define overrides at root:
+
+```bash
+touch ailib.local.json
+```
+
+2) Apply updates:
+
+```bash
+ailib update
+```
+
+3) Verify local override integrity:
+
+```bash
+ailib doctor
+```
+
+Behavior:
+
+- Invalid overrides fail `ailib update` immediately.
+- `ailib doctor` reports override validation problems with actionable messages.
+- Valid overrides survive regeneration and future `ailib update` runs.
+
+Reference model and schema:
+
+- [docs/local-override-model.md](docs/local-override-model.md)
+- [schema/override.schema.json](../schema/override.schema.json)
+
 ## Troubleshooting
 
 - `Unknown command`:
@@ -139,6 +172,10 @@ ailib modules explain prisma --language=typescript
 
 - `doctor` reports missing pointer or frontmatter mismatch:
   - re-run `ailib update`, then re-check with `ailib doctor`.
+
+- `Invalid ailib.local.json`:
+  - fix invalid keys or unknown references reported by error output
+  - re-run `ailib update`, then `ailib doctor`.
 
 ## Recommended validation loop
 

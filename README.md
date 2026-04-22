@@ -38,6 +38,7 @@ Branch protection and required check policy: [docs/branch-protection-policy.md](
 Guide for adding new targets: [docs/targets-guide.md](docs/targets-guide.md).
 Guide for adding modules and slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md).
 End-to-end CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md).
+Local override workflow and guarantees: [docs/local-override-model.md](docs/local-override-model.md).
 
 ### Local install from repository
 
@@ -56,6 +57,7 @@ bun run local:install
 - Workflow hardening: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md)
 - Branch protection policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md)
 - Homebrew publishing: [docs/homebrew-publishing.md](docs/homebrew-publishing.md)
+- Local override workflow and guarantees: [docs/local-override-model.md](docs/local-override-model.md)
 - Module catalog: [docs/module-catalog.md](docs/module-catalog.md)
 - Module/slot coverage audit: [docs/module-coverage-audit.md](docs/module-coverage-audit.md)
 - Follow-up roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md)
