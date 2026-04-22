@@ -33,18 +33,20 @@ async function exists(filePath: string) {
 
 async function captureStdout(fn: () => Promise<void>) {
   const writes: string[] = [];
-  const originalWrite = process.stdout.write.bind(process.stdout);
-  (process.stdout as any).write = (chunk: string | Uint8Array, encoding?: BufferEncoding, callback?: (err?: Error) => void) => {
+  const mutableStdout = process.stdout as unknown as { write: typeof process.stdout.write };
+  const originalWrite = mutableStdout.write.bind(process.stdout);
+  mutableStdout.write = ((chunk, encoding, callback) => {
     writes.push(typeof chunk === 'string' ? chunk : chunk.toString());
-    if (typeof callback === 'function') callback();
+    const done = typeof encoding === 'function' ? encoding : callback;
+    if (typeof done === 'function') done();
     return true;
-  };
+  }) as typeof process.stdout.write;
 
   try {
     await fn();
     return writes.join('');
   } finally {
-    (process.stdout as any).write = originalWrite;
+    mutableStdout.write = originalWrite;
   }
 }
 

@@ -400,8 +400,8 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
     workspaceOverride: getStringFlag(flags, 'workspace')
   });
 
-  const errors = [];
-  const warnings = [];
+  const errors: string[] = [];
+  const warnings: string[] = [];
   try {
     await assertLocalOverridesValid({ rootDir: context.rootDir, rootConfig, registry });
   } catch (err) {
