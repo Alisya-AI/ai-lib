@@ -21,7 +21,9 @@
     "release:build": "bash scripts/build-release-artifacts.sh",
     "local:install": "bash scripts/install-local.sh",
     "security:audit": "bun audit --audit-level=high",
-    "lint": "bun tools/check-standards.ts",
+    "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
+    "format:write": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
+    "lint": "bun tools/check-standards.ts && bun run format:check",
     "tools:build": "bunx tsc -p tsconfig.tools.json",
     "registry:build": "bun tools/sync-registry.ts",
     "registry:check": "bun tools/sync-registry.ts --check",
@@ -50,6 +52,7 @@
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
+    "prettier": "^3.8.3",
     "typescript": "^6.0.3"
   }
 }

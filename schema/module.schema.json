@@ -16,8 +16,5 @@
     "tested_with": { "type": "array", "items": { "type": "string" } },
     "deprecated": { "type": ["boolean", "string"] }
   },
-  "anyOf": [
-    { "required": ["language"] },
-    { "required": ["core"] }
-  ]
+  "anyOf": [{ "required": ["language"] }, { "required": ["core"] }]
 }

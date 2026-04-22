@@ -21,7 +21,7 @@ All runtime code for Lambda follows these rules, regardless of deployment tool.
 Handlers are default exports named `handler`:
 
 ```ts
-import type { APIGatewayProxyHandlerV2 } from "aws-lambda";
+import type { APIGatewayProxyHandlerV2 } from 'aws-lambda';
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
   // …

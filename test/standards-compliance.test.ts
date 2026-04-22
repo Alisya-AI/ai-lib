@@ -14,7 +14,7 @@ async function collectTypeScriptFiles(rootDir: string): Promise<string[]> {
     if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === 'coverage') continue;
     const fullPath = path.join(rootDir, entry.name);
     if (entry.isDirectory()) {
-      files.push(...await collectTypeScriptFiles(fullPath));
+      files.push(...(await collectTypeScriptFiles(fullPath)));
       continue;
     }
     if (entry.isFile() && entry.name.endsWith('.ts')) {
@@ -50,9 +50,5 @@ test('no explicit any typing in src/tools/test TypeScript files', async () => {
     }
   }
 
-  assert.deepEqual(
-    violations,
-    [],
-    `Explicit 'any' typing is not allowed:\n- ${violations.join('\n- ')}`
-  );
+  assert.deepEqual(violations, [], `Explicit 'any' typing is not allowed:\n- ${violations.join('\n- ')}`);
 });

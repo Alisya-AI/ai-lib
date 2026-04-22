@@ -1,0 +1,7 @@
+coverage
+dist
+node_modules
+.cursor
+registry.json
+docs/module-catalog.md
+docs/module-coverage-audit.md

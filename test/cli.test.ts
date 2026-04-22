@@ -73,10 +73,7 @@ test('run prints help for empty argv and --help', async () => {
 });
 
 test('run throws for unknown command', async () => {
-  await assert.rejects(
-    run(['unknown-command'], { packageRoot }),
-    /Unknown command: unknown-command/
-  );
+  await assert.rejects(run(['unknown-command'], { packageRoot }), /Unknown command: unknown-command/);
 });
 
 test('slots list prints canonical slots with metadata', async () => {
@@ -109,7 +106,17 @@ test('modules explain prints module details', async () => {
 
 test('init creates root config, root lock, and routers with new layout', async () => {
   const cwd = await makeProject();
-  await run(['init', '--language=typescript', '--modules=eslint,vitest', '--targets=claude-code,copilot', '--on-conflict=overwrite', '--bare'], { cwd, packageRoot });
+  await run(
+    [
+      'init',
+      '--language=typescript',
+      '--modules=eslint,vitest',
+      '--targets=claude-code,copilot',
+      '--on-conflict=overwrite',
+      '--bare'
+    ],
+    { cwd, packageRoot }
+  );
 
   assert.equal(await exists(path.join(cwd, 'ailib.config.json')), true);
   assert.equal(await exists(path.join(cwd, 'ailib.lock')), true);
@@ -124,7 +131,17 @@ test('init creates root config, root lock, and routers with new layout', async (
 
 test('init supports generic target outputs including openai and gemini', async () => {
   const cwd = await makeProject();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,cursor,windsurf,openai,gemini', '--on-conflict=overwrite', '--bare'], { cwd, packageRoot });
+  await run(
+    [
+      'init',
+      '--language=typescript',
+      '--modules=eslint',
+      '--targets=claude-code,cursor,windsurf,openai,gemini',
+      '--on-conflict=overwrite',
+      '--bare'
+    ],
+    { cwd, packageRoot }
+  );
 
   assert.equal(await exists(path.join(cwd, 'CLAUDE.md')), true);
   assert.equal(await exists(path.join(cwd, '.cursor/rules/ailib.mdc')), true);
@@ -136,10 +153,25 @@ test('init supports generic target outputs including openai and gemini', async (
 
 test('monorepo update inherits root and supports service override modules', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,cursor,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(
+    [
+      'init',
+      '--language=typescript',
+      '--modules=eslint',
+      '--targets=claude-code,cursor,copilot',
+      '--on-conflict=overwrite'
+    ],
+    { cwd: root, packageRoot }
+  );
 
-  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code,cursor,copilot'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
-  await run(['init', '--language=python', '--modules=ruff,pytest,fastapi', '--targets=claude-code,copilot'], { cwd: path.join(root, 'services', 'ml'), packageRoot });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code,cursor,copilot'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+  await run(['init', '--language=python', '--modules=ruff,pytest,fastapi', '--targets=claude-code,copilot'], {
+    cwd: path.join(root, 'services', 'ml'),
+    packageRoot
+  });
 
   await run(['update'], { cwd: root, packageRoot });
 
@@ -159,8 +191,14 @@ test('monorepo update inherits root and supports service override modules', asyn
 
 test('local overrides are merged into effective workspace config', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+  await run(
+    ['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'],
+    { cwd: root, packageRoot }
+  );
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
 
   const localOverride = {
     version: '1.0.0',
@@ -186,8 +224,14 @@ test('local overrides are merged into effective workspace config', async () => {
 
 test('add/remove can target workspace in monorepo', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code'], { cwd: path.join(root, 'services', 'ml'), packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code'], {
+    cwd: path.join(root, 'services', 'ml'),
+    packageRoot
+  });
 
   await run(['add', 'pytest', '--workspace=services/ml'], { cwd: root, packageRoot });
   assert.equal(await exists(path.join(root, 'services', 'ml', '.ailib/modules/pytest.md')), true);
@@ -198,8 +242,14 @@ test('add/remove can target workspace in monorepo', async () => {
 
 test('doctor validates all workspaces and keeps healthy status', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
 
   process.exitCode = 0;
   await run(['doctor'], { cwd: root, packageRoot });
@@ -208,8 +258,14 @@ test('doctor validates all workspaces and keeps healthy status', async () => {
 
 test('doctor fails when required pointer files are missing', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
 
   await fs.rm(path.join(root, 'apps', 'web', '.ailib', 'standards.md'));
 
@@ -222,7 +278,10 @@ test('doctor fails when required pointer files are missing', async () => {
 
 test('update fails fast for invalid local override references', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
 
   const localOverride = {
     version: '1.0.0',
@@ -234,15 +293,15 @@ test('update fails fast for invalid local override references', async () => {
   };
   await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
 
-  await assert.rejects(
-    run(['update'], { cwd: root, packageRoot }),
-    /Invalid ailib\.local\.json/
-  );
+  await assert.rejects(run(['update'], { cwd: root, packageRoot }), /Invalid ailib\.local\.json/);
 });
 
 test('doctor reports invalid local override configuration', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
 
   const localOverride = {
     version: '1.0.0',
@@ -265,8 +324,14 @@ test('doctor reports invalid local override configuration', async () => {
 
 test('doctor reports missing frontmatter fields for module pointers', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
 
   const modulePath = path.join(root, 'apps', 'web', '.ailib', 'modules', 'biome.md');
   const original = await fs.readFile(modulePath, 'utf8');
@@ -286,8 +351,14 @@ test('uninstall at monorepo root without --all removes root workspace artifacts 
   const root = await makeMonorepo();
   const serviceDir = path.join(root, 'services', 'ml');
 
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], { cwd: serviceDir, packageRoot });
+  await run(
+    ['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'],
+    { cwd: root, packageRoot }
+  );
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], {
+    cwd: serviceDir,
+    packageRoot
+  });
 
   await run(['uninstall'], { cwd: root, packageRoot });
 
@@ -304,8 +375,14 @@ test('uninstall at monorepo root without --all removes root workspace artifacts 
 test('uninstall in service workspace removes service and keeps root managed', async () => {
   const root = await makeMonorepo();
   const serviceDir = path.join(root, 'services', 'ml');
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], { cwd: serviceDir, packageRoot });
+  await run(
+    ['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'],
+    { cwd: root, packageRoot }
+  );
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], {
+    cwd: serviceDir,
+    packageRoot
+  });
 
   await run(['uninstall'], { cwd: serviceDir, packageRoot });
 
@@ -318,8 +395,14 @@ test('uninstall in service workspace removes service and keeps root managed', as
 
 test('uninstall --all at root removes root and service outputs', async () => {
   const root = await makeMonorepo();
-  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
-  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], { cwd: path.join(root, 'services', 'ml'), packageRoot });
+  await run(
+    ['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'],
+    { cwd: root, packageRoot }
+  );
+  await run(['init', '--language=python', '--modules=ruff', '--targets=claude-code,copilot'], {
+    cwd: path.join(root, 'services', 'ml'),
+    packageRoot
+  });
 
   await run(['uninstall', '--all'], { cwd: root, packageRoot });
 

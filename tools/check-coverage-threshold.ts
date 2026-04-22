@@ -49,14 +49,10 @@ async function run(): Promise<void> {
   const rounded = Math.round(lineCoverage * 100) / 100;
 
   if (lineCoverage < minLines) {
-    throw new Error(
-      `Line coverage ${rounded}% is below threshold ${minLines}% (${coveredLines}/${totalLines}).`
-    );
+    throw new Error(`Line coverage ${rounded}% is below threshold ${minLines}% (${coveredLines}/${totalLines}).`);
   }
 
-  console.log(
-    `Coverage threshold check passed: ${rounded}% >= ${minLines}% (${coveredLines}/${totalLines})`
-  );
+  console.log(`Coverage threshold check passed: ${rounded}% >= ${minLines}% (${coveredLines}/${totalLines})`);
 }
 
 run().catch((error: unknown) => {

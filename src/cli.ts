@@ -167,15 +167,15 @@ export async function run(argv: string[], options: RunOptions = {}) {
 function printHelp() {
   process.stdout.write(
     'ailib commands:\n' +
-    '  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]\n' +
-    '  ailib update [--workspace=<path>]\n' +
-    '  ailib add <module> [--workspace=<path>]\n' +
-    '  ailib remove <module> [--workspace=<path>]\n' +
-    '  ailib doctor [--workspace=<path>]\n' +
-    '  ailib uninstall [--all]\n' +
-    '  ailib slots list\n' +
-    '  ailib modules list [--language=<lang>]\n' +
-    '  ailib modules explain <module> [--language=<lang>]\n'
+      '  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]\n' +
+      '  ailib update [--workspace=<path>]\n' +
+      '  ailib add <module> [--workspace=<path>]\n' +
+      '  ailib remove <module> [--workspace=<path>]\n' +
+      '  ailib doctor [--workspace=<path>]\n' +
+      '  ailib uninstall [--all]\n' +
+      '  ailib slots list\n' +
+      '  ailib modules list [--language=<lang>]\n' +
+      '  ailib modules explain <module> [--language=<lang>]\n'
   );
 }
 
@@ -302,7 +302,12 @@ async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
     if (targets.length) config.targets = targets;
 
     await fs.writeFile(path.join(projectRoot, CONFIG_FILE), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-    await applyWorkspaceUpdate({ packageRoot, rootDir: nearestRoot, workspaceOverride: projectRoot, forceOnConflict: onConflict });
+    await applyWorkspaceUpdate({
+      packageRoot,
+      rootDir: nearestRoot,
+      workspaceOverride: projectRoot,
+      forceOnConflict: onConflict
+    });
     process.stdout.write('ailib initialized\n');
     return;
   }
@@ -332,7 +337,12 @@ async function updateCommand({ cwd, packageRoot, flags }: CommandContext) {
   const context = await resolveContext(cwd);
   const workspaceFlag = getStringFlag(flags, 'workspace');
   const workspaceOverride = workspaceFlag ? resolveWorkspacePath(context.rootDir, workspaceFlag) : undefined;
-  await applyWorkspaceUpdate({ packageRoot, rootDir: context.rootDir, workspaceOverride, forceOnConflict: 'overwrite' });
+  await applyWorkspaceUpdate({
+    packageRoot,
+    rootDir: context.rootDir,
+    workspaceOverride,
+    forceOnConflict: 'overwrite'
+  });
   process.stdout.write('ailib updated\n');
 }
 
@@ -352,7 +362,11 @@ async function addCommand({ cwd, packageRoot, flags, moduleId }: CommandContext 
     rootConfig: await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE)),
     registry
   });
-  validateModuleSelection({ registry, language: effective.language, modules: uniqueList([...(config.modules || []), moduleId]) });
+  validateModuleSelection({
+    registry,
+    language: effective.language,
+    modules: uniqueList([...(config.modules || []), moduleId])
+  });
 
   config.modules = uniqueList([...(config.modules || []), moduleId]);
   await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
@@ -414,7 +428,12 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
     return;
   }
 
-  const rootEffective = await getEffectiveWorkspaceConfig({ workspaceDir: context.rootDir, rootDir: context.rootDir, rootConfig, registry });
+  const rootEffective = await getEffectiveWorkspaceConfig({
+    workspaceDir: context.rootDir,
+    rootDir: context.rootDir,
+    rootConfig,
+    registry
+  });
   for (const workspaceDir of workspaceDirs) {
     const workspaceLabel = workspaceLabelFor(context.rootDir, workspaceDir);
     const configPath = path.join(workspaceDir, CONFIG_FILE);
@@ -526,7 +545,8 @@ async function uninstallWorkspace(workspaceDir: string, config: WorkspaceConfig 
       const targetDef = registry.targets[target];
       if (!targetDef) continue;
       await rmIfExists(path.join(workspaceDir, targetDef.output));
-      if (targetDef.root_output && isRootWorkspaceConfig(config)) await rmIfExists(path.join(workspaceDir, targetDef.root_output));
+      if (targetDef.root_output && isRootWorkspaceConfig(config))
+        await rmIfExists(path.join(workspaceDir, targetDef.root_output));
       if (target === 'copilot' && isRootWorkspaceConfig(config)) {
         await rmIfExists(path.join(workspaceDir, '.github/instructions'));
       }
@@ -534,10 +554,17 @@ async function uninstallWorkspace(workspaceDir: string, config: WorkspaceConfig 
   }
 }
 
-async function applyWorkspaceUpdate(
-  { packageRoot, rootDir, workspaceOverride, forceOnConflict }:
-  { packageRoot: string; rootDir: string; workspaceOverride?: string; forceOnConflict?: string }
-) {
+async function applyWorkspaceUpdate({
+  packageRoot,
+  rootDir,
+  workspaceOverride,
+  forceOnConflict
+}: {
+  packageRoot: string;
+  rootDir: string;
+  workspaceOverride?: string;
+  forceOnConflict?: string;
+}) {
   const rootConfigPath = path.join(rootDir, CONFIG_FILE);
   ensure(await exists(rootConfigPath), `Missing ${CONFIG_FILE} at root: ${rootDir}`);
 
@@ -565,10 +592,26 @@ async function applyWorkspaceUpdate(
     await generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates: stateMap, registry });
   }
 
-  await writeRootLock({ rootDir, packageRoot, packageVersion: packageJson.version, registryRef: rootConfig.registry_ref || registry.version, allStates: stateMap });
+  await writeRootLock({
+    rootDir,
+    packageRoot,
+    packageVersion: packageJson.version,
+    registryRef: rootConfig.registry_ref || registry.version,
+    allStates: stateMap
+  });
 }
 
-async function ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir }: { workspaceDir: string; packageRoot: string; state: WorkspaceState; rootDir: string }) {
+async function ensureWorkspaceAssets({
+  workspaceDir,
+  packageRoot,
+  state,
+  rootDir
+}: {
+  workspaceDir: string;
+  packageRoot: string;
+  state: WorkspaceState;
+  rootDir: string;
+}) {
   const outRoot = path.join(workspaceDir, '.ailib');
   await fs.mkdir(path.join(outRoot, 'modules'), { recursive: true });
 
@@ -643,7 +686,9 @@ async function generateWorkspaceRouters({
 
     const label = targetDef.display || targetId;
     const frontmatter = targetDef.frontmatter
-      ? (atRoot ? targetDef.frontmatter.root : targetDef.frontmatter.workspace)
+      ? atRoot
+        ? targetDef.frontmatter.root
+        : targetDef.frontmatter.workspace
       : '';
     const rendered = `${frontmatter || ''}${renderRouterDoc({ label, workspaceDir, rootDir, state })}`;
     await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.output), rendered, onConflict });
@@ -673,16 +718,31 @@ async function generateWorkspaceRouters({
       const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
       const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
       const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: registry.targets.copilot?.display || 'GitHub Copilot', workspaceDir: dir, rootDir, state: s })}`;
-      await writeManagedFile({ outPath: path.join(rootDir, '.github/instructions', fileName), rendered: content, onConflict });
+      await writeManagedFile({
+        outPath: path.join(rootDir, '.github/instructions', fileName),
+        rendered: content,
+        onConflict
+      });
     }
   }
 }
 
-function renderRouterDoc({ label, workspaceDir, rootDir, state }: { label: string; workspaceDir: string; rootDir: string; state: WorkspaceState }) {
+function renderRouterDoc({
+  label,
+  workspaceDir,
+  rootDir,
+  state
+}: {
+  label: string;
+  workspaceDir: string;
+  rootDir: string;
+  state: WorkspaceState;
+}) {
   const relToRoot = relativePathForPointers(workspaceDir, rootDir);
-  const behaviorRef = path.resolve(workspaceDir) === path.resolve(rootDir)
-    ? '@.ailib/behavior.md'
-    : `@${toPosix(path.join(relToRoot, '.ailib/behavior.md'))}`;
+  const behaviorRef =
+    path.resolve(workspaceDir) === path.resolve(rootDir)
+      ? '@.ailib/behavior.md'
+      : `@${toPosix(path.join(relToRoot, '.ailib/behavior.md'))}`;
 
   const inheritedModuleLines = state.inheritedModules.map((mod) => {
     const modPath = `@${toPosix(path.join(relToRoot, '.ailib/modules', `${mod}.md`))}`;
@@ -691,15 +751,26 @@ function renderRouterDoc({ label, workspaceDir, rootDir, state }: { label: strin
 
   const localModuleLines = state.localModules.map((mod) => `- @.ailib/modules/${mod}.md`);
   const moduleLines = [...inheritedModuleLines, ...localModuleLines];
-  const docsBlock = path.resolve(workspaceDir) === path.resolve(rootDir)
-    ? '# PROJECT-SPECIFIC CONTEXT\nPrioritize project context in @./docs/.\n'
-    : `# PROJECT-SPECIFIC CONTEXT\nPrioritize service-local business logic in @./docs/.\nFor cross-service context, consult @${toPosix(path.join(relToRoot, 'docs/'))}.\nIf guidance conflicts, service-local docs win for service-scoped work.\n`;
+  const docsBlock =
+    path.resolve(workspaceDir) === path.resolve(rootDir)
+      ? '# PROJECT-SPECIFIC CONTEXT\nPrioritize project context in @./docs/.\n'
+      : `# PROJECT-SPECIFIC CONTEXT\nPrioritize service-local business logic in @./docs/.\nFor cross-service context, consult @${toPosix(path.join(relToRoot, 'docs/'))}.\nIf guidance conflicts, service-local docs win for service-scoped work.\n`;
 
   const modulesText = moduleLines.length ? moduleLines.join('\n') : '- (none)';
   return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\nApply test and coverage rules in @.ailib/test-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
 }
 
-async function buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }: { workspaceDir: string; rootDir: string; rootConfig: WorkspaceConfig; registry: Registry }): Promise<WorkspaceState> {
+async function buildWorkspaceState({
+  workspaceDir,
+  rootDir,
+  rootConfig,
+  registry
+}: {
+  workspaceDir: string;
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+}): Promise<WorkspaceState> {
   const effective = await getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, registry });
   validateModuleSelection({ registry, language: effective.language, modules: effective.modules });
 
@@ -742,8 +813,8 @@ async function getEffectiveWorkspaceConfig({
   const mergedModules = mergeModules({
     registry,
     language,
-    parentModules: isRootWorkspace ? [] : (base.modules || []),
-    localModules: workspaceRaw.modules || (isRootWorkspace ? (base.modules || []) : [])
+    parentModules: isRootWorkspace ? [] : base.modules || [],
+    localModules: workspaceRaw.modules || (isRootWorkspace ? base.modules || [] : [])
   });
 
   const targets = mergeTargets({
@@ -802,13 +873,9 @@ async function applyLocalOverrides({
     return { modules, targets, warnings };
   }
 
-  const workspaceKey = path.resolve(workspaceDir) === path.resolve(rootDir)
-    ? '.'
-    : toPosix(path.relative(rootDir, workspaceDir));
-  const override = mergeWorkspaceOverrides(
-    config.default_override,
-    (config.workspace_overrides || {})[workspaceKey]
-  );
+  const workspaceKey =
+    path.resolve(workspaceDir) === path.resolve(rootDir) ? '.' : toPosix(path.relative(rootDir, workspaceDir));
+  const override = mergeWorkspaceOverrides(config.default_override, (config.workspace_overrides || {})[workspaceKey]);
 
   const validTargets = new Set(Object.keys(registry.targets || {}));
   const validModules = new Set(Object.keys(registry.languages[language]?.modules || {}));
@@ -901,16 +968,21 @@ async function validateLocalOverrideConfig({
   }
 
   const workspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig });
-  const workspaceKeys = new Set(['.', ...workspaceDirs
-    .filter((workspaceDir) => path.resolve(workspaceDir) !== path.resolve(rootDir))
-    .map((workspaceDir) => toPosix(path.relative(rootDir, workspaceDir)))]);
+  const workspaceKeys = new Set([
+    '.',
+    ...workspaceDirs
+      .filter((workspaceDir) => path.resolve(workspaceDir) !== path.resolve(rootDir))
+      .map((workspaceDir) => toPosix(path.relative(rootDir, workspaceDir)))
+  ]);
 
   if (config.default_override !== undefined) {
-    errors.push(...validateWorkspaceOverride({
-      override: config.default_override,
-      label: 'default_override',
-      registry
-    }));
+    errors.push(
+      ...validateWorkspaceOverride({
+        override: config.default_override,
+        label: 'default_override',
+        registry
+      })
+    );
   }
 
   if (config.workspace_overrides !== undefined) {
@@ -925,11 +997,13 @@ async function validateLocalOverrideConfig({
         if (!workspaceKeys.has(workspaceKey)) {
           errors.push(`unknown workspace override key '${workspaceKey}'`);
         }
-        errors.push(...validateWorkspaceOverride({
-          override,
-          label: `workspace_overrides.${workspaceKey}`,
-          registry
-        }));
+        errors.push(
+          ...validateWorkspaceOverride({
+            override,
+            label: `workspace_overrides.${workspaceKey}`,
+            registry
+          })
+        );
       }
     }
   }
@@ -959,20 +1033,24 @@ function validateWorkspaceOverride({
   }
 
   if (override.targets !== undefined) {
-    errors.push(...validateListOverrideScope({
-      scope: override.targets,
-      label: `${label}.targets`,
-      validSet: new Set(Object.keys(registry.targets || {})),
-      valueLabel: 'target'
-    }));
+    errors.push(
+      ...validateListOverrideScope({
+        scope: override.targets,
+        label: `${label}.targets`,
+        validSet: new Set(Object.keys(registry.targets || {})),
+        valueLabel: 'target'
+      })
+    );
   }
 
   if (override.modules !== undefined) {
-    errors.push(...validateListOverrideScope({
-      scope: override.modules,
-      label: `${label}.modules`,
-      valueLabel: 'module'
-    }));
+    errors.push(
+      ...validateListOverrideScope({
+        scope: override.modules,
+        label: `${label}.modules`,
+        valueLabel: 'module'
+      })
+    );
   }
 
   if (override.slots !== undefined) {
@@ -1068,15 +1146,7 @@ async function assertLocalOverridesValid({
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
 }
 
-function ensureValidItems({
-  list,
-  validSet,
-  label
-}: {
-  list: string[];
-  validSet: Set<string>;
-  label: string;
-}) {
+function ensureValidItems({ list, validSet, label }: { list: string[]; validSet: Set<string>; label: string }) {
   const invalid = list.filter((value) => !validSet.has(value));
   if (invalid.length) {
     throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: ${label} contains unknown value(s): ${invalid.join(', ')}`);
@@ -1226,7 +1296,11 @@ async function resolveExtendsBase({
   return normalizeRootConfig(rootConfig, registry);
 }
 
-async function resolveConfigByExtends(workspaceDir: string, extendsValue: string, seen: Set<string>): Promise<WorkspaceConfig> {
+async function resolveConfigByExtends(
+  workspaceDir: string,
+  extendsValue: string,
+  seen: Set<string>
+): Promise<WorkspaceConfig> {
   const targetPath = extendsValue.endsWith('.json')
     ? path.resolve(workspaceDir, extendsValue)
     : path.join(path.resolve(workspaceDir, extendsValue), CONFIG_FILE);
@@ -1328,7 +1402,15 @@ function mergeModules({
   };
 }
 
-function mergeTargets({ parentTargets, localTargets, targetsRemoved }: { parentTargets: string[]; localTargets: string[]; targetsRemoved: string[] }) {
+function mergeTargets({
+  parentTargets,
+  localTargets,
+  targetsRemoved
+}: {
+  parentTargets: string[];
+  localTargets: string[];
+  targetsRemoved: string[];
+}) {
   const parent = uniqueList(parentTargets || []);
   const removed = new Set(targetsRemoved || []);
   const local = uniqueList(localTargets || []);
@@ -1365,7 +1447,15 @@ function diffSlots(rootModules: string[], workspaceModules: string[], registry: 
   return diffs;
 }
 
-function validateModuleSelection({ registry, language, modules }: { registry: Registry; language: string; modules: string[] }) {
+function validateModuleSelection({
+  registry,
+  language,
+  modules
+}: {
+  registry: Registry;
+  language: string;
+  modules: string[];
+}) {
   const lang = registry.languages[language];
   ensure(lang, `Unsupported language: ${language}`);
 
@@ -1394,7 +1484,19 @@ function validateModuleSelection({ registry, language, modules }: { registry: Re
   }
 }
 
-async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef, allStates }: { rootDir: string; packageRoot: string; packageVersion: string; registryRef: string; allStates: Map<string, WorkspaceState> }) {
+async function writeRootLock({
+  rootDir,
+  packageRoot,
+  packageVersion,
+  registryRef,
+  allStates
+}: {
+  rootDir: string;
+  packageRoot: string;
+  packageVersion: string;
+  registryRef: string;
+  allStates: Map<string, WorkspaceState>;
+}) {
   const registryText = await fs.readFile(path.join(packageRoot, 'registry.json'), 'utf8');
   const lock = {
     lockfile_version: 1,
@@ -1447,7 +1549,15 @@ async function writeRootLock({ rootDir, packageRoot, packageVersion, registryRef
   await fs.writeFile(path.join(rootDir, LOCK_FILE), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
 }
 
-async function listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride }: { rootDir: string; rootConfig: WorkspaceConfig; workspaceOverride?: string }) {
+async function listWorkspaceDirs({
+  rootDir,
+  rootConfig,
+  workspaceOverride
+}: {
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  workspaceOverride?: string;
+}) {
   if (workspaceOverride) {
     const abs = resolveWorkspacePath(rootDir, workspaceOverride);
     ensure(await exists(path.join(abs, CONFIG_FILE)), `Workspace has no ${CONFIG_FILE}: ${workspaceOverride}`);
@@ -1488,7 +1598,15 @@ async function discoverServiceWorkspaces({ rootDir, rootConfig }: { rootDir: str
   return out;
 }
 
-async function walkForWorkspaceConfigs({ rootDir, maxDepth, applyGitignore }: { rootDir: string; maxDepth: number; applyGitignore: boolean }) {
+async function walkForWorkspaceConfigs({
+  rootDir,
+  maxDepth,
+  applyGitignore
+}: {
+  rootDir: string;
+  maxDepth: number;
+  applyGitignore: boolean;
+}) {
   const matches = [];
   const ignoreMatchers = applyGitignore ? await loadGitignoreMatchers(rootDir) : [];
 
@@ -1509,17 +1627,19 @@ async function walkForWorkspaceConfigs({ rootDir, maxDepth, applyGitignore }: { 
       return;
     }
 
-    await Promise.all(entries.map(async (entry) => {
-      if (!entry.isDirectory()) return;
-      const child = path.join(currentDir, entry.name);
-      try {
-        const stat = await fs.lstat(child);
-        if (stat.isSymbolicLink()) return;
-      } catch {
-        return;
-      }
-      await walk(child, depth + 1);
-    }));
+    await Promise.all(
+      entries.map(async (entry) => {
+        if (!entry.isDirectory()) return;
+        const child = path.join(currentDir, entry.name);
+        try {
+          const stat = await fs.lstat(child);
+          if (stat.isSymbolicLink()) return;
+        } catch {
+          return;
+        }
+        await walk(child, depth + 1);
+      })
+    );
   }
 
   await walk(path.resolve(rootDir), 0);
@@ -1607,7 +1727,10 @@ async function findNearestMonorepoRoot(startDir: string): Promise<string | null>
   return found;
 }
 
-function resolveDefaultWorkspaceForMutation(context: { rootDir: string; workspaceDir: string }, workspaceFlag?: string) {
+function resolveDefaultWorkspaceForMutation(
+  context: { rootDir: string; workspaceDir: string },
+  workspaceFlag?: string
+) {
   if (workspaceFlag) return resolveWorkspacePath(context.rootDir, workspaceFlag);
   if (path.resolve(context.workspaceDir) !== path.resolve(context.rootDir)) return context.workspaceDir;
   return context.rootDir;
@@ -1632,7 +1755,15 @@ function relativePathForPointers(fromDir: string, toDir: string) {
   return rel || '.';
 }
 
-async function writeManagedFile({ outPath, rendered, onConflict }: { outPath: string; rendered: string; onConflict: string }) {
+async function writeManagedFile({
+  outPath,
+  rendered,
+  onConflict
+}: {
+  outPath: string;
+  rendered: string;
+  onConflict: string;
+}) {
   await fs.mkdir(path.dirname(outPath), { recursive: true });
 
   if (await exists(outPath)) {
@@ -1656,7 +1787,15 @@ async function writeManagedFile({ outPath, rendered, onConflict }: { outPath: st
   await fs.writeFile(outPath, `${rendered.trim()}\n`, 'utf8');
 }
 
-async function copySourceFile({ packageRoot, sourceRel, target }: { packageRoot: string; sourceRel: string; target: string }) {
+async function copySourceFile({
+  packageRoot,
+  sourceRel,
+  target
+}: {
+  packageRoot: string;
+  sourceRel: string;
+  target: string;
+}) {
   const source = path.join(packageRoot, sourceRel);
   ensure(await exists(source), `Missing module source: ${sourceRel}`);
   await fs.mkdir(path.dirname(target), { recursive: true });
@@ -1674,7 +1813,11 @@ function parseFrontmatter(markdown: string): Record<string, string | string[]> |
     const key = line.slice(0, idx).trim();
     let value: string | string[] = line.slice(idx + 1).trim();
     if (value.startsWith('[') && value.endsWith(']')) {
-      value = value.slice(1, -1).split(',').map((x) => x.trim()).filter(Boolean);
+      value = value
+        .slice(1, -1)
+        .split(',')
+        .map((x) => x.trim())
+        .filter(Boolean);
     }
     fields[key] = value;
   }
@@ -1685,9 +1828,9 @@ async function detectProjectRoot(startDir: string): Promise<string> {
   let current = path.resolve(startDir);
   while (true) {
     if (
-      await exists(path.join(current, '.git')) ||
-      await exists(path.join(current, 'package.json')) ||
-      await exists(path.join(current, 'pyproject.toml'))
+      (await exists(path.join(current, '.git'))) ||
+      (await exists(path.join(current, 'package.json'))) ||
+      (await exists(path.join(current, 'pyproject.toml')))
     ) {
       return current;
     }
@@ -1736,7 +1879,10 @@ function splitCsv(value: string | boolean | string[] | undefined) {
   if (!value) return [];
   if (Array.isArray(value)) return value;
   if (typeof value !== 'string') return [];
-  return value.split(',').map((v) => v.trim()).filter(Boolean);
+  return value
+    .split(',')
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 
 function uniqueList(items: string[]) {
@@ -1750,9 +1896,7 @@ function canonicalSlot(registry: Registry, slot: string | undefined) {
   if (resolved !== slot && !WARNED_SLOT_ALIASES.has(slot)) {
     const aliasMeta = registry.slot_alias_meta?.[slot];
     const removeIn = aliasMeta?.remove_in ? ` and is planned for removal in ${aliasMeta.remove_in}` : '';
-    process.stderr.write(
-      `warning: slot alias '${slot}' is deprecated; use '${resolved}'${removeIn}\n`
-    );
+    process.stderr.write(`warning: slot alias '${slot}' is deprecated; use '${resolved}'${removeIn}\n`);
     WARNED_SLOT_ALIASES.add(slot);
   }
   return resolved;

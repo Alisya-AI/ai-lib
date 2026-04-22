@@ -2,16 +2,7 @@
   "$schema": "https://ailib.dev/schema/config.schema.json",
   "registry_ref": "v1.0.0",
   "language": "typescript",
-  "modules": [
-    "eslint",
-    "prettier",
-    "vitest",
-    "serverless-framework",
-    "aws-lambda",
-    "esbuild",
-    "zod",
-    "pnpm"
-  ],
+  "modules": ["eslint", "prettier", "vitest", "serverless-framework", "aws-lambda", "esbuild", "zod", "pnpm"],
   "targets": ["claude-code", "cursor", "windsurf", "copilot", "openai", "gemini"],
   "docs_path": "docs/",
   "on_conflict": "merge"

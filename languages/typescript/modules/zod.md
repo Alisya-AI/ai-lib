@@ -33,9 +33,9 @@ const RequestSchema = z.object({
 });
 
 export const handler: APIGatewayProxyHandlerV2 = async (event) => {
-  const parsed = RequestSchema.safeParse(JSON.parse(event.body ?? "{}"));
+  const parsed = RequestSchema.safeParse(JSON.parse(event.body ?? '{}'));
   if (!parsed.success) {
-    return badRequest("INVALID_INPUT", parsed.error.flatten());
+    return badRequest('INVALID_INPUT', parsed.error.flatten());
   }
   // …domain call…
   return ok(ResponseSchema.parse(result));
@@ -57,7 +57,7 @@ A shared helper converts `ZodError` to the standard error envelope:
 function badRequest(code: string, details: unknown) {
   return {
     statusCode: 400,
-    body: JSON.stringify({ error: { code, message: "Invalid input", details } })
+    body: JSON.stringify({ error: { code, message: 'Invalid input', details } })
   };
 }
 ```

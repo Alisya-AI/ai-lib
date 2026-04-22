@@ -82,11 +82,7 @@ test('registry slots follow naming and coverage rules', async () => {
 
   const slotSet = new Set(slots);
   const slotDefSet = new Set(Object.keys(slotDefs));
-  assert.deepEqual(
-    [...slotDefSet].sort(),
-    [...slotSet].sort(),
-    'slot_defs keys must match slots exactly'
-  );
+  assert.deepEqual([...slotDefSet].sort(), [...slotSet].sort(), 'slot_defs keys must match slots exactly');
 
   for (const [slot, def] of Object.entries(slotDefs)) {
     assert.equal(typeof def.description, 'string', `slot_defs.${slot}.description must be string`);
@@ -115,11 +111,7 @@ test('registry slots follow naming and coverage rules', async () => {
       `slot_alias_meta.${alias}.replacement must match slot_aliases target`
     );
     for (const key of ['deprecated_since', 'remove_in']) {
-      assert.match(
-        meta[key],
-        /^\d+\.\d+\.\d+$/u,
-        `slot_alias_meta.${alias}.${key} must be semver-like`
-      );
+      assert.match(meta[key], /^\d+\.\d+\.\d+$/u, `slot_alias_meta.${alias}.${key} must be semver-like`);
     }
   }
 });
@@ -132,61 +124,38 @@ test('registry modules use canonical slots and docs match', async () => {
 
   for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
     const moduleDir = path.join(packageRoot, 'languages', languageId, 'modules');
-    const docModuleIds = await fs.readdir(moduleDir, { withFileTypes: true })
-      .then((entries) => entries
-        .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
-        .map((entry) => entry.name.replace(/\.md$/u, ''))
-        .sort()
+    const docModuleIds = await fs
+      .readdir(moduleDir, { withFileTypes: true })
+      .then((entries) =>
+        entries
+          .filter((entry) => entry.isFile() && entry.name.endsWith('.md'))
+          .map((entry) => entry.name.replace(/\.md$/u, ''))
+          .sort()
       )
       .catch(() => []);
     const registryModuleIds = Object.keys(languageDef.modules || {}).sort();
 
-    assert.deepEqual(
-      docModuleIds,
-      registryModuleIds,
-      `Registry/docs module mismatch for language '${languageId}'`
-    );
+    assert.deepEqual(docModuleIds, registryModuleIds, `Registry/docs module mismatch for language '${languageId}'`);
 
     for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
       const rawSlot = moduleDef.slot;
       assert.ok(rawSlot, `Missing slot for module '${languageId}:${moduleId}'`);
       const canonical = aliases[rawSlot] || rawSlot;
       usedSlots.add(canonical);
-      assert.ok(
-        slots.has(canonical),
-        `Unknown canonical slot '${canonical}' for module '${languageId}:${moduleId}'`
-      );
+      assert.ok(slots.has(canonical), `Unknown canonical slot '${canonical}' for module '${languageId}:${moduleId}'`);
       assert.equal(
         rawSlot,
         canonical,
         `Module '${languageId}:${moduleId}' uses alias slot '${rawSlot}', use canonical '${canonical}'`
       );
 
-      const modulePath = path.join(
-        packageRoot,
-        'languages',
-        languageId,
-        'modules',
-        `${moduleId}.md`
-      );
+      const modulePath = path.join(packageRoot, 'languages', languageId, 'modules', `${moduleId}.md`);
       const markdown = await fs.readFile(modulePath, 'utf8');
       const frontmatter = parseFrontmatter(markdown);
       assert.ok(frontmatter, `Missing frontmatter in '${modulePath}'`);
-      assert.equal(
-        frontmatter.slot,
-        canonical,
-        `Frontmatter slot mismatch for '${languageId}:${moduleId}'`
-      );
-      assert.equal(
-        frontmatter.id,
-        moduleId,
-        `Frontmatter id mismatch for '${languageId}:${moduleId}'`
-      );
-      assert.equal(
-        frontmatter.language,
-        languageId,
-        `Frontmatter language mismatch for '${languageId}:${moduleId}'`
-      );
+      assert.equal(frontmatter.slot, canonical, `Frontmatter slot mismatch for '${languageId}:${moduleId}'`);
+      assert.equal(frontmatter.id, moduleId, `Frontmatter id mismatch for '${languageId}:${moduleId}'`);
+      assert.equal(frontmatter.language, languageId, `Frontmatter language mismatch for '${languageId}:${moduleId}'`);
     }
   }
 
@@ -209,24 +178,10 @@ test('registry module relationships and frontmatter metadata are valid', async (
       const requiresSet = new Set(requires);
       const conflictsSet = new Set(conflicts);
 
-      assert.equal(
-        requires.length,
-        requiresSet.size,
-        `Duplicate requires entries in '${languageId}:${moduleId}'`
-      );
-      assert.equal(
-        conflicts.length,
-        conflictsSet.size,
-        `Duplicate conflicts entries in '${languageId}:${moduleId}'`
-      );
-      assert.ok(
-        !requiresSet.has(moduleId),
-        `Module '${languageId}:${moduleId}' cannot require itself`
-      );
-      assert.ok(
-        !conflictsSet.has(moduleId),
-        `Module '${languageId}:${moduleId}' cannot conflict with itself`
-      );
+      assert.equal(requires.length, requiresSet.size, `Duplicate requires entries in '${languageId}:${moduleId}'`);
+      assert.equal(conflicts.length, conflictsSet.size, `Duplicate conflicts entries in '${languageId}:${moduleId}'`);
+      assert.ok(!requiresSet.has(moduleId), `Module '${languageId}:${moduleId}' cannot require itself`);
+      assert.ok(!conflictsSet.has(moduleId), `Module '${languageId}:${moduleId}' cannot conflict with itself`);
       for (const dependency of requiresSet) {
         assert.ok(
           !conflictsSet.has(dependency),
@@ -234,13 +189,7 @@ test('registry module relationships and frontmatter metadata are valid', async (
         );
       }
 
-      const modulePath = path.join(
-        packageRoot,
-        'languages',
-        languageId,
-        'modules',
-        `${moduleId}.md`
-      );
+      const modulePath = path.join(packageRoot, 'languages', languageId, 'modules', `${moduleId}.md`);
       const markdown = await fs.readFile(modulePath, 'utf8');
       const frontmatter = parseFrontmatter(markdown);
       assert.ok(frontmatter, `Missing frontmatter in '${modulePath}'`);
@@ -257,11 +206,8 @@ test('registry module relationships and frontmatter metadata are valid', async (
 });
 
 test('split registry and generated catalog are in sync', () => {
-  const run = (script: string, ...args: string[]) => execFileSync(
-    process.execPath,
-    [path.join(packageRoot, script), ...args],
-    { stdio: 'pipe', encoding: 'utf8' }
-  );
+  const run = (script: string, ...args: string[]) =>
+    execFileSync(process.execPath, [path.join(packageRoot, script), ...args], { stdio: 'pipe', encoding: 'utf8' });
 
   run('tools/sync-registry.ts', '--check');
   run('tools/generate-module-catalog.ts', '--check');

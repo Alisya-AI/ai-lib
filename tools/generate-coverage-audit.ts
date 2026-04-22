@@ -177,8 +177,10 @@ function renderReport(registry: Registry, report: CoverageReport): string {
     lines.push(`- Missing docs: ${language.missingDocs.length}`);
     lines.push(`- Orphan docs: ${language.orphanDocs.length}`);
     lines.push(`- Frontmatter issues: ${language.frontmatterIssues.length}`);
-    if (language.missingDocs.length) lines.push(`- Missing doc module IDs: ${language.missingDocs.map((m) => `\`${m}\``).join(', ')}`);
-    if (language.orphanDocs.length) lines.push(`- Orphan doc module IDs: ${language.orphanDocs.map((m) => `\`${m}\``).join(', ')}`);
+    if (language.missingDocs.length)
+      lines.push(`- Missing doc module IDs: ${language.missingDocs.map((m) => `\`${m}\``).join(', ')}`);
+    if (language.orphanDocs.length)
+      lines.push(`- Orphan doc module IDs: ${language.orphanDocs.map((m) => `\`${m}\``).join(', ')}`);
     if (language.frontmatterIssues.length) {
       lines.push('- Frontmatter mismatches:');
       lines.push(...language.frontmatterIssues);
