@@ -415,6 +415,38 @@ test('doctor reports missing frontmatter fields for module pointers', async () =
   assert.equal(exitCode, 1);
 });
 
+test('doctor fails for explicit workspace without config', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await fs.mkdir(path.join(root, 'apps', 'missing'), { recursive: true });
+
+  await assert.rejects(
+    run(['doctor', '--workspace=apps/missing'], { cwd: root, packageRoot }),
+    /Workspace has no ailib\.config\.json: .*apps\/missing/
+  );
+});
+
+test('add/remove fail for explicit workspace without config', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await fs.mkdir(path.join(root, 'apps', 'missing'), { recursive: true });
+
+  await assert.rejects(
+    run(['add', 'prettier', '--workspace=apps/missing'], { cwd: root, packageRoot }),
+    /Missing ailib\.config\.json in workspace: .*apps\/missing/
+  );
+  await assert.rejects(
+    run(['remove', 'prettier', '--workspace=apps/missing'], { cwd: root, packageRoot }),
+    /Missing ailib\.config\.json in workspace: .*apps\/missing/
+  );
+});
+
 test('uninstall at monorepo root without --all removes root workspace artifacts but keeps lock', async () => {
   const root = await makeMonorepo();
   const serviceDir = path.join(root, 'services', 'ml');
