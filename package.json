@@ -20,6 +20,7 @@
   "scripts": {
     "release:build": "bash scripts/build-release-artifacts.sh",
     "local:install": "bash scripts/install-local.sh",
+    "security:audit": "bun audit --audit-level=high",
     "lint": "bun tools/check-standards.ts",
     "tools:build": "bunx tsc -p tsconfig.tools.json",
     "registry:build": "bun tools/sync-registry.ts",

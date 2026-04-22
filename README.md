@@ -105,6 +105,7 @@ bun run coverage-audit:check
 bun run coverage:build
 bun run coverage:check
 bun run release:build
+bun run security:audit
 bun run lint
 bun run local:install
 bun run typecheck
