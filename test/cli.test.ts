@@ -155,6 +155,33 @@ test('monorepo update inherits root and supports service override modules', asyn
   assert.match(copilot, /## Workspace: services\/ml/);
 });
 
+test('local overrides are merged into effective workspace config', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code,copilot'], { cwd: path.join(root, 'apps', 'web'), packageRoot });
+
+  const localOverride = {
+    version: '1.0.0',
+    default_override: {
+      targets: { add: ['openai'] }
+    },
+    workspace_overrides: {
+      'apps/web': {
+        slots: {
+          linter: { set: 'biome' }
+        }
+      }
+    }
+  };
+  await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
+
+  await run(['update'], { cwd: root, packageRoot });
+
+  assert.equal(await exists(path.join(root, 'AGENTS.md')), true);
+  assert.equal(await exists(path.join(root, 'apps', 'web', '.ailib/modules/biome.md')), true);
+  assert.equal(await exists(path.join(root, 'apps', 'web', '.ailib/modules/eslint.md')), false);
+});
+
 test('add/remove can target workspace in monorepo', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
