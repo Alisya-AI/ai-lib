@@ -104,6 +104,32 @@ test('modules explain prints module details', async () => {
   assert.match(output, /doc: languages\/typescript\/modules\/nextjs\.md/);
 });
 
+test('modules explain rejects unsupported language flag', async () => {
+  await assert.rejects(
+    run(['modules', 'explain', 'nextjs', '--language=not-a-language'], { packageRoot }),
+    /Unsupported language: not-a-language/
+  );
+});
+
+test('modules explain rejects unknown module', async () => {
+  await assert.rejects(run(['modules', 'explain', 'not-a-module'], { packageRoot }), /Unknown module: not-a-module/);
+});
+
+test('modules explain rejects unknown module in requested language', async () => {
+  await assert.rejects(
+    run(['modules', 'explain', 'pytest', '--language=typescript'], { packageRoot }),
+    /Unknown module for typescript: pytest/
+  );
+});
+
+test('modules command rejects invalid subcommand usage', async () => {
+  await assert.rejects(run(['modules', 'invalid-subcommand'], { packageRoot }), /Usage: ailib modules list/);
+});
+
+test('slots command rejects invalid subcommand usage', async () => {
+  await assert.rejects(run(['slots', 'invalid-subcommand'], { packageRoot }), /Usage: ailib slots list/);
+});
+
 test('init creates root config, root lock, and routers with new layout', async () => {
   const cwd = await makeProject();
   await run(
@@ -238,6 +264,17 @@ test('add/remove can target workspace in monorepo', async () => {
 
   await run(['remove', 'pytest', '--workspace=services/ml'], { cwd: root, packageRoot });
   assert.equal(await exists(path.join(root, 'services', 'ml', '.ailib/modules/pytest.md')), false);
+});
+
+test('add and remove enforce module argument', async () => {
+  const root = await makeProject();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+
+  await assert.rejects(run(['add'], { cwd: root, packageRoot }), /Usage: ailib add <module>/);
+  await assert.rejects(run(['remove'], { cwd: root, packageRoot }), /Usage: ailib remove <module>/);
 });
 
 test('doctor validates all workspaces and keeps healthy status', async () => {
