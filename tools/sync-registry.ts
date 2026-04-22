@@ -10,8 +10,10 @@ const outputPath = path.join(packageRoot, 'registry.json');
 
 const checkOnly = process.argv.includes('--check');
 
-async function readJson(filePath: string): Promise<any> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8'));
+type JsonObject = Record<string, unknown>;
+
+async function readJson<T>(filePath: string): Promise<T> {
+  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
 }
 
 async function listLanguageFiles(): Promise<string[]> {
@@ -22,22 +24,22 @@ async function listLanguageFiles(): Promise<string[]> {
     .sort();
 }
 
-async function buildRegistry(): Promise<any> {
-  const core = await readJson(corePath);
+async function buildRegistry(): Promise<JsonObject & { languages: Record<string, JsonObject> }> {
+  const core = await readJson<JsonObject>(corePath);
   if ('languages' in core) {
     throw new Error('registry/core.json must not contain a top-level `languages` key');
   }
 
-  const languages: Record<string, any> = {};
+  const languages: Record<string, JsonObject> = {};
   for (const file of await listLanguageFiles()) {
     const languageId = file.replace(/\.json$/u, '');
-    languages[languageId] = await readJson(path.join(languageDir, file));
+    languages[languageId] = await readJson<JsonObject>(path.join(languageDir, file));
   }
 
   return { ...core, languages };
 }
 
-function toJsonText(value: any): string {
+function toJsonText(value: unknown): string {
   return `${JSON.stringify(value, null, 2)}\n`;
 }
 
