@@ -7,6 +7,7 @@ import process from 'node:process';
 const AILIB_BLOCK_START = '<!-- ailib:start -->';
 const AILIB_BLOCK_END = '<!-- ailib:end -->';
 const CONFIG_FILE = 'ailib.config.json';
+const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
 const LOCK_FILE = 'ailib.lock';
 const AUTO_DISCOVERY_MAX_DEPTH = 4;
 const GLOB_DISCOVERY_MAX_DEPTH = 32;
@@ -73,6 +74,29 @@ interface WorkspaceConfig {
   targets_removed?: string[];
   docs_path?: string;
   workspaces?: string[];
+}
+
+interface ListOverrideScope {
+  add?: string[];
+  remove?: string[];
+  set?: string[];
+}
+
+interface SlotOverrideRule {
+  set?: string;
+  remove?: boolean;
+}
+
+interface WorkspaceOverrideConfig {
+  targets?: ListOverrideScope;
+  modules?: ListOverrideScope;
+  slots?: Record<string, SlotOverrideRule>;
+}
+
+interface LocalOverrideConfig {
+  version: string;
+  default_override?: WorkspaceOverrideConfig;
+  workspace_overrides?: Record<string, WorkspaceOverrideConfig>;
 }
 
 interface EffectiveWorkspaceConfig extends WorkspaceConfig {
@@ -716,18 +740,239 @@ async function getEffectiveWorkspaceConfig({
     targetsRemoved: workspaceRaw.targets_removed || []
   });
 
+  const overrideResult = await applyLocalOverrides({
+    rootDir,
+    workspaceDir,
+    registry,
+    language,
+    modules: mergedModules.modules,
+    targets
+  });
+  const inheritedModuleSet = new Set(mergedModules.inheritedModules || []);
+  const inheritedModules = overrideResult.modules.filter((mod) => inheritedModuleSet.has(mod));
+  const localModules = overrideResult.modules.filter((mod) => !inheritedModuleSet.has(mod));
+
   return {
     $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: workspaceRaw.registry_ref || base.registry_ref,
     on_conflict: workspaceRaw.on_conflict || base.on_conflict || 'merge',
     language,
-    modules: mergedModules.modules,
-    targets,
+    modules: overrideResult.modules,
+    targets: overrideResult.targets,
     docs_path: workspaceRaw.docs_path || (path.resolve(workspaceDir) === path.resolve(rootDir) ? 'docs/' : './docs/'),
-    inheritedModules: mergedModules.inheritedModules,
-    localModules: mergedModules.localModules,
-    warnings: mergedModules.warnings
+    inheritedModules,
+    localModules,
+    warnings: [...mergedModules.warnings, ...overrideResult.warnings]
   };
+}
+
+async function applyLocalOverrides({
+  rootDir,
+  workspaceDir,
+  registry,
+  language,
+  modules,
+  targets
+}: {
+  rootDir: string;
+  workspaceDir: string;
+  registry: Registry;
+  language: string;
+  modules: string[];
+  targets: string[];
+}): Promise<{ modules: string[]; targets: string[]; warnings: string[] }> {
+  const { config, warnings } = await loadLocalOverrideConfig(rootDir);
+  if (!config) {
+    return { modules, targets, warnings };
+  }
+
+  const workspaceKey = path.resolve(workspaceDir) === path.resolve(rootDir)
+    ? '.'
+    : toPosix(path.relative(rootDir, workspaceDir));
+  const override = mergeWorkspaceOverrides(
+    config.default_override,
+    (config.workspace_overrides || {})[workspaceKey]
+  );
+
+  const validTargets = new Set(Object.keys(registry.targets || {}));
+  const validModules = new Set(Object.keys(registry.languages[language]?.modules || {}));
+
+  const targetResult = applyListOverride({
+    values: targets,
+    scope: override.targets,
+    validSet: validTargets,
+    label: 'target'
+  });
+  warnings.push(...targetResult.warnings);
+
+  const moduleResult = applyListOverride({
+    values: modules,
+    scope: override.modules,
+    validSet: validModules,
+    label: 'module'
+  });
+  warnings.push(...moduleResult.warnings);
+
+  const slotResult = applySlotOverrides({
+    registry,
+    language,
+    modules: moduleResult.values,
+    slots: override.slots || {}
+  });
+  warnings.push(...slotResult.warnings);
+
+  return {
+    modules: slotResult.modules,
+    targets: targetResult.values,
+    warnings
+  };
+}
+
+async function loadLocalOverrideConfig(rootDir: string): Promise<{ config: LocalOverrideConfig | null; warnings: string[] }> {
+  const warnings: string[] = [];
+  const overridePath = path.join(rootDir, LOCAL_OVERRIDE_FILE);
+  if (!(await exists(overridePath))) {
+    return { config: null, warnings };
+  }
+
+  try {
+    const config = await readJson<LocalOverrideConfig>(overridePath);
+    if (!config || typeof config.version !== 'string' || !config.version.trim()) {
+      warnings.push(`Ignoring ${LOCAL_OVERRIDE_FILE}: missing required version`);
+      return { config: null, warnings };
+    }
+    return { config, warnings };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    warnings.push(`Ignoring ${LOCAL_OVERRIDE_FILE}: ${message}`);
+    return { config: null, warnings };
+  }
+}
+
+function mergeWorkspaceOverrides(
+  base?: WorkspaceOverrideConfig,
+  workspace?: WorkspaceOverrideConfig
+): WorkspaceOverrideConfig {
+  return {
+    targets: mergeListOverrideScope(base?.targets, workspace?.targets),
+    modules: mergeListOverrideScope(base?.modules, workspace?.modules),
+    slots: {
+      ...(base?.slots || {}),
+      ...(workspace?.slots || {})
+    }
+  };
+}
+
+function mergeListOverrideScope(base?: ListOverrideScope, workspace?: ListOverrideScope): ListOverrideScope {
+  return {
+    set: workspace?.set ?? base?.set,
+    add: uniqueList([...(base?.add || []), ...(workspace?.add || [])]),
+    remove: uniqueList([...(base?.remove || []), ...(workspace?.remove || [])])
+  };
+}
+
+function applyListOverride({
+  values,
+  scope,
+  validSet,
+  label
+}: {
+  values: string[];
+  scope?: ListOverrideScope;
+  validSet?: Set<string>;
+  label: string;
+}): { values: string[]; warnings: string[] } {
+  const warnings: string[] = [];
+  let out = uniqueList(values || []);
+  if (!scope) return { values: out, warnings };
+
+  const normalize = (input: string[] | undefined, source: string): string[] => {
+    const list = uniqueList(input || []);
+    if (!validSet) return list;
+    const accepted: string[] = [];
+    for (const value of list) {
+      if (!validSet.has(value)) {
+        warnings.push(`Ignoring override ${label} '${value}' in ${source}`);
+      } else {
+        accepted.push(value);
+      }
+    }
+    return accepted;
+  };
+
+  if (scope.set && scope.set.length) {
+    out = normalize(scope.set, `${label}.set`);
+  }
+
+  for (const item of normalize(scope.add, `${label}.add`)) {
+    if (!out.includes(item)) out.push(item);
+  }
+
+  const removed = new Set(normalize(scope.remove, `${label}.remove`));
+  if (removed.size) {
+    out = out.filter((value) => !removed.has(value));
+  }
+
+  return { values: out, warnings };
+}
+
+function applySlotOverrides({
+  registry,
+  language,
+  modules,
+  slots
+}: {
+  registry: Registry;
+  language: string;
+  modules: string[];
+  slots: Record<string, SlotOverrideRule>;
+}): { modules: string[]; warnings: string[] } {
+  const warnings: string[] = [];
+  const lang = registry.languages[language];
+  if (!lang) return { modules, warnings };
+
+  const out = uniqueList(modules || []);
+  const knownSlots = new Set(registry.slots || []);
+
+  const moduleSlot = (moduleId: string): string | null => {
+    const slot = lang.modules[moduleId]?.slot;
+    return canonicalSlot(registry, slot);
+  };
+
+  const findBySlot = (slot: string): number => out.findIndex((moduleId) => moduleSlot(moduleId) === slot);
+
+  for (const [rawSlot, rule] of Object.entries(slots || {})) {
+    const slot = canonicalSlot(registry, rawSlot);
+    if (!slot || !knownSlots.has(slot)) {
+      warnings.push(`Ignoring override slot '${rawSlot}': unknown slot`);
+      continue;
+    }
+
+    if (rule.remove) {
+      const idx = findBySlot(slot);
+      if (idx >= 0) out.splice(idx, 1);
+    }
+
+    if (rule.set) {
+      const moduleId = rule.set;
+      const def = lang.modules[moduleId];
+      if (!def) {
+        warnings.push(`Ignoring override slot '${slot}': unknown module '${moduleId}'`);
+        continue;
+      }
+      const moduleCanonicalSlot = canonicalSlot(registry, def.slot);
+      if (moduleCanonicalSlot !== slot) {
+        warnings.push(`Ignoring override slot '${slot}': module '${moduleId}' belongs to '${moduleCanonicalSlot || '(none)'}'`);
+        continue;
+      }
+
+      const idx = findBySlot(slot);
+      if (idx >= 0) out[idx] = moduleId;
+      else out.push(moduleId);
+    }
+  }
+
+  return { modules: uniqueList(out), warnings };
 }
 
 async function resolveExtendsBase({
