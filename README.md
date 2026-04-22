@@ -54,6 +54,7 @@ bun run local:install
 - Slot governance rules: [docs/slot-standards.md](docs/slot-standards.md)
 - Development standards: [docs/development-standards.md](docs/development-standards.md)
 - Test standards: [docs/test-standards.md](docs/test-standards.md)
+- Coverage exceptions and rationale: [docs/coverage-exceptions.md](docs/coverage-exceptions.md)
 - Workflow hardening: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md)
 - Branch protection policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md)
 - Homebrew publishing: [docs/homebrew-publishing.md](docs/homebrew-publishing.md)
