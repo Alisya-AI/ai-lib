@@ -37,6 +37,7 @@ Workflow hardening patterns for external PRs: [docs/workflow-security-hardening.
 Branch protection and required check policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md).
 Guide for adding new targets: [docs/targets-guide.md](docs/targets-guide.md).
 Guide for adding modules and slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md).
+End-to-end CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md).
 
 ### Local install from repository
 
