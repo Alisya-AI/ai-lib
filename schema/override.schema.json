@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://ailib.dev/schema/override.schema.json",
+  "type": "object",
+  "required": ["version"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "description": "Schema/model version for local override compatibility."
+    },
+    "workspace_overrides": {
+      "type": "object",
+      "description": "Workspace-specific override rules keyed by workspace path ('.' for root).",
+      "additionalProperties": {
+        "$ref": "#/$defs/workspaceOverride"
+      }
+    },
+    "default_override": {
+      "description": "Fallback override applied when workspace-specific override is not defined.",
+      "$ref": "#/$defs/workspaceOverride"
+    }
+  },
+  "$defs": {
+    "workspaceOverride": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "targets": {
+          "$ref": "#/$defs/targetScope"
+        },
+        "modules": {
+          "$ref": "#/$defs/moduleScope"
+        },
+        "slots": {
+          "$ref": "#/$defs/slotScope"
+        }
+      }
+    },
+    "targetScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "set": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "moduleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "set": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "slotScope": {
+      "type": "object",
+      "description": "Override selected module per slot key.",
+      "additionalProperties": {
+        "$ref": "#/$defs/slotRule"
+      }
+    },
+    "slotRule": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "set": {
+          "type": "string"
+        },
+        "remove": {
+          "type": "boolean"
+        }
+      }
+    }
+  }
+}
