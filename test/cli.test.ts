@@ -218,6 +218,49 @@ test('doctor fails when required pointer files are missing', async () => {
   assert.equal(exitCode, 1);
 });
 
+test('update fails fast for invalid local override references', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+
+  const localOverride = {
+    version: '1.0.0',
+    default_override: {
+      targets: {
+        add: ['not-a-target']
+      }
+    }
+  };
+  await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
+
+  await assert.rejects(
+    run(['update'], { cwd: root, packageRoot }),
+    /Invalid ailib\.local\.json/
+  );
+});
+
+test('doctor reports invalid local override configuration', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });
+
+  const localOverride = {
+    version: '1.0.0',
+    workspace_overrides: {
+      'apps/missing': {
+        modules: {
+          set: ['eslint']
+        }
+      }
+    }
+  };
+  await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
+
+  const { output, exitCode } = await runDoctorAndCapture(root);
+  assert.match(output, /doctor failed:/);
+  assert.match(output, /Invalid ailib\.local\.json/);
+  assert.match(output, /unknown workspace override key 'apps\/missing'/);
+  assert.equal(exitCode, 1);
+});
+
 test('doctor reports missing frontmatter fields for module pointers', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], { cwd: root, packageRoot });

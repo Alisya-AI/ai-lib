@@ -402,6 +402,17 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
 
   const errors = [];
   const warnings = [];
+  try {
+    await assertLocalOverridesValid({ rootDir: context.rootDir, rootConfig, registry });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    errors.push(message);
+  }
+  if (errors.length) {
+    process.stdout.write(`doctor failed:\n- ${errors.join('\n- ')}\n`);
+    process.exitCode = 1;
+    return;
+  }
 
   const rootEffective = await getEffectiveWorkspaceConfig({ workspaceDir: context.rootDir, rootDir: context.rootDir, rootConfig, registry });
   for (const workspaceDir of workspaceDirs) {
@@ -533,6 +544,7 @@ async function applyWorkspaceUpdate(
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
   const packageJson = await readJson<{ version: string }>(path.join(packageRoot, 'package.json'));
   const rootConfig = await readJson<WorkspaceConfig>(rootConfigPath);
+  await assertLocalOverridesValid({ rootDir, rootConfig, registry });
 
   const workspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride });
   const allWorkspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig });
@@ -743,6 +755,7 @@ async function getEffectiveWorkspaceConfig({
   const overrideResult = await applyLocalOverrides({
     rootDir,
     workspaceDir,
+    rootConfig,
     registry,
     language,
     modules: mergedModules.modules,
@@ -769,6 +782,7 @@ async function getEffectiveWorkspaceConfig({
 async function applyLocalOverrides({
   rootDir,
   workspaceDir,
+  rootConfig,
   registry,
   language,
   modules,
@@ -776,12 +790,14 @@ async function applyLocalOverrides({
 }: {
   rootDir: string;
   workspaceDir: string;
+  rootConfig: WorkspaceConfig;
   registry: Registry;
   language: string;
   modules: string[];
   targets: string[];
 }): Promise<{ modules: string[]; targets: string[]; warnings: string[] }> {
-  const { config, warnings } = await loadLocalOverrideConfig(rootDir);
+  const warnings: string[] = [];
+  const config = await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
   if (!config) {
     return { modules, targets, warnings };
   }
@@ -803,7 +819,6 @@ async function applyLocalOverrides({
     validSet: validTargets,
     label: 'target'
   });
-  warnings.push(...targetResult.warnings);
 
   const moduleResult = applyListOverride({
     values: modules,
@@ -819,7 +834,6 @@ async function applyLocalOverrides({
     modules: moduleResult.values,
     slots: override.slots || {}
   });
-  warnings.push(...slotResult.warnings);
 
   return {
     modules: slotResult.modules,
@@ -828,24 +842,244 @@ async function applyLocalOverrides({
   };
 }
 
-async function loadLocalOverrideConfig(rootDir: string): Promise<{ config: LocalOverrideConfig | null; warnings: string[] }> {
-  const warnings: string[] = [];
+async function loadLocalOverrideConfig({
+  rootDir,
+  rootConfig,
+  registry
+}: {
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+}): Promise<LocalOverrideConfig | null> {
   const overridePath = path.join(rootDir, LOCAL_OVERRIDE_FILE);
   if (!(await exists(overridePath))) {
-    return { config: null, warnings };
+    return null;
   }
 
+  const prefix = `Invalid ${LOCAL_OVERRIDE_FILE}`;
+  let config: LocalOverrideConfig;
   try {
-    const config = await readJson<LocalOverrideConfig>(overridePath);
-    if (!config || typeof config.version !== 'string' || !config.version.trim()) {
-      warnings.push(`Ignoring ${LOCAL_OVERRIDE_FILE}: missing required version`);
-      return { config: null, warnings };
-    }
-    return { config, warnings };
+    config = await readJson<LocalOverrideConfig>(overridePath);
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
-    warnings.push(`Ignoring ${LOCAL_OVERRIDE_FILE}: ${message}`);
-    return { config: null, warnings };
+    throw new Error(`${prefix}: invalid JSON (${message})`);
+  }
+
+  const errors = await validateLocalOverrideConfig({ rootDir, rootConfig, registry, config });
+  if (errors.length) {
+    throw new Error(`${prefix}:\n- ${errors.join('\n- ')}`);
+  }
+
+  return config;
+}
+
+async function validateLocalOverrideConfig({
+  rootDir,
+  rootConfig,
+  registry,
+  config
+}: {
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+  config: LocalOverrideConfig;
+}): Promise<string[]> {
+  const errors: string[] = [];
+  if (!isRecord(config)) {
+    return ['expected object at root'];
+  }
+
+  const allowedRootKeys = new Set(['version', 'default_override', 'workspace_overrides']);
+  for (const key of Object.keys(config)) {
+    if (!allowedRootKeys.has(key)) {
+      errors.push(`unexpected root key '${key}'`);
+    }
+  }
+
+  if (typeof config.version !== 'string' || !config.version.trim()) {
+    errors.push(`missing required string 'version'`);
+  }
+
+  const workspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig });
+  const workspaceKeys = new Set(['.', ...workspaceDirs
+    .filter((workspaceDir) => path.resolve(workspaceDir) !== path.resolve(rootDir))
+    .map((workspaceDir) => toPosix(path.relative(rootDir, workspaceDir)))]);
+
+  if (config.default_override !== undefined) {
+    errors.push(...validateWorkspaceOverride({
+      override: config.default_override,
+      label: 'default_override',
+      registry
+    }));
+  }
+
+  if (config.workspace_overrides !== undefined) {
+    if (!isRecord(config.workspace_overrides)) {
+      errors.push(`'workspace_overrides' must be an object`);
+    } else {
+      for (const [workspaceKey, override] of Object.entries(config.workspace_overrides)) {
+        if (typeof workspaceKey !== 'string' || !workspaceKey.trim()) {
+          errors.push(`workspace override key must be a non-empty string`);
+          continue;
+        }
+        if (!workspaceKeys.has(workspaceKey)) {
+          errors.push(`unknown workspace override key '${workspaceKey}'`);
+        }
+        errors.push(...validateWorkspaceOverride({
+          override,
+          label: `workspace_overrides.${workspaceKey}`,
+          registry
+        }));
+      }
+    }
+  }
+
+  return errors;
+}
+
+function validateWorkspaceOverride({
+  override,
+  label,
+  registry
+}: {
+  override: unknown;
+  label: string;
+  registry: Registry;
+}): string[] {
+  const errors: string[] = [];
+  if (!isRecord(override)) {
+    return [`'${label}' must be an object`];
+  }
+
+  const allowed = new Set(['targets', 'modules', 'slots']);
+  for (const key of Object.keys(override)) {
+    if (!allowed.has(key)) {
+      errors.push(`'${label}' has unsupported key '${key}'`);
+    }
+  }
+
+  if (override.targets !== undefined) {
+    errors.push(...validateListOverrideScope({
+      scope: override.targets,
+      label: `${label}.targets`,
+      validSet: new Set(Object.keys(registry.targets || {})),
+      valueLabel: 'target'
+    }));
+  }
+
+  if (override.modules !== undefined) {
+    errors.push(...validateListOverrideScope({
+      scope: override.modules,
+      label: `${label}.modules`,
+      valueLabel: 'module'
+    }));
+  }
+
+  if (override.slots !== undefined) {
+    if (!isRecord(override.slots)) {
+      errors.push(`'${label}.slots' must be an object`);
+    } else {
+      const knownSlots = new Set(registry.slots || []);
+      for (const [slotKey, rule] of Object.entries(override.slots)) {
+        const slot = canonicalSlot(registry, slotKey);
+        if (!slot || !knownSlots.has(slot)) {
+          errors.push(`'${label}.slots.${slotKey}' references unknown slot`);
+        }
+        if (!isRecord(rule)) {
+          errors.push(`'${label}.slots.${slotKey}' must be an object`);
+          continue;
+        }
+        for (const key of Object.keys(rule)) {
+          if (key !== 'set' && key !== 'remove') {
+            errors.push(`'${label}.slots.${slotKey}' has unsupported key '${key}'`);
+          }
+        }
+        if (rule.set !== undefined && typeof rule.set !== 'string') {
+          errors.push(`'${label}.slots.${slotKey}.set' must be a string`);
+        }
+        if (rule.remove !== undefined && typeof rule.remove !== 'boolean') {
+          errors.push(`'${label}.slots.${slotKey}.remove' must be a boolean`);
+        }
+      }
+    }
+  }
+
+  return errors;
+}
+
+function validateListOverrideScope({
+  scope,
+  label,
+  validSet,
+  valueLabel
+}: {
+  scope: unknown;
+  label: string;
+  validSet?: Set<string>;
+  valueLabel: string;
+}): string[] {
+  const errors: string[] = [];
+  if (!isRecord(scope)) {
+    return [`'${label}' must be an object`];
+  }
+
+  const allowed = new Set(['set', 'add', 'remove']);
+  for (const key of Object.keys(scope)) {
+    if (!allowed.has(key)) {
+      errors.push(`'${label}' has unsupported key '${key}'`);
+    }
+  }
+
+  const validateList = (value: unknown, key: string) => {
+    if (!Array.isArray(value)) {
+      errors.push(`'${label}.${key}' must be an array`);
+      return;
+    }
+    for (const item of value) {
+      if (typeof item !== 'string' || !item.trim()) {
+        errors.push(`'${label}.${key}' must contain non-empty strings`);
+        continue;
+      }
+      if (validSet && !validSet.has(item)) {
+        errors.push(`'${label}.${key}' contains unknown ${valueLabel} '${item}'`);
+      }
+    }
+  };
+
+  if (scope.set !== undefined) validateList(scope.set, 'set');
+  if (scope.add !== undefined) validateList(scope.add, 'add');
+  if (scope.remove !== undefined) validateList(scope.remove, 'remove');
+  return errors;
+}
+
+function isRecord(value: unknown): value is Record<string, any> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+async function assertLocalOverridesValid({
+  rootDir,
+  rootConfig,
+  registry
+}: {
+  rootDir: string;
+  rootConfig: WorkspaceConfig;
+  registry: Registry;
+}) {
+  await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
+}
+
+function ensureValidItems({
+  list,
+  validSet,
+  label
+}: {
+  list: string[];
+  validSet: Set<string>;
+  label: string;
+}) {
+  const invalid = list.filter((value) => !validSet.has(value));
+  if (invalid.length) {
+    throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: ${label} contains unknown value(s): ${invalid.join(', ')}`);
   }
 }
 
@@ -885,30 +1119,23 @@ function applyListOverride({
   const warnings: string[] = [];
   let out = uniqueList(values || []);
   if (!scope) return { values: out, warnings };
-
-  const normalize = (input: string[] | undefined, source: string): string[] => {
-    const list = uniqueList(input || []);
-    if (!validSet) return list;
-    const accepted: string[] = [];
-    for (const value of list) {
-      if (!validSet.has(value)) {
-        warnings.push(`Ignoring override ${label} '${value}' in ${source}`);
-      } else {
-        accepted.push(value);
-      }
-    }
-    return accepted;
-  };
+  const normalize = (input: string[] | undefined, source: string): string[] => uniqueList(input || []);
 
   if (scope.set && scope.set.length) {
-    out = normalize(scope.set, `${label}.set`);
+    const setValues = normalize(scope.set, `${label}.set`);
+    if (validSet) ensureValidItems({ list: setValues, validSet, label: `${label}.set` });
+    out = setValues;
   }
 
-  for (const item of normalize(scope.add, `${label}.add`)) {
+  const addValues = normalize(scope.add, `${label}.add`);
+  if (validSet) ensureValidItems({ list: addValues, validSet, label: `${label}.add` });
+  for (const item of addValues) {
     if (!out.includes(item)) out.push(item);
   }
 
-  const removed = new Set(normalize(scope.remove, `${label}.remove`));
+  const removeValues = normalize(scope.remove, `${label}.remove`);
+  if (validSet) ensureValidItems({ list: removeValues, validSet, label: `${label}.remove` });
+  const removed = new Set(removeValues);
   if (removed.size) {
     out = out.filter((value) => !removed.has(value));
   }
@@ -944,8 +1171,7 @@ function applySlotOverrides({
   for (const [rawSlot, rule] of Object.entries(slots || {})) {
     const slot = canonicalSlot(registry, rawSlot);
     if (!slot || !knownSlots.has(slot)) {
-      warnings.push(`Ignoring override slot '${rawSlot}': unknown slot`);
-      continue;
+      throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: slots.${rawSlot} references unknown slot`);
     }
 
     if (rule.remove) {
@@ -957,13 +1183,13 @@ function applySlotOverrides({
       const moduleId = rule.set;
       const def = lang.modules[moduleId];
       if (!def) {
-        warnings.push(`Ignoring override slot '${slot}': unknown module '${moduleId}'`);
-        continue;
+        throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: slots.${slot}.set references unknown module '${moduleId}'`);
       }
       const moduleCanonicalSlot = canonicalSlot(registry, def.slot);
       if (moduleCanonicalSlot !== slot) {
-        warnings.push(`Ignoring override slot '${slot}': module '${moduleId}' belongs to '${moduleCanonicalSlot || '(none)'}'`);
-        continue;
+        throw new Error(
+          `Invalid ${LOCAL_OVERRIDE_FILE}: slots.${slot}.set module '${moduleId}' belongs to '${moduleCanonicalSlot || '(none)'}'`
+        );
       }
 
       const idx = findBySlot(slot);
