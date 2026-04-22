@@ -57,3 +57,5 @@ This roadmap tracks post-foundation work for `ailib`.
   - validation + doctor checks for invalid overrides
 - Guarantee:
   - upstream `ailib` upgrades do not wipe consumer-local customizations.
+
+Model draft and schema reference: [docs/local-override-model.md](local-override-model.md), [schema/override.schema.json](../schema/override.schema.json).
