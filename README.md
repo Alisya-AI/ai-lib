@@ -36,6 +36,7 @@ Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebr
 Workflow hardening patterns for external PRs: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md).
 Branch protection and required check policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md).
 Guide for adding new targets: [docs/targets-guide.md](docs/targets-guide.md).
+End-to-end CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md).
 
 ### Local install from repository
 
