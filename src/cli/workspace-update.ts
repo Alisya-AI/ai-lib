@@ -2,6 +2,7 @@ import path from 'node:path';
 import { writeRootLock } from './lockfile.ts';
 import { assertLocalOverridesValid } from './local-override-config.ts';
 import { generateWorkspaceRouters } from './router-generation.ts';
+import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
 import { ensureWorkspaceAssets } from './workspace-assets.ts';
 import { buildWorkspaceState } from './workspace-state.ts';
 import { exists, readJson } from './utils.ts';
@@ -29,13 +30,14 @@ export async function applyWorkspaceUpdate({
   ensure(await exists(rootConfigPath), `Missing ${configFile} at root: ${rootDir}`);
 
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
+  const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
   const packageJson = await readJson<{ version: string }>(path.join(packageRoot, 'package.json'));
   const rootConfig = await readJson<WorkspaceConfig>(rootConfigPath);
   await assertLocalOverridesValid({
     rootDir,
     rootConfig,
     registry,
-    canonicalSlot: (slot) => canonicalSlot(registry, slot),
+    canonicalSlot: canonicalSlotForRegistry,
     localOverrideFile
   });
 
@@ -51,7 +53,7 @@ export async function applyWorkspaceUpdate({
         rootDir,
         rootConfig,
         registry,
-        canonicalSlot: (slot) => canonicalSlot(registry, slot),
+        canonicalSlot: canonicalSlotForRegistry,
         configFile,
         localOverrideFile
       })

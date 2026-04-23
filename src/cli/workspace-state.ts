@@ -5,6 +5,11 @@ import { mergeModules, mergeTargets } from './module-selection.ts';
 import { validateModuleSelection } from './module-validation.ts';
 import { readJson, toPosix } from './utils.ts';
 import { resolveExtendsBase } from './workspace-config.ts';
+import {
+  buildEffectiveWorkspaceConfig,
+  resolveWorkspaceLanguage,
+  splitModuleOwnership
+} from './workspace-state-pipeline.ts';
 import type { EffectiveWorkspaceConfig, Registry, WorkspaceConfig, WorkspaceState } from './types.ts';
 
 export async function buildWorkspaceState({
@@ -78,9 +83,13 @@ export async function getEffectiveWorkspaceConfig({
   const isRootWorkspace = path.resolve(workspaceDir) === path.resolve(rootDir);
 
   const base = await resolveExtendsBase({ workspaceDir, rootDir, rootConfig, registry });
-  const language = workspaceRaw.language || base.language;
-  ensure(language, `Missing language in ${configFile}: ${workspaceDir}`);
-  ensure(registry.languages[language], `Unsupported language: ${language}`);
+  const language = resolveWorkspaceLanguage({
+    workspaceRaw,
+    base,
+    registry,
+    configFile,
+    workspaceDir
+  });
 
   const mergedModules = mergeModules({
     registry,
@@ -107,22 +116,22 @@ export async function getEffectiveWorkspaceConfig({
     canonicalSlot,
     localOverrideFile
   });
-  const inheritedModuleSet = new Set(mergedModules.inheritedModules || []);
-  const inheritedModules = overrideResult.modules.filter((mod) => inheritedModuleSet.has(mod));
-  const localModules = overrideResult.modules.filter((mod) => !inheritedModuleSet.has(mod));
+  const ownership = splitModuleOwnership({
+    modules: overrideResult.modules,
+    inheritedModules: mergedModules.inheritedModules || []
+  });
 
-  return {
-    $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
-    registry_ref: workspaceRaw.registry_ref || base.registry_ref,
-    on_conflict: workspaceRaw.on_conflict || base.on_conflict || 'merge',
+  return buildEffectiveWorkspaceConfig({
+    workspaceRaw,
+    base,
+    isRootWorkspace,
     language,
     modules: overrideResult.modules,
     targets: overrideResult.targets,
-    docs_path: workspaceRaw.docs_path || (isRootWorkspace ? 'docs/' : './docs/'),
-    inheritedModules,
-    localModules,
+    inheritedModules: ownership.inherited,
+    localModules: ownership.local,
     warnings: [...mergedModules.warnings, ...overrideResult.warnings]
-  };
+  });
 }
 
 export async function applyLocalOverrides({
@@ -194,8 +203,4 @@ export async function applyLocalOverrides({
     targets: targetResult.values,
     warnings
   };
-}
-
-function ensure(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }
