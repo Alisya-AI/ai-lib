@@ -19,6 +19,7 @@ import {
 import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
 import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './cli/local-overrides.ts';
 import { diffSlots, mergeModules, mergeTargets } from './cli/module-selection.ts';
+import { validateModuleSelection } from './cli/module-validation.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
 import { resolveExtendsBase } from './cli/workspace-config.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
@@ -157,7 +158,7 @@ async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
   const targets = uniqueList(splitCsv(flags.targets).length ? splitCsv(flags.targets) : Object.keys(registry.targets));
   const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
 
-  validateModuleSelection({ registry, language, modules });
+  validateModuleSelection({ registry, language, modules, canonicalSlot: (slot) => canonicalSlot(registry, slot) });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
     const projectRoot = path.resolve(cwd);
@@ -236,7 +237,8 @@ async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
   validateModuleSelection({
     registry,
     language: effective.language,
-    modules: uniqueList([...(config.modules || []), moduleId])
+    modules: uniqueList([...(config.modules || []), moduleId]),
+    canonicalSlot: (slot) => canonicalSlot(registry, slot)
   });
 
   config.modules = uniqueList([...(config.modules || []), moduleId]);
@@ -650,7 +652,12 @@ async function buildWorkspaceState({
   registry: Registry;
 }): Promise<WorkspaceState> {
   const effective = await getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, registry });
-  validateModuleSelection({ registry, language: effective.language, modules: effective.modules });
+  validateModuleSelection({
+    registry,
+    language: effective.language,
+    modules: effective.modules,
+    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+  });
 
   const requiredFiles = [
     '.ailib/development-standards.md',
@@ -906,43 +913,6 @@ async function assertLocalOverridesValid({
   registry: Registry;
 }) {
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
-}
-
-function validateModuleSelection({
-  registry,
-  language,
-  modules
-}: {
-  registry: Registry;
-  language: string;
-  modules: string[];
-}) {
-  const lang = registry.languages[language];
-  ensure(lang, `Unsupported language: ${language}`);
-
-  const slotMap = new Map();
-  const validSlots = new Set(registry.slots || []);
-  for (const moduleId of modules) {
-    const moduleDef = lang.modules[moduleId];
-    ensure(moduleDef, `Unsupported module for ${language}: ${moduleId}`);
-
-    const slot = canonicalSlot(registry, moduleDef.slot);
-    if (slot) {
-      ensure(validSlots.has(slot), `Unknown slot '${slot}' for module '${moduleId}'`);
-      const existing = slotMap.get(slot);
-      ensure(!existing, `Slot conflict '${slot}': ${existing} vs ${moduleId}`);
-      slotMap.set(slot, moduleId);
-    }
-  }
-
-  for (const moduleId of modules) {
-    const conflicts = new Set(lang.modules[moduleId].conflicts_with || []);
-    for (const other of modules) {
-      if (other !== moduleId && conflicts.has(other)) {
-        throw new Error(`Module conflict: ${moduleId} conflicts with ${other}`);
-      }
-    }
-  }
 }
 
 async function writeRootLock({
