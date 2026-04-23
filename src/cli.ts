@@ -3,6 +3,26 @@ import fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { getStringFlag, parseFlags } from './cli/flags.ts';
+import { printHelp } from './cli/help.ts';
+import type {
+  CliFlags,
+  CommandContext,
+  EffectiveWorkspaceConfig,
+  LanguageDefinition,
+  ListOverrideScope,
+  LocalOverrideConfig,
+  ModuleDefinition,
+  Registry,
+  RunOptions,
+  SlotAliasMeta,
+  SlotDefinition,
+  SlotOverrideRule,
+  TargetDefinition,
+  WorkspaceConfig,
+  WorkspaceOverrideConfig,
+  WorkspaceState
+} from './cli/types.ts';
 
 const AILIB_BLOCK_START = '<!-- ailib:start -->';
 const AILIB_BLOCK_END = '<!-- ailib:end -->';
@@ -13,115 +33,6 @@ const AUTO_DISCOVERY_MAX_DEPTH = 4;
 const GLOB_DISCOVERY_MAX_DEPTH = 32;
 const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'build', '.venv']);
 const WARNED_SLOT_ALIASES = new Set();
-
-type CliFlags = { _: string[] } & Record<string, string | boolean | string[] | undefined>;
-
-interface RunOptions {
-  cwd?: string;
-  packageRoot?: string;
-}
-
-interface ModuleDefinition {
-  slot: string;
-  requires?: string[];
-  conflicts_with?: string[];
-}
-
-interface LanguageDefinition {
-  modules: Record<string, ModuleDefinition>;
-}
-
-interface TargetDefinition {
-  output: string;
-  root_output?: string;
-  mode?: string;
-  display?: string;
-  frontmatter?: {
-    root?: string;
-    workspace?: string;
-  };
-}
-
-interface SlotDefinition {
-  kind?: 'exclusive' | 'composable';
-  description?: string;
-}
-
-interface SlotAliasMeta {
-  replacement: string;
-  deprecated_since?: string;
-  remove_in?: string;
-}
-
-interface Registry {
-  version: string;
-  slots?: string[];
-  slot_defs?: Record<string, SlotDefinition>;
-  slot_aliases?: Record<string, string>;
-  slot_alias_meta?: Record<string, SlotAliasMeta>;
-  languages: Record<string, LanguageDefinition>;
-  targets: Record<string, TargetDefinition>;
-}
-
-interface WorkspaceConfig {
-  $schema?: string;
-  extends?: string;
-  registry_ref?: string;
-  on_conflict?: string;
-  language?: string;
-  modules?: string[];
-  targets?: string[];
-  targets_removed?: string[];
-  docs_path?: string;
-  workspaces?: string[];
-}
-
-interface ListOverrideScope {
-  add?: string[];
-  remove?: string[];
-  set?: string[];
-}
-
-interface SlotOverrideRule {
-  set?: string;
-  remove?: boolean;
-}
-
-interface WorkspaceOverrideConfig {
-  targets?: ListOverrideScope;
-  modules?: ListOverrideScope;
-  slots?: Record<string, SlotOverrideRule>;
-}
-
-interface LocalOverrideConfig {
-  version: string;
-  default_override?: WorkspaceOverrideConfig;
-  workspace_overrides?: Record<string, WorkspaceOverrideConfig>;
-}
-
-interface EffectiveWorkspaceConfig extends WorkspaceConfig {
-  language: string;
-  modules: string[];
-  targets: string[];
-  docs_path: string;
-  inheritedModules: string[];
-  localModules: string[];
-  warnings: string[];
-}
-
-interface WorkspaceState {
-  effective: EffectiveWorkspaceConfig;
-  inheritedModules: string[];
-  localModules: string[];
-  requiredFiles: string[];
-  warnings: string[];
-}
-
-interface CommandContext {
-  cwd: string;
-  packageRoot: string;
-  flags: CliFlags;
-}
 
 export async function run(argv: string[], options: RunOptions = {}) {
   const cwd = options.cwd ?? process.cwd();
@@ -162,47 +73,6 @@ export async function run(argv: string[], options: RunOptions = {}) {
     default:
       throw new Error(`Unknown command: ${command}`);
   }
-}
-
-function printHelp() {
-  process.stdout.write(
-    'ailib commands:\n' +
-      '  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]\n' +
-      '  ailib update [--workspace=<path>]\n' +
-      '  ailib add <module> [--workspace=<path>]\n' +
-      '  ailib remove <module> [--workspace=<path>]\n' +
-      '  ailib doctor [--workspace=<path>]\n' +
-      '  ailib uninstall [--all]\n' +
-      '  ailib slots list\n' +
-      '  ailib modules list [--language=<lang>]\n' +
-      '  ailib modules explain <module> [--language=<lang>]\n'
-  );
-}
-
-function parseFlags(args: string[]): CliFlags {
-  const flags: CliFlags = { _: [] };
-  for (const arg of args) {
-    if (!arg.startsWith('--')) {
-      flags._.push(arg);
-      continue;
-    }
-    const eqIndex = arg.indexOf('=');
-    if (eqIndex < 0) {
-      flags[arg.slice(2)] = true;
-      continue;
-    }
-    const k = arg.slice(2, eqIndex);
-    const raw = arg.slice(eqIndex + 1);
-    if (raw === 'true') flags[k] = true;
-    else if (raw === 'false') flags[k] = false;
-    else flags[k] = raw;
-  }
-  return flags;
-}
-
-function getStringFlag(flags: CliFlags, key: string): string | undefined {
-  const value = flags[key];
-  return typeof value === 'string' ? value : undefined;
 }
 
 async function slotsCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {

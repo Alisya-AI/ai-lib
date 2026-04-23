@@ -45,6 +45,7 @@ Expected loop:
 - `bun run typecheck` must pass.
 - `bun run check` must pass.
 - New behavior should include/adjust tests.
+- PR description must include TDD evidence (Red/Green/Refactor) or explicit no-behavior-change rationale.
 - Docs must be updated when user-facing behavior or contribution flow changes.
 
 ## 6) Definition of Done
