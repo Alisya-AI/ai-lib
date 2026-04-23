@@ -24,14 +24,24 @@ export async function runDoctorPreflight({
   configFile: string;
   localOverrideFile: string;
   canonicalSlot: (registry: Registry, slot: string | undefined) => string | null;
-}): Promise<{
-  context: ResolvedContext;
-  registry: Registry;
-  rootConfig: WorkspaceConfig;
-  workspaceDirs: string[];
-  rootEffective: EffectiveWorkspaceConfig | null;
-  localOverrideError: string | null;
-}> {
+}): Promise<
+  | {
+      ok: true;
+      context: ResolvedContext;
+      registry: Registry;
+      rootConfig: WorkspaceConfig;
+      workspaceDirs: string[];
+      rootEffective: EffectiveWorkspaceConfig;
+    }
+  | {
+      ok: false;
+      context: ResolvedContext;
+      registry: Registry;
+      rootConfig: WorkspaceConfig;
+      workspaceDirs: string[];
+      localOverrideError: string;
+    }
+> {
   const context = await resolveContext(cwd);
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
   const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
@@ -53,11 +63,11 @@ export async function runDoctorPreflight({
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     return {
+      ok: false,
       context,
       registry,
       rootConfig,
       workspaceDirs,
-      rootEffective: null,
       localOverrideError: message
     };
   }
@@ -73,11 +83,11 @@ export async function runDoctorPreflight({
   });
 
   return {
+    ok: true,
     context,
     registry,
     rootConfig,
     workspaceDirs,
-    rootEffective,
-    localOverrideError: null
+    rootEffective
   };
 }

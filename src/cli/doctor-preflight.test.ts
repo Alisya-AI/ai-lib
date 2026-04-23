@@ -36,6 +36,8 @@ test('runDoctorPreflight returns local override error when invalid', async () =>
     canonicalSlot: (_registry, slot) => slot || null
   });
 
-  assert.ok(result.localOverrideError);
-  assert.match(result.localOverrideError ?? '', /Invalid ailib.local.json/);
+  assert.equal(result.ok, false);
+  if (!result.ok) {
+    assert.match(result.localOverrideError, /Invalid ailib.local.json/);
+  }
 });

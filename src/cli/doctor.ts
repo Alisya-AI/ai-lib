@@ -6,7 +6,6 @@ import { formatDoctorErrors, formatDoctorOk, formatDoctorWarnings } from './doct
 import { diffSlots } from './module-selection.ts';
 import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
 import { buildWorkspaceState } from './workspace-state.ts';
-import { exists } from './utils.ts';
 import type { CliFlags, Registry, WorkspaceState } from './types.ts';
 
 export async function doctorCommand({
@@ -32,13 +31,8 @@ export async function doctorCommand({
     localOverrideFile,
     canonicalSlot
   });
-  if (preflight.localOverrideError !== null) {
+  if (preflight.ok === false) {
     process.stdout.write(formatDoctorErrors([preflight.localOverrideError]));
-    process.exitCode = 1;
-    return;
-  }
-  if (!preflight.rootEffective) {
-    process.stdout.write(formatDoctorErrors(['Failed to build root workspace state']));
     process.exitCode = 1;
     return;
   }
@@ -50,11 +44,6 @@ export async function doctorCommand({
   const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
   for (const workspaceDir of workspaceDirs) {
     const workspaceLabel = workspaceLabelFor(context.rootDir, workspaceDir);
-    const configPath = path.join(workspaceDir, configFile);
-    if (!(await exists(configPath))) {
-      errors.push(`[${workspaceLabel}] Missing ${configFile}`);
-      continue;
-    }
 
     let state: WorkspaceState;
     try {

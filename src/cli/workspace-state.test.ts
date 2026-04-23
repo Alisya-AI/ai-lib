@@ -124,3 +124,51 @@ test('getEffectiveWorkspaceConfig propagates module merge warnings', async () =>
   assert.equal(effective.modules[0], 'biome');
   assert.match(effective.warnings.join('\n'), /Slot override 'linter': eslint -> biome/);
 });
+
+test('applyLocalOverrides supports workspace-specific overrides', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  await fs.mkdir(workspaceDir, { recursive: true });
+  const rootWithWorkspaces: WorkspaceConfig = {
+    ...rootConfig,
+    workspaces: ['apps/*']
+  };
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootWithWorkspaces, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(workspaceDir, configFile),
+    `${JSON.stringify({ language: 'typescript', modules: ['eslint'], targets: ['cursor'] }, null, 2)}\n`,
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(rootDir, localOverrideFile),
+    `${JSON.stringify(
+      {
+        version: '1',
+        default_override: { targets: { add: ['cursor'] } },
+        workspace_overrides: {
+          'apps/web': {
+            modules: { set: ['biome'] }
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  const result = await applyLocalOverrides({
+    rootDir,
+    workspaceDir,
+    rootConfig: rootWithWorkspaces,
+    registry,
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['cursor'],
+    canonicalSlot,
+    localOverrideFile
+  });
+
+  assert.deepEqual(result.modules, ['biome']);
+  assert.deepEqual(result.targets, ['cursor']);
+});
