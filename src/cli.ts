@@ -13,12 +13,13 @@ import {
   resolveWorkspacePath,
   workspaceLabelFor
 } from './cli/context-resolution.ts';
-import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
+import { parseFrontmatter } from './cli/file-helpers.ts';
 import { writeRootLock } from './cli/lockfile.ts';
 import { assertLocalOverridesValid } from './cli/local-override-config.ts';
 import { diffSlots } from './cli/module-selection.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
 import { generateWorkspaceRouters } from './cli/router-generation.ts';
+import { ensureWorkspaceAssets } from './cli/workspace-assets.ts';
 import { buildWorkspaceState, getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import { canonicalSlot, exists, readJson, rmIfExists, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
@@ -522,67 +523,6 @@ async function applyWorkspaceUpdate({
     registryRef: rootConfig.registry_ref || registry.version,
     allStates: stateMap
   });
-}
-
-async function ensureWorkspaceAssets({
-  workspaceDir,
-  packageRoot,
-  state,
-  rootDir
-}: {
-  workspaceDir: string;
-  packageRoot: string;
-  state: WorkspaceState;
-  rootDir: string;
-}) {
-  const outRoot = path.join(workspaceDir, '.ailib');
-  await fs.mkdir(path.join(outRoot, 'modules'), { recursive: true });
-
-  if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
-    await copySourceFile({ packageRoot, sourceRel: 'core/behavior.md', target: path.join(outRoot, 'behavior.md') });
-  }
-
-  await copySourceFile({
-    packageRoot,
-    sourceRel: 'core/development-standards.md',
-    target: path.join(outRoot, 'development-standards.md')
-  });
-
-  await copySourceFile({
-    packageRoot,
-    sourceRel: 'core/test-standards.md',
-    target: path.join(outRoot, 'test-standards.md')
-  });
-
-  await copySourceFile({
-    packageRoot,
-    sourceRel: `languages/${state.effective.language}/core.md`,
-    target: path.join(outRoot, 'standards.md')
-  });
-
-  const localModules = state.localModules;
-  const localSet = new Set(localModules);
-  for (const mod of localModules) {
-    const sourceRel = `languages/${state.effective.language}/modules/${mod}.md`;
-    const source = path.join(packageRoot, sourceRel);
-    const target = path.join(outRoot, 'modules', `${mod}.md`);
-    if (await exists(source)) {
-      await copySourceFile({ packageRoot, sourceRel, target });
-      continue;
-    }
-
-    const existing = path.join(outRoot, 'modules', `${mod}.md`);
-    ensure(await exists(existing), `Missing module source: ${sourceRel}`);
-  }
-
-  const moduleDir = path.join(outRoot, 'modules');
-  if (await exists(moduleDir)) {
-    for (const entry of await fs.readdir(moduleDir)) {
-      if (!entry.endsWith('.md')) continue;
-      const id = entry.replace(/\.md$/u, '');
-      if (!localSet.has(id)) await rmIfExists(path.join(moduleDir, entry));
-    }
-  }
 }
 
 function ensure(condition: unknown, message: string): asserts condition {
