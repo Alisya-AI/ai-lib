@@ -17,13 +17,7 @@ import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
 import { getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot, exists, readJson, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
-import type {
-  CommandContext,
-  LanguageDefinition,
-  Registry,
-  RunOptions,
-  WorkspaceConfig
-} from './cli/types.ts';
+import type { CommandContext, LanguageDefinition, Registry, RunOptions, WorkspaceConfig } from './cli/types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
 const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
