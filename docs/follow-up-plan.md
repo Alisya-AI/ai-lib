@@ -70,3 +70,18 @@ Model draft and schema reference: [docs/local-override-model.md](local-override-
   - prioritized remediation plan for non-trivial paths
   - documented exceptions when 100% is not realistically achievable
 - Identify and fix missing validations, quality risks, and latent errors found during review.
+
+## Phase 8: Final architecture and quality convergence
+
+- Review and apply TDD workflow end to end:
+  - enforce red/green/refactor flow in implementation tasks
+  - close gaps where behavior changes are not test-first
+- Review and apply Clean Code principles with architectural refactoring:
+  - break down `src/cli.ts` into meaningful modules/functions by responsibility
+  - improve readability, cohesion, and testability boundaries
+- Review and apply SOLID principles across command, validation, generation, and IO flows:
+  - separate concerns and narrow interfaces
+  - reduce coupling and improve extension points
+- Increase and improve tests toward 100% coverage where feasible:
+  - expand deterministic branch/path coverage
+  - document explicit exceptions for non-feasible branches and ownership
