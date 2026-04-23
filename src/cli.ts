@@ -4,23 +4,19 @@ import { createCommandHandlers } from './cli/command-handlers.ts';
 import { executeCommand } from './cli/dispatch.ts';
 import { parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
+import { createCanonicalSlotResolver } from './cli/slot-resolver.ts';
 import { createWorkspaceUpdateRunner } from './cli/workspace-update-runner.ts';
-import { canonicalSlot } from './cli/utils.ts';
-import type { CommandContext, Registry, RunOptions } from './cli/types.ts';
+import type { CommandContext, RunOptions } from './cli/types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
 const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
 const LOCK_FILE = 'ailib.lock';
-const WARNED_SLOT_ALIASES = new Set<string>();
+const RESOLVE_CANONICAL_SLOT = createCanonicalSlotResolver();
 const APPLY_WORKSPACE_UPDATE = createWorkspaceUpdateRunner({
   configFile: CONFIG_FILE,
   localOverrideFile: LOCAL_OVERRIDE_FILE,
-  canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
+  canonicalSlot: (registry, slot) => RESOLVE_CANONICAL_SLOT(registry, slot)
 });
-
-function resolveCanonicalSlot(registry: Registry, slot: string | undefined) {
-  return canonicalSlot({ registry, slot, warnedSlotAliases: WARNED_SLOT_ALIASES });
-}
 
 export async function run(argv: string[], options: RunOptions = {}) {
   const cwd = options.cwd ?? process.cwd();
@@ -37,7 +33,7 @@ export async function run(argv: string[], options: RunOptions = {}) {
       configFile: CONFIG_FILE,
       localOverrideFile: LOCAL_OVERRIDE_FILE,
       lockFile: LOCK_FILE,
-      resolveCanonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
+      resolveCanonicalSlot: (registry, slot) => RESOLVE_CANONICAL_SLOT(registry, slot),
       applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
         APPLY_WORKSPACE_UPDATE({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
     }),
