@@ -1,18 +1,9 @@
 import path from 'node:path';
 import process from 'node:process';
+import { createCommandHandlers } from './cli/command-handlers.ts';
 import { executeCommand } from './cli/dispatch.ts';
 import { parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
-import { initCommand as runInitCommand } from './cli/init.ts';
-import { modulesCommand as runModulesCommand, slotsCommand as runSlotsCommand } from './cli/introspection.ts';
-import { resolveContext } from './cli/context-resolution.ts';
-import { doctorCommand as runDoctorCommand } from './cli/doctor.ts';
-import {
-  addCommand as runAddCommand,
-  removeCommand as runRemoveCommand,
-  updateCommand as runUpdateCommand
-} from './cli/module-mutations.ts';
-import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot } from './cli/utils.ts';
 import type { CommandContext, Registry, RunOptions } from './cli/types.ts';
@@ -37,101 +28,15 @@ export async function run(argv: string[], options: RunOptions = {}) {
   await executeCommand({
     command,
     context,
-    handlers: createCommandHandlers(),
+    handlers: createCommandHandlers({
+      configFile: CONFIG_FILE,
+      localOverrideFile: LOCAL_OVERRIDE_FILE,
+      lockFile: LOCK_FILE,
+      resolveCanonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
+      applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
+        applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
+    }),
     printHelp
-  });
-}
-
-function createCommandHandlers() {
-  return {
-    init: async (context: CommandContext) => initCommand(context),
-    update: async (context: CommandContext) => updateCommand(context),
-    add: async (context: CommandContext) => addCommand(context),
-    remove: async (context: CommandContext) => removeCommand(context),
-    doctor: async (context: CommandContext) => doctorCommand(context),
-    uninstall: async (context: CommandContext) => uninstallCommand(context),
-    slots: async (context: CommandContext) => slotsCommand(context),
-    modules: async (context: CommandContext) => modulesCommand(context)
-  };
-}
-
-async function slotsCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
-  await runSlotsCommand({ packageRoot, flags });
-}
-
-async function modulesCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
-  await runModulesCommand({ packageRoot, flags });
-}
-
-async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runInitCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
-    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
-      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
-  });
-}
-
-async function updateCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runUpdateCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
-    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
-      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
-  });
-}
-
-async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runAddCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
-    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
-      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
-  });
-}
-
-async function removeCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runRemoveCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
-      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
-  });
-}
-
-async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runDoctorCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
-  });
-}
-
-async function uninstallCommand({ cwd, packageRoot, flags }: CommandContext) {
-  await runUninstallCommand({
-    cwd,
-    packageRoot,
-    flags,
-    configFile: CONFIG_FILE,
-    lockFile: LOCK_FILE,
-    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, forceOnConflict }) =>
-      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, forceOnConflict })
   });
 }
 
