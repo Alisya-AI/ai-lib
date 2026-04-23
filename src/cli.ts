@@ -16,10 +16,10 @@ import {
 } from './cli/context-resolution.ts';
 import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
 import { writeRootLock } from './cli/lockfile.ts';
-import { assertLocalOverridesValid, loadLocalOverrideConfig } from './cli/local-override-config.ts';
-import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './cli/local-overrides.ts';
-import { diffSlots, mergeModules, mergeTargets } from './cli/module-selection.ts';
+import { assertLocalOverridesValid } from './cli/local-override-config.ts';
+import { diffSlots } from './cli/module-selection.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
+import { buildWorkspaceState, getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import {
   canonicalSlot,
   exists,
@@ -30,12 +30,10 @@ import {
   toPosix,
   uniqueList
 } from './cli/utils.ts';
-import { resolveExtendsBase } from './cli/workspace-config.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
   CliFlags,
   CommandContext,
-  EffectiveWorkspaceConfig,
   LanguageDefinition,
   ListOverrideScope,
   ModuleDefinition,
@@ -249,7 +247,10 @@ async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
     workspaceDir: targetWorkspace,
     rootDir: context.rootDir,
     rootConfig: await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE)),
-    registry
+    registry,
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
+    configFile: CONFIG_FILE,
+    localOverrideFile: LOCAL_OVERRIDE_FILE
   });
   validateModuleSelection({
     registry,
@@ -329,7 +330,10 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
     workspaceDir: context.rootDir,
     rootDir: context.rootDir,
     rootConfig,
-    registry
+    registry,
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
+    configFile: CONFIG_FILE,
+    localOverrideFile: LOCAL_OVERRIDE_FILE
   });
   for (const workspaceDir of workspaceDirs) {
     const workspaceLabel = workspaceLabelFor(context.rootDir, workspaceDir);
@@ -341,7 +345,15 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
 
     let state: WorkspaceState;
     try {
-      state = await buildWorkspaceState({ workspaceDir, rootDir: context.rootDir, rootConfig, registry });
+      state = await buildWorkspaceState({
+        workspaceDir,
+        rootDir: context.rootDir,
+        rootConfig,
+        registry,
+        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
+        configFile: CONFIG_FILE,
+        localOverrideFile: LOCAL_OVERRIDE_FILE
+      });
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       errors.push(`[${workspaceLabel}] ${message}`);
@@ -487,7 +499,18 @@ async function applyWorkspaceUpdate({
 
   const stateMap = new Map<string, WorkspaceState>();
   for (const workspaceDir of allWorkspaceDirs) {
-    stateMap.set(workspaceDir, await buildWorkspaceState({ workspaceDir, rootDir, rootConfig, registry }));
+    stateMap.set(
+      workspaceDir,
+      await buildWorkspaceState({
+        workspaceDir,
+        rootDir,
+        rootConfig,
+        registry,
+        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
+        configFile: CONFIG_FILE,
+        localOverrideFile: LOCAL_OVERRIDE_FILE
+      })
+    );
   }
 
   for (const workspaceDir of workspaceDirs) {
@@ -667,171 +690,6 @@ function renderRouterDoc({
 
   const modulesText = moduleLines.length ? moduleLines.join('\n') : '- (none)';
   return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\nApply test and coverage rules in @.ailib/test-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
-}
-
-async function buildWorkspaceState({
-  workspaceDir,
-  rootDir,
-  rootConfig,
-  registry
-}: {
-  workspaceDir: string;
-  rootDir: string;
-  rootConfig: WorkspaceConfig;
-  registry: Registry;
-}): Promise<WorkspaceState> {
-  const effective = await getEffectiveWorkspaceConfig({ workspaceDir, rootDir, rootConfig, registry });
-  validateModuleSelection({
-    registry,
-    language: effective.language,
-    modules: effective.modules,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
-  });
-
-  const requiredFiles = [
-    '.ailib/development-standards.md',
-    '.ailib/test-standards.md',
-    '.ailib/standards.md',
-    ...effective.localModules.map((m) => `.ailib/modules/${m}.md`)
-  ];
-  if (path.resolve(workspaceDir) === path.resolve(rootDir)) requiredFiles.unshift('.ailib/behavior.md');
-
-  return {
-    effective,
-    inheritedModules: effective.inheritedModules,
-    localModules: effective.localModules,
-    requiredFiles,
-    warnings: effective.warnings
-  };
-}
-
-async function getEffectiveWorkspaceConfig({
-  workspaceDir,
-  rootDir,
-  rootConfig,
-  registry
-}: {
-  workspaceDir: string;
-  rootDir: string;
-  rootConfig: WorkspaceConfig;
-  registry: Registry;
-}): Promise<EffectiveWorkspaceConfig> {
-  const workspaceRaw = await readJson<WorkspaceConfig>(path.join(workspaceDir, CONFIG_FILE));
-  const isRootWorkspace = path.resolve(workspaceDir) === path.resolve(rootDir);
-
-  const base = await resolveExtendsBase({ workspaceDir, rootDir, rootConfig, registry });
-  const language = workspaceRaw.language || base.language;
-  ensure(language, `Missing language in ${CONFIG_FILE}: ${workspaceDir}`);
-  ensure(registry.languages[language], `Unsupported language: ${language}`);
-
-  const mergedModules = mergeModules({
-    registry,
-    language,
-    parentModules: isRootWorkspace ? [] : base.modules || [],
-    localModules: workspaceRaw.modules || (isRootWorkspace ? base.modules || [] : []),
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
-  });
-
-  const targets = mergeTargets({
-    parentTargets: base.targets || [],
-    localTargets: workspaceRaw.targets || [],
-    targetsRemoved: workspaceRaw.targets_removed || []
-  });
-
-  const overrideResult = await applyLocalOverrides({
-    rootDir,
-    workspaceDir,
-    rootConfig,
-    registry,
-    language,
-    modules: mergedModules.modules,
-    targets
-  });
-  const inheritedModuleSet = new Set(mergedModules.inheritedModules || []);
-  const inheritedModules = overrideResult.modules.filter((mod) => inheritedModuleSet.has(mod));
-  const localModules = overrideResult.modules.filter((mod) => !inheritedModuleSet.has(mod));
-
-  return {
-    $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
-    registry_ref: workspaceRaw.registry_ref || base.registry_ref,
-    on_conflict: workspaceRaw.on_conflict || base.on_conflict || 'merge',
-    language,
-    modules: overrideResult.modules,
-    targets: overrideResult.targets,
-    docs_path: workspaceRaw.docs_path || (path.resolve(workspaceDir) === path.resolve(rootDir) ? 'docs/' : './docs/'),
-    inheritedModules,
-    localModules,
-    warnings: [...mergedModules.warnings, ...overrideResult.warnings]
-  };
-}
-
-async function applyLocalOverrides({
-  rootDir,
-  workspaceDir,
-  rootConfig,
-  registry,
-  language,
-  modules,
-  targets
-}: {
-  rootDir: string;
-  workspaceDir: string;
-  rootConfig: WorkspaceConfig;
-  registry: Registry;
-  language: string;
-  modules: string[];
-  targets: string[];
-}): Promise<{ modules: string[]; targets: string[]; warnings: string[] }> {
-  const warnings: string[] = [];
-  const config = await loadLocalOverrideConfig({
-    rootDir,
-    rootConfig,
-    registry,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-    localOverrideFile: LOCAL_OVERRIDE_FILE
-  });
-  if (!config) {
-    return { modules, targets, warnings };
-  }
-
-  const workspaceKey =
-    path.resolve(workspaceDir) === path.resolve(rootDir) ? '.' : toPosix(path.relative(rootDir, workspaceDir));
-  const override = mergeWorkspaceOverrides(config.default_override, (config.workspace_overrides || {})[workspaceKey]);
-
-  const validTargets = new Set(Object.keys(registry.targets || {}));
-  const validModules = new Set(Object.keys(registry.languages[language]?.modules || {}));
-
-  const targetResult = applyListOverride({
-    values: targets,
-    scope: override.targets,
-    validSet: validTargets,
-    label: 'targets',
-    localOverrideFile: LOCAL_OVERRIDE_FILE
-  });
-
-  const moduleResult = applyListOverride({
-    values: modules,
-    scope: override.modules,
-    validSet: validModules,
-    label: 'modules',
-    localOverrideFile: LOCAL_OVERRIDE_FILE
-  });
-  warnings.push(...moduleResult.warnings);
-
-  const slotResult = applySlotOverrides({
-    registry,
-    language,
-    modules: moduleResult.values,
-    slots: override.slots || {},
-    localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
-  });
-
-  return {
-    modules: slotResult.modules,
-    targets: targetResult.values,
-    warnings
-  };
 }
 
 function ensure(condition: unknown, message: string): asserts condition {
