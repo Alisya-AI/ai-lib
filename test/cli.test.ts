@@ -50,6 +50,25 @@ async function captureStdout(fn: () => Promise<void>) {
   }
 }
 
+async function captureStderr(fn: () => Promise<void>) {
+  const writes: string[] = [];
+  const mutableStderr = process.stderr as unknown as { write: typeof process.stderr.write };
+  const originalWrite = mutableStderr.write.bind(process.stderr);
+  mutableStderr.write = ((chunk, encoding, callback) => {
+    writes.push(typeof chunk === 'string' ? chunk : chunk.toString());
+    const done = typeof encoding === 'function' ? encoding : callback;
+    if (typeof done === 'function') done();
+    return true;
+  }) as typeof process.stderr.write;
+
+  try {
+    await fn();
+    return writes.join('');
+  } finally {
+    mutableStderr.write = originalWrite;
+  }
+}
+
 async function runDoctorAndCapture(root: string) {
   process.exitCode = 0;
   const output = await captureStdout(async () => {
@@ -557,4 +576,58 @@ test('auto-discovery honors wildcard .gitignore directory patterns', async () =>
     false,
     'ignored wildcard service should be excluded'
   );
+});
+
+test('doctor reports missing frontmatter block in required pointer files', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+
+  const pointerPath = path.join(root, 'apps', 'web', '.ailib', 'standards.md');
+  await fs.writeFile(pointerPath, '# not frontmatter\n', 'utf8');
+
+  const { output, exitCode } = await runDoctorAndCapture(root);
+  assert.match(output, /doctor failed:/);
+  assert.match(output, /Missing frontmatter: \.ailib\/standards\.md/);
+  assert.equal(exitCode, 1);
+});
+
+test('update warns when local override uses deprecated slot alias', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+
+  const localOverride = {
+    version: '1.0.0',
+    workspace_overrides: {
+      'apps/web': {
+        slots: {
+          framework: { set: 'nextjs' }
+        }
+      }
+    }
+  };
+  await fs.writeFile(path.join(root, 'ailib.local.json'), `${JSON.stringify(localOverride, null, 2)}\n`, 'utf8');
+
+  const stderr = await captureStderr(async () => {
+    await run(['update'], { cwd: root, packageRoot });
+  });
+  assert.match(stderr, /slot alias 'framework' is deprecated; use 'frontend_framework'/);
+});
+
+test('update fails when project root cannot be detected', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-no-root-'));
+  await assert.rejects(run(['update'], { cwd, packageRoot }), /Could not detect project root/);
 });
