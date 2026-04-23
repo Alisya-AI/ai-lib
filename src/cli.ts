@@ -19,6 +19,7 @@ import {
 import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
 import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './cli/local-overrides.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
+import { resolveExtendsBase } from './cli/workspace-config.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
   CliFlags,
@@ -897,62 +898,6 @@ async function assertLocalOverridesValid({
   registry: Registry;
 }) {
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
-}
-
-async function resolveExtendsBase({
-  workspaceDir,
-  rootDir,
-  rootConfig,
-  registry
-}: {
-  workspaceDir: string;
-  rootDir: string;
-  rootConfig: WorkspaceConfig;
-  registry: Registry;
-}): Promise<WorkspaceConfig> {
-  const raw = await readJson<WorkspaceConfig>(path.join(workspaceDir, CONFIG_FILE));
-  if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
-    return normalizeRootConfig(rootConfig, registry);
-  }
-
-  if (raw.extends) {
-    const seen = new Set([path.resolve(path.join(workspaceDir, CONFIG_FILE))]);
-    const resolved = await resolveConfigByExtends(path.resolve(workspaceDir), raw.extends, seen);
-    return normalizeRootConfig(resolved, registry);
-  }
-
-  return normalizeRootConfig(rootConfig, registry);
-}
-
-async function resolveConfigByExtends(
-  workspaceDir: string,
-  extendsValue: string,
-  seen: Set<string>
-): Promise<WorkspaceConfig> {
-  const targetPath = extendsValue.endsWith('.json')
-    ? path.resolve(workspaceDir, extendsValue)
-    : path.join(path.resolve(workspaceDir, extendsValue), CONFIG_FILE);
-  const absTarget = path.resolve(targetPath);
-  ensure(await exists(absTarget), `Invalid extends path: ${extendsValue}`);
-  if (seen.has(absTarget)) throw new Error('Circular extends detected');
-  seen.add(absTarget);
-
-  const raw = await readJson<WorkspaceConfig>(absTarget);
-  if (!raw.extends) return raw;
-  return resolveConfigByExtends(path.dirname(absTarget), raw.extends, seen);
-}
-
-function normalizeRootConfig(rootConfig: WorkspaceConfig, registry: Registry): WorkspaceConfig {
-  return {
-    $schema: rootConfig.$schema || 'https://ailib.dev/schema/config.schema.json',
-    registry_ref: rootConfig.registry_ref || registry.version,
-    on_conflict: rootConfig.on_conflict || 'merge',
-    language: rootConfig.language,
-    modules: rootConfig.modules || [],
-    targets: rootConfig.targets || Object.keys(registry.targets),
-    docs_path: rootConfig.docs_path || 'docs/',
-    workspaces: rootConfig.workspaces
-  };
 }
 
 function mergeModules({
