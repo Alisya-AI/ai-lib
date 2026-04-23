@@ -7,7 +7,6 @@ import { printHelp } from './cli/help.ts';
 import {
   detectProjectRoot,
   findNearestMonorepoRoot,
-  isRootWorkspaceConfig,
   resolveContext,
   resolveDefaultWorkspaceForMutation,
   resolveWorkspacePath,
@@ -17,9 +16,10 @@ import { parseFrontmatter } from './cli/file-helpers.ts';
 import { assertLocalOverridesValid } from './cli/local-override-config.ts';
 import { diffSlots } from './cli/module-selection.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
+import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
 import { buildWorkspaceState, getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
-import { canonicalSlot, exists, readJson, rmIfExists, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
+import { canonicalSlot, exists, readJson, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
   CliFlags,
@@ -402,61 +402,15 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
 }
 
 async function uninstallCommand({ cwd, packageRoot, flags }: CommandContext) {
-  const context = await resolveContext(cwd);
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-
-  const rootConfigPath = path.join(context.rootDir, CONFIG_FILE);
-  const rootConfig = (await exists(rootConfigPath)) ? await readJson<WorkspaceConfig>(rootConfigPath) : null;
-  const atRoot = path.resolve(context.workspaceDir) === path.resolve(context.rootDir);
-  const monorepo = Boolean(rootConfig?.workspaces);
-
-  if (atRoot && monorepo && flags.all !== true) {
-    await uninstallWorkspace(context.rootDir, rootConfig, registry);
-    process.stdout.write('ailib uninstalled\n');
-    return;
-  }
-
-  if (atRoot && monorepo && flags.all === true) {
-    const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig });
-    for (const workspaceDir of workspaceDirs) {
-      const cfgPath = path.join(workspaceDir, CONFIG_FILE);
-      const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : rootConfig;
-      await uninstallWorkspace(workspaceDir, cfg, registry);
-    }
-    await rmIfExists(path.join(context.rootDir, LOCK_FILE));
-    process.stdout.write('ailib uninstalled\n');
-    return;
-  }
-
-  const targetDir = context.workspaceDir;
-  const cfgPath = path.join(targetDir, CONFIG_FILE);
-  const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : null;
-  await uninstallWorkspace(targetDir, cfg, registry);
-
-  if (path.resolve(targetDir) === path.resolve(context.rootDir)) {
-    await rmIfExists(path.join(context.rootDir, LOCK_FILE));
-  } else if (await exists(rootConfigPath)) {
-    await applyWorkspaceUpdate({ packageRoot, rootDir: context.rootDir, forceOnConflict: 'overwrite' });
-  }
-
-  process.stdout.write('ailib uninstalled\n');
-}
-
-async function uninstallWorkspace(workspaceDir: string, config: WorkspaceConfig | null, registry: Registry) {
-  await rmIfExists(path.join(workspaceDir, '.ailib'));
-  await rmIfExists(path.join(workspaceDir, CONFIG_FILE));
-  if (config?.targets) {
-    for (const target of config.targets) {
-      const targetDef = registry.targets[target];
-      if (!targetDef) continue;
-      await rmIfExists(path.join(workspaceDir, targetDef.output));
-      if (targetDef.root_output && isRootWorkspaceConfig(config))
-        await rmIfExists(path.join(workspaceDir, targetDef.root_output));
-      if (target === 'copilot' && isRootWorkspaceConfig(config)) {
-        await rmIfExists(path.join(workspaceDir, '.github/instructions'));
-      }
-    }
-  }
+  await runUninstallCommand({
+    cwd,
+    packageRoot,
+    flags,
+    configFile: CONFIG_FILE,
+    lockFile: LOCK_FILE,
+    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, forceOnConflict }) =>
+      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, forceOnConflict })
+  });
 }
 
 async function applyWorkspaceUpdate({
