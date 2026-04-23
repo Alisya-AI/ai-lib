@@ -1,5 +1,4 @@
 import fs from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 import { executeCommand } from './cli/dispatch.ts';
@@ -21,6 +20,16 @@ import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from '
 import { diffSlots, mergeModules, mergeTargets } from './cli/module-selection.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
+import {
+  canonicalSlot,
+  exists,
+  readJson,
+  rmIfExists,
+  sanitizeForFilename,
+  splitCsv,
+  toPosix,
+  uniqueList
+} from './cli/utils.ts';
 import { resolveExtendsBase } from './cli/workspace-config.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
@@ -45,7 +54,11 @@ import type {
 const CONFIG_FILE = 'ailib.config.json';
 const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
 const LOCK_FILE = 'ailib.lock';
-const WARNED_SLOT_ALIASES = new Set();
+const WARNED_SLOT_ALIASES = new Set<string>();
+
+function resolveCanonicalSlot(registry: Registry, slot: string | undefined) {
+  return canonicalSlot({ registry, slot, warnedSlotAliases: WARNED_SLOT_ALIASES });
+}
 
 export async function run(argv: string[], options: RunOptions = {}) {
   const cwd = options.cwd ?? process.cwd();
@@ -158,7 +171,12 @@ async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
   const targets = uniqueList(splitCsv(flags.targets).length ? splitCsv(flags.targets) : Object.keys(registry.targets));
   const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
 
-  validateModuleSelection({ registry, language, modules, canonicalSlot: (slot) => canonicalSlot(registry, slot) });
+  validateModuleSelection({
+    registry,
+    language,
+    modules,
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
+  });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
     const projectRoot = path.resolve(cwd);
@@ -238,7 +256,7 @@ async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
     registry,
     language: effective.language,
     modules: uniqueList([...(config.modules || []), moduleId]),
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
   });
 
   config.modules = uniqueList([...(config.modules || []), moduleId]);
@@ -359,7 +377,7 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
         workspaceModules: state.effective.modules,
         registry,
         language: state.effective.language,
-        canonicalSlot: (slot) => canonicalSlot(registry, slot)
+        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
       });
       for (const msg of slotDiffs) warnings.push(`[${workspaceLabel}] ${msg}`);
     }
@@ -656,7 +674,7 @@ async function buildWorkspaceState({
     registry,
     language: effective.language,
     modules: effective.modules,
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
   });
 
   const requiredFiles = [
@@ -700,7 +718,7 @@ async function getEffectiveWorkspaceConfig({
     language,
     parentModules: isRootWorkspace ? [] : base.modules || [],
     localModules: workspaceRaw.modules || (isRootWorkspace ? base.modules || [] : []),
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
   });
 
   const targets = mergeTargets({
@@ -789,7 +807,7 @@ async function applyLocalOverrides({
     modules: moduleResult.values,
     slots: override.slots || {},
     localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
   });
 
   return {
@@ -871,7 +889,7 @@ async function validateLocalOverrideConfig({
         override: config.default_override,
         label: 'default_override',
         registry,
-        canonicalSlot: (slot) => canonicalSlot(registry, slot)
+        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
       })
     );
   }
@@ -893,7 +911,7 @@ async function validateLocalOverrideConfig({
             override,
             label: `workspace_overrides.${workspaceKey}`,
             registry,
-            canonicalSlot: (slot) => canonicalSlot(registry, slot)
+            canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
           })
         );
       }
@@ -915,59 +933,6 @@ async function assertLocalOverridesValid({
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
 }
 
-function sanitizeForFilename(input: string) {
-  return toPosix(input).replaceAll('/', '__').replaceAll(':', '_');
-}
-
-function toPosix(value: string) {
-  return value.split(path.sep).join('/');
-}
-
-async function exists(filePath: string) {
-  try {
-    await fs.access(filePath, fsConstants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function rmIfExists(filePath: string) {
-  if (!(await exists(filePath))) return;
-  await fs.rm(filePath, { recursive: true, force: true });
-}
-
-async function readJson<T = unknown>(filePath: string): Promise<T> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
-}
-
 function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
-}
-
-function splitCsv(value: string | boolean | string[] | undefined) {
-  if (!value) return [];
-  if (Array.isArray(value)) return value;
-  if (typeof value !== 'string') return [];
-  return value
-    .split(',')
-    .map((v) => v.trim())
-    .filter(Boolean);
-}
-
-function uniqueList(items: string[]) {
-  return [...new Set(items)];
-}
-
-function canonicalSlot(registry: Registry, slot: string | undefined) {
-  if (!slot) return null;
-  const aliases = registry.slot_aliases || {};
-  const resolved = aliases[slot] || slot;
-  if (resolved !== slot && !WARNED_SLOT_ALIASES.has(slot)) {
-    const aliasMeta = registry.slot_alias_meta?.[slot];
-    const removeIn = aliasMeta?.remove_in ? ` and is planned for removal in ${aliasMeta.remove_in}` : '';
-    process.stderr.write(`warning: slot alias '${slot}' is deprecated; use '${resolved}'${removeIn}\n`);
-    WARNED_SLOT_ALIASES.add(slot);
-  }
-  return resolved;
 }
