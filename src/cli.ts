@@ -4,6 +4,7 @@ import process from 'node:process';
 import { executeCommand } from './cli/dispatch.ts';
 import { getStringFlag, parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
+import { modulesCommand as runModulesCommand, slotsCommand as runSlotsCommand } from './cli/introspection.ts';
 import { detectProjectRoot, findNearestMonorepoRoot, resolveContext } from './cli/context-resolution.ts';
 import { doctorCommand as runDoctorCommand } from './cli/doctor.ts';
 import {
@@ -15,7 +16,7 @@ import { validateModuleSelection } from './cli/module-validation.ts';
 import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot, exists, readJson, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
-import type { CommandContext, LanguageDefinition, Registry, RunOptions, WorkspaceConfig } from './cli/types.ts';
+import type { CommandContext, Registry, RunOptions, WorkspaceConfig } from './cli/types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
 const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
@@ -56,73 +57,11 @@ function createCommandHandlers() {
 }
 
 async function slotsCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
-  const sub = flags._[0] || 'list';
-  ensure(sub === 'list', `Usage: ailib slots list`);
-
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-  const slotDefs = registry.slot_defs || {};
-
-  const lines = ['slots:'];
-  for (const slot of registry.slots || []) {
-    const def = slotDefs[slot] || {};
-    const kind = def.kind ? ` (${def.kind})` : '';
-    const description = def.description ? ` - ${def.description}` : '';
-    lines.push(`- ${slot}${kind}${description}`);
-  }
-  process.stdout.write(`${lines.join('\n')}\n`);
+  await runSlotsCommand({ packageRoot, flags });
 }
 
 async function modulesCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
-  const sub = flags._[0];
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-
-  if (sub === 'list') {
-    const language = getStringFlag(flags, 'language') || Object.keys(registry.languages)[0];
-    const lang = registry.languages[language];
-    ensure(lang, `Unsupported language: ${language}`);
-
-    const lines = [`modules (${language}):`];
-    const modules = Object.entries(lang.modules || {}).sort(([a], [b]) => a.localeCompare(b));
-    for (const [moduleId, moduleDef] of modules) {
-      lines.push(`- ${moduleId} (slot: ${moduleDef.slot})`);
-    }
-    process.stdout.write(`${lines.join('\n')}\n`);
-    return;
-  }
-
-  if (sub === 'explain') {
-    const moduleId = flags._[1];
-    ensure(moduleId, 'Usage: ailib modules explain <module> [--language=<lang>]');
-
-    const requestedLanguage = getStringFlag(flags, 'language');
-    const candidates: Array<[string, LanguageDefinition | undefined]> = requestedLanguage
-      ? [[requestedLanguage, registry.languages[requestedLanguage]]]
-      : Object.entries(registry.languages || {});
-
-    if (requestedLanguage) {
-      ensure(registry.languages[requestedLanguage], `Unsupported language: ${requestedLanguage}`);
-    }
-
-    for (const [language, lang] of candidates) {
-      const moduleDef = lang?.modules?.[moduleId];
-      if (!moduleDef) continue;
-      const lines = [
-        `module: ${moduleId}`,
-        `language: ${language}`,
-        `slot: ${moduleDef.slot}`,
-        `requires: ${(moduleDef.requires || []).join(', ') || '(none)'}`,
-        `conflicts_with: ${(moduleDef.conflicts_with || []).join(', ') || '(none)'}`,
-        `doc: languages/${language}/modules/${moduleId}.md`
-      ];
-      process.stdout.write(`${lines.join('\n')}\n`);
-      return;
-    }
-
-    const scope = requestedLanguage ? ` for ${requestedLanguage}` : '';
-    throw new Error(`Unknown module${scope}: ${moduleId}`);
-  }
-
-  throw new Error('Usage: ailib modules list [--language=<lang>] | ailib modules explain <module> [--language=<lang>]');
+  await runModulesCommand({ packageRoot, flags });
 }
 
 async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
