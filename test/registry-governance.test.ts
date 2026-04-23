@@ -110,7 +110,7 @@ test('registry slots follow naming and coverage rules', async () => {
       slotAliases[alias],
       `slot_alias_meta.${alias}.replacement must match slot_aliases target`
     );
-    for (const key of ['deprecated_since', 'remove_in']) {
+    for (const key of ['deprecated_since', 'remove_in'] as const) {
       assert.match(meta[key], /^\d+\.\d+\.\d+$/u, `slot_alias_meta.${alias}.${key} must be semver-like`);
     }
   }
@@ -170,8 +170,6 @@ test('registry module relationships and frontmatter metadata are valid', async (
   const registry = await loadRegistry();
 
   for (const [languageId, languageDef] of Object.entries(registry.languages || {})) {
-    const moduleIds = new Set(Object.keys(languageDef.modules || {}));
-
     for (const [moduleId, moduleDef] of Object.entries(languageDef.modules || {})) {
       const requires = moduleDef.requires || [];
       const conflicts = moduleDef.conflicts_with || [];

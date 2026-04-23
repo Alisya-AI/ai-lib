@@ -8,7 +8,58 @@ import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
 import { buildWorkspaceState } from './workspace-state.ts';
 import type { CliFlags, Registry, WorkspaceState } from './types.ts';
 
+export interface DoctorCommandIo {
+  write: (line: string) => void;
+  setExitCode: (code: number) => void;
+}
+
+export interface DoctorEvaluation {
+  ok: boolean;
+  warningOutput: string;
+  errorOutput: string;
+}
+
 export async function doctorCommand({
+  cwd,
+  packageRoot,
+  flags,
+  configFile,
+  localOverrideFile,
+  canonicalSlot,
+  io
+}: {
+  cwd: string;
+  packageRoot: string;
+  flags: CliFlags;
+  configFile: string;
+  localOverrideFile: string;
+  canonicalSlot: (registry: Registry, slot: string | undefined) => string | null;
+  io?: DoctorCommandIo;
+}) {
+  const output = io || {
+    write: (line: string) => process.stdout.write(line),
+    setExitCode: (code: number) => {
+      process.exitCode = code;
+    }
+  };
+  const evaluation = await evaluateDoctor({
+    cwd,
+    packageRoot,
+    flags,
+    configFile,
+    localOverrideFile,
+    canonicalSlot
+  });
+  if (evaluation.warningOutput) output.write(evaluation.warningOutput);
+  if (evaluation.errorOutput) {
+    output.write(evaluation.errorOutput);
+    output.setExitCode(1);
+    return;
+  }
+  output.write(formatDoctorOk());
+}
+
+export async function evaluateDoctor({
   cwd,
   packageRoot,
   flags,
@@ -22,7 +73,7 @@ export async function doctorCommand({
   configFile: string;
   localOverrideFile: string;
   canonicalSlot: (registry: Registry, slot: string | undefined) => string | null;
-}) {
+}): Promise<DoctorEvaluation> {
   const preflight = await runDoctorPreflight({
     cwd,
     packageRoot,
@@ -32,9 +83,11 @@ export async function doctorCommand({
     canonicalSlot
   });
   if (preflight.ok === false) {
-    process.stdout.write(formatDoctorErrors([preflight.localOverrideError]));
-    process.exitCode = 1;
-    return;
+    return {
+      ok: false,
+      warningOutput: '',
+      errorOutput: formatDoctorErrors([preflight.localOverrideError])
+    };
   }
 
   const errors: string[] = [];
@@ -82,13 +135,17 @@ export async function doctorCommand({
   }
 
   const warningOutput = formatDoctorWarnings(warnings);
-  if (warningOutput) process.stdout.write(warningOutput);
-
   if (errors.length) {
-    process.stdout.write(formatDoctorErrors(errors));
-    process.exitCode = 1;
-    return;
+    return {
+      ok: false,
+      warningOutput,
+      errorOutput: formatDoctorErrors(errors)
+    };
   }
 
-  process.stdout.write(formatDoctorOk());
+  return {
+    ok: true,
+    warningOutput,
+    errorOutput: ''
+  };
 }

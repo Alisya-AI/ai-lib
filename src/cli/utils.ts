@@ -44,7 +44,7 @@ export function uniqueList(items: string[]) {
   return [...new Set(items)];
 }
 
-export function canonicalSlot({
+export function resolveCanonicalSlotAlias({
   registry,
   slot,
   warnedSlotAliases,
@@ -68,3 +68,5 @@ export function canonicalSlot({
   }
   return resolved;
 }
+
+export const canonicalSlot = resolveCanonicalSlotAlias;

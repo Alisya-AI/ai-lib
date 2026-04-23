@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { ensure } from './assertions.ts';
 import { detectProjectRoot, findNearestMonorepoRoot } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
 import { validateModuleSelection } from './module-validation.ts';
@@ -35,7 +36,8 @@ export async function initCommand({
   ensure(registry.languages[language], `Unsupported language: ${language}`);
 
   const modules = uniqueList(splitCsv(flags.modules));
-  const targets = uniqueList(splitCsv(flags.targets).length ? splitCsv(flags.targets) : Object.keys(registry.targets));
+  const requestedTargets = splitCsv(flags.targets);
+  const targets = uniqueList(requestedTargets.length ? requestedTargets : Object.keys(registry.targets));
   const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
   const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
 
@@ -47,6 +49,7 @@ export async function initCommand({
   });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
+    ensure(nearestRoot, 'Could not resolve monorepo root for service initialization');
     const projectRoot = path.resolve(cwd);
     const rel = toPosix(path.relative(projectRoot, path.join(nearestRoot, configFile)));
     const config: WorkspaceConfig = {
@@ -88,8 +91,4 @@ export async function initCommand({
   await fs.writeFile(path.join(projectRoot, configFile), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
   await applyWorkspaceUpdate({ packageRoot, rootDir: projectRoot, forceOnConflict: onConflict });
   process.stdout.write('ailib initialized\n');
-}
-
-function ensure(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }

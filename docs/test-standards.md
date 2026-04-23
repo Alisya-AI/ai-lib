@@ -11,15 +11,16 @@ This guide defines minimum testing expectations for `ailib` changes.
 
 ## 2) Coverage Thresholds
 
-Coverage targets are minimums for changed code paths:
+Coverage targets are enforced by `bun run coverage:check` and are minimums for changed code paths:
 
-- **CLI/core logic (`src/`, `core/`):** 85% line coverage
-- **Tooling scripts (`tools/`):** 80% line coverage
-- **Critical command flows (`init/update/doctor/uninstall`):** 90% path coverage via integration tests
+- **Repository line coverage:** 80% minimum
+- **Repository function coverage:** 80% minimum
+- **Repository branch coverage:** 70% minimum
+- **Critical command flows (`init/update/doctor/uninstall`):** strong integration coverage with explicit edge-case assertions
 
 Notes:
 
-- Thresholds are quality gates, not a substitute for meaningful assertions.
+- These repository-wide thresholds are quality gates, not a substitute for meaningful assertions.
 - Do not inflate coverage with low-value tests.
 
 ## 3) Naming and Organization

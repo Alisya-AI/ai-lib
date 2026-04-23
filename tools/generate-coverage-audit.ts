@@ -72,7 +72,7 @@ function parseFrontmatter(markdown: string): Record<string, string> | null {
 
 async function collectDocModuleInfo(languageId: string): Promise<DocModuleInfo[]> {
   const dir = path.join(packageRoot, 'languages', languageId, 'modules');
-  let entries: Array<{ isFile: () => boolean; name: string }> = [];
+  let entries: Array<{ isFile: () => boolean; name: string }>;
   try {
     entries = await fs.readdir(dir, { withFileTypes: true, encoding: 'utf8' });
   } catch {

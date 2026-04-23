@@ -1,4 +1,4 @@
-import { canonicalSlot } from './utils.ts';
+import { resolveCanonicalSlotAlias } from './utils.ts';
 import type { Registry } from './types.ts';
 
 type WriteWarning = (message: string) => void;
@@ -12,7 +12,7 @@ export function createCanonicalSlotResolver({
 } = {}) {
   const warnedSlotAliases = new Set<string>();
   return (registry: Registry, slot: string | undefined) =>
-    canonicalSlot({
+    resolveCanonicalSlotAlias({
       registry,
       slot,
       warnedSlotAliases,

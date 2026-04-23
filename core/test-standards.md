@@ -19,9 +19,11 @@ These standards apply to generated consumer workspaces and `ailib` contributions
 
 ## 2) Coverage Targets
 
-- `src/` and `core/` changes: 85% line coverage minimum.
-- `tools/` changes: 80% line coverage minimum.
-- Critical command flows (`init/update/doctor/uninstall`): strong integration coverage.
+- `bun run coverage:check` is the canonical gate.
+- Repository line coverage: 80% minimum.
+- Repository function coverage: 80% minimum.
+- Repository branch coverage: 70% minimum.
+- Critical command flows (`init/update/doctor/uninstall`): strong integration coverage with edge-case assertions.
 
 ## 3) Quality Gates
 

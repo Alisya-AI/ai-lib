@@ -1,7 +1,8 @@
 import fs from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
 import type { Dirent } from 'node:fs';
 import path from 'node:path';
+import { ensure } from './assertions.ts';
+import { exists, toPosix } from './utils.ts';
 import type { WorkspaceConfig } from './types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
@@ -80,7 +81,7 @@ async function walkForWorkspaceConfigs({
 
     if (await exists(path.join(currentDir, CONFIG_FILE))) matches.push(path.resolve(currentDir));
 
-    let entries: Dirent[] = [];
+    let entries: Dirent[];
     try {
       entries = await fs.readdir(currentDir, { withFileTypes: true });
     } catch {
@@ -157,21 +158,4 @@ function globToRegex(pattern: string) {
 
 function resolveWorkspacePath(rootDir: string, value: string) {
   return path.resolve(rootDir, value);
-}
-
-function toPosix(value: string) {
-  return value.split(path.sep).join('/');
-}
-
-async function exists(filePath: string) {
-  try {
-    await fs.access(filePath, fsConstants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function ensure(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }

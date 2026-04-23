@@ -22,6 +22,29 @@ export async function generateWorkspaceRouters({
   const targetSet = new Set<string>(state.effective.targets || []);
   const atRoot = path.resolve(workspaceDir) === path.resolve(rootDir);
 
+  await writeStandardTargetRouters({ workspaceDir, rootDir, state, onConflict, atRoot, targetSet, registry });
+
+  if (!atRoot || !targetSet.has('copilot')) return;
+  await writeCopilotRouters({ rootDir, allStates, registry, onConflict });
+}
+
+async function writeStandardTargetRouters({
+  workspaceDir,
+  rootDir,
+  state,
+  onConflict,
+  atRoot,
+  targetSet,
+  registry
+}: {
+  workspaceDir: string;
+  rootDir: string;
+  state: WorkspaceState;
+  onConflict: string;
+  atRoot: boolean;
+  targetSet: Set<string>;
+  registry: Registry;
+}) {
   for (const targetId of targetSet) {
     const targetDef = registry.targets[targetId];
     if (!targetDef || targetDef.mode === 'copilot') continue;
@@ -34,39 +57,71 @@ export async function generateWorkspaceRouters({
       : '';
     const rendered = `${frontmatter || ''}${renderRouterDoc({ label, workspaceDir, rootDir, state })}`;
     await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.output), rendered, onConflict });
-
     if (atRoot && targetDef.root_output) {
       await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.root_output), rendered, onConflict });
     }
   }
+}
 
-  if (atRoot && targetSet.has('copilot')) {
-    const scopedStates = [...allStates.entries()].filter(([, s]) => (s.effective.targets || []).includes('copilot'));
-    const sections = scopedStates
-      .map(([dir, s]) => {
-        const label = workspaceLabelFor(rootDir, dir);
-        return `## Workspace: ${label}\n\n${renderRouterDoc({ label: registry.targets.copilot?.display || 'GitHub Copilot', workspaceDir: dir, rootDir, state: s }).trim()}\n`;
-      })
-      .join('\n');
+async function writeCopilotRouters({
+  rootDir,
+  allStates,
+  registry,
+  onConflict
+}: {
+  rootDir: string;
+  allStates: Map<string, WorkspaceState>;
+  registry: Registry;
+  onConflict: string;
+}) {
+  const scopedStates = [...allStates.entries()].filter(([, s]) => (s.effective.targets || []).includes('copilot'));
+  const copilotLabel = registry.targets.copilot?.display || 'GitHub Copilot';
+  const sections = scopedStates
+    .map(([dir, state]) => {
+      const label = workspaceLabelFor(rootDir, dir);
+      return `## Workspace: ${label}\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir: dir, rootDir, state }).trim()}\n`;
+    })
+    .join('\n');
 
-    await writeManagedFile({
-      outPath: path.join(rootDir, registry.targets.copilot?.output || '.github/copilot-instructions.md'),
-      rendered: `# ailib Router (${registry.targets.copilot?.display || 'GitHub Copilot'})\n\n${sections}`,
+  await writeManagedFile({
+    outPath: path.join(rootDir, registry.targets.copilot?.output || '.github/copilot-instructions.md'),
+    rendered: `# ailib Router (${copilotLabel})\n\n${sections}`,
+    onConflict
+  });
+
+  for (const [workspaceDir, state] of scopedStates) {
+    await writeCopilotWorkspaceInstruction({
+      rootDir,
+      workspaceDir,
+      state,
+      copilotLabel,
       onConflict
     });
-
-    for (const [dir, s] of scopedStates) {
-      const rel = workspaceLabelFor(rootDir, dir);
-      const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
-      const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
-      const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: registry.targets.copilot?.display || 'GitHub Copilot', workspaceDir: dir, rootDir, state: s })}`;
-      await writeManagedFile({
-        outPath: path.join(rootDir, '.github/instructions', fileName),
-        rendered: content,
-        onConflict
-      });
-    }
   }
+}
+
+async function writeCopilotWorkspaceInstruction({
+  rootDir,
+  workspaceDir,
+  state,
+  copilotLabel,
+  onConflict
+}: {
+  rootDir: string;
+  workspaceDir: string;
+  state: WorkspaceState;
+  copilotLabel: string;
+  onConflict: string;
+}) {
+  const rel = workspaceLabelFor(rootDir, workspaceDir);
+  const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
+  const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
+  const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir, rootDir, state })}`;
+  await writeManagedFile({
+    outPath: path.join(rootDir, '.github/instructions', fileName),
+    rendered: content,
+    onConflict
+  });
 }
 
 export function renderRouterDoc({

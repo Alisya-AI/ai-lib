@@ -5,7 +5,10 @@ This document tracks why `src/cli.ts` is not yet at 100% line coverage and which
 Current baseline after Task #72 pass 2:
 
 - `src/cli.ts` line coverage: **91.25%**
-- Full-suite threshold gate: **80%** (enforced)
+- Full-suite threshold gate (enforced via `bun run coverage:check`):
+  - lines: **80%**
+  - functions: **80%**
+  - branches: **70%**
 
 ## High-value uncovered clusters
 

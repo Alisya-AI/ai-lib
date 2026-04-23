@@ -23,7 +23,8 @@
     "security:audit": "bun audit --audit-level=high",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
     "format:write": "prettier --write \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
-    "lint": "bun tools/check-standards.ts && bun run format:check",
+    "lint": "eslint . --max-warnings=0",
+    "lint:fix": "eslint . --fix",
     "tools:build": "bunx tsc -p tsconfig.tools.json",
     "registry:build": "bun tools/sync-registry.ts",
     "registry:check": "bun tools/sync-registry.ts --check",
@@ -32,11 +33,11 @@
     "coverage-audit:build": "bun tools/generate-coverage-audit.ts",
     "coverage-audit:check": "bun tools/generate-coverage-audit.ts --check",
     "coverage:build": "bun test --coverage --coverage-reporter=text --coverage-reporter=lcov",
-    "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.ts --file coverage/lcov.info --min-lines=80",
+    "coverage:check": "bun run coverage:build && bun tools/check-coverage-threshold.ts --file coverage/lcov.info --min-lines=80 --min-functions=80 --min-branches=70",
     "standards:check": "bun tools/check-standards.ts",
     "typecheck": "bunx tsc --noEmit",
     "test": "bun test",
-    "check": "bun run lint && bun run test && bun run typecheck && bun run coverage-audit:check && bun run registry:check && bun run catalog:check && bun run coverage:check"
+    "check": "bun run standards:check && bun run lint && bun run format:check && bun run test && bun run typecheck && bun run coverage-audit:check && bun run registry:check && bun run catalog:check && bun run coverage:check"
   },
   "keywords": [
     "ai",
@@ -51,8 +52,11 @@
     "bun": ">=1.3.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.6.0",
+    "eslint": "^10.2.1",
     "prettier": "^3.8.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.59.0"
   }
 }

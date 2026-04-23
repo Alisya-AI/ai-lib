@@ -1,6 +1,5 @@
-import fs from 'node:fs/promises';
-import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
+import { exists, readJson, toPosix } from './utils.ts';
 import type { WorkspaceConfig } from './types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
@@ -87,21 +86,4 @@ async function findNearestWorkspace(startDir: string): Promise<string | null> {
     if (parent === current) return null;
     current = parent;
   }
-}
-
-function toPosix(value: string) {
-  return value.split(path.sep).join('/');
-}
-
-async function exists(filePath: string) {
-  try {
-    await fs.access(filePath, fsConstants.F_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-async function readJson<T = unknown>(filePath: string): Promise<T> {
-  return JSON.parse(await fs.readFile(filePath, 'utf8')) as T;
 }

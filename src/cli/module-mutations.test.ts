@@ -29,7 +29,8 @@ const registry: Registry = {
 test('updateCommand forwards workspace override and prints updated message', async () => {
   const rootDir = await tempDir();
   await fs.writeFile(path.join(rootDir, 'package.json'), '{"name":"tmp"}\n', 'utf8');
-  let calledWith: { workspaceOverride?: string } | null = null;
+  const calledWith: { workspaceOverride?: string } = {};
+  let called = false;
   const stdout: string[] = [];
   const originalWrite = process.stdout.write.bind(process.stdout);
   (process.stdout as unknown as { write: typeof process.stdout.write }).write = ((chunk) => {
@@ -45,13 +46,15 @@ test('updateCommand forwards workspace override and prints updated message', asy
       localOverrideFile: 'ailib.local.json',
       canonicalSlot: (_r, slot) => slot || null,
       applyWorkspaceUpdate: async (args) => {
-        calledWith = { workspaceOverride: args.workspaceOverride };
+        called = true;
+        calledWith.workspaceOverride = args.workspaceOverride;
       }
     });
   } finally {
     (process.stdout as unknown as { write: typeof process.stdout.write }).write = originalWrite;
   }
-  assert.ok(calledWith?.workspaceOverride?.endsWith('apps/api'));
+  assert.equal(called, true);
+  assert.ok(calledWith.workspaceOverride?.endsWith('apps/api'));
   assert.match(stdout.join(''), /ailib updated/);
 });
 
