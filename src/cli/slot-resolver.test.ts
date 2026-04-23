@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { createCanonicalSlotResolver } from './slot-resolver.ts';
+import { bindRegistryCanonicalSlot, createCanonicalSlotResolver } from './slot-resolver.ts';
 import type { Registry } from './types.ts';
 
 function registryWithAlias(): Registry {
@@ -36,4 +36,10 @@ test('createCanonicalSlotResolver warns once per alias', () => {
   assert.equal(resolveCanonicalSlot(registry, 'old_slot'), 'new_slot');
   assert.equal(warnings.length, 1);
   assert.match(warnings[0] ?? '', /is deprecated; use/);
+});
+
+test('bindRegistryCanonicalSlot binds resolver to registry', () => {
+  const resolver = createCanonicalSlotResolver({ writeWarning: () => {} });
+  const bound = bindRegistryCanonicalSlot(registryWithAlias(), resolver);
+  assert.equal(bound('old_slot'), 'new_slot');
 });

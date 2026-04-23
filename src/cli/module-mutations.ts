@@ -1,7 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { resolveContext, resolveDefaultWorkspaceForMutation, resolveWorkspacePath } from './context-resolution.ts';
+import { getStringFlag } from './flags.ts';
 import { validateModuleSelection } from './module-validation.ts';
+import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
 import { getEffectiveWorkspaceConfig } from './workspace-state.ts';
 import { exists, readJson, uniqueList } from './utils.ts';
 import type { CliFlags, Registry, WorkspaceConfig } from './types.ts';
@@ -66,6 +68,7 @@ export async function addCommand({
   ensure(moduleId, 'Usage: ailib add <module>');
   const context = await resolveContext(cwd);
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
+  const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
 
   const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
   const configPath = path.join(targetWorkspace, configFile);
@@ -77,7 +80,7 @@ export async function addCommand({
     rootDir: context.rootDir,
     rootConfig: await readJson<WorkspaceConfig>(path.join(context.rootDir, configFile)),
     registry,
-    canonicalSlot: (slot) => canonicalSlot(registry, slot),
+    canonicalSlot: canonicalSlotForRegistry,
     configFile,
     localOverrideFile
   });
@@ -85,7 +88,7 @@ export async function addCommand({
     registry,
     language: effective.language,
     modules: uniqueList([...(config.modules || []), moduleId]),
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: canonicalSlotForRegistry
   });
 
   config.modules = uniqueList([...(config.modules || []), moduleId]);
@@ -140,12 +143,6 @@ export async function removeCommand({
   });
 
   process.stdout.write(`module removed: ${moduleId}\n`);
-}
-
-function getStringFlag(flags: CliFlags, key: string): string | undefined {
-  const value = flags[key];
-  if (typeof value === 'string') return value;
-  return undefined;
 }
 
 function ensure(condition: unknown, message: string): asserts condition {

@@ -99,3 +99,28 @@ test('buildWorkspaceState includes root behavior file for root workspace', async
   assert.ok(state.requiredFiles.includes('.ailib/behavior.md'));
   assert.ok(state.requiredFiles.includes('.ailib/standards.md'));
 });
+
+test('getEffectiveWorkspaceConfig propagates module merge warnings', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootConfig, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(workspaceDir, configFile),
+    `${JSON.stringify({ language: 'typescript', modules: ['biome'], targets: ['cursor'] }, null, 2)}\n`,
+    'utf8'
+  );
+
+  const effective = await getEffectiveWorkspaceConfig({
+    workspaceDir,
+    rootDir,
+    rootConfig,
+    registry,
+    canonicalSlot,
+    configFile,
+    localOverrideFile
+  });
+
+  assert.equal(effective.modules[0], 'biome');
+  assert.match(effective.warnings.join('\n'), /Slot override 'linter': eslint -> biome/);
+});

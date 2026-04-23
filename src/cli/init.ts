@@ -3,6 +3,7 @@ import path from 'node:path';
 import { detectProjectRoot, findNearestMonorepoRoot } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
 import { validateModuleSelection } from './module-validation.ts';
+import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
 import { readJson, splitCsv, toPosix, uniqueList } from './utils.ts';
 import type { CliFlags, Registry, WorkspaceConfig } from './types.ts';
 
@@ -36,12 +37,13 @@ export async function initCommand({
   const modules = uniqueList(splitCsv(flags.modules));
   const targets = uniqueList(splitCsv(flags.targets).length ? splitCsv(flags.targets) : Object.keys(registry.targets));
   const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
+  const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
 
   validateModuleSelection({
     registry,
     language,
     modules,
-    canonicalSlot: (slot) => canonicalSlot(registry, slot)
+    canonicalSlot: canonicalSlotForRegistry
   });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
