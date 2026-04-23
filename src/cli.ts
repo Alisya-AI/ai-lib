@@ -4,7 +4,7 @@ import { createCommandHandlers } from './cli/command-handlers.ts';
 import { executeCommand } from './cli/dispatch.ts';
 import { parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
-import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
+import { createWorkspaceUpdateRunner } from './cli/workspace-update-runner.ts';
 import { canonicalSlot } from './cli/utils.ts';
 import type { CommandContext, Registry, RunOptions } from './cli/types.ts';
 
@@ -12,6 +12,11 @@ const CONFIG_FILE = 'ailib.config.json';
 const LOCAL_OVERRIDE_FILE = 'ailib.local.json';
 const LOCK_FILE = 'ailib.lock';
 const WARNED_SLOT_ALIASES = new Set<string>();
+const APPLY_WORKSPACE_UPDATE = createWorkspaceUpdateRunner({
+  configFile: CONFIG_FILE,
+  localOverrideFile: LOCAL_OVERRIDE_FILE,
+  canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
+});
 
 function resolveCanonicalSlot(registry: Registry, slot: string | undefined) {
   return canonicalSlot({ registry, slot, warnedSlotAliases: WARNED_SLOT_ALIASES });
@@ -34,30 +39,8 @@ export async function run(argv: string[], options: RunOptions = {}) {
       lockFile: LOCK_FILE,
       resolveCanonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
       applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
-        applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
+        APPLY_WORKSPACE_UPDATE({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
     }),
     printHelp
-  });
-}
-
-async function applyWorkspaceUpdate({
-  packageRoot,
-  rootDir,
-  workspaceOverride,
-  forceOnConflict
-}: {
-  packageRoot: string;
-  rootDir: string;
-  workspaceOverride?: string;
-  forceOnConflict?: string;
-}) {
-  await applyWorkspaceUpdateCore({
-    packageRoot,
-    rootDir,
-    workspaceOverride,
-    forceOnConflict,
-    configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE,
-    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
   });
 }
