@@ -7,35 +7,22 @@ import { printHelp } from './cli/help.ts';
 import {
   detectProjectRoot,
   findNearestMonorepoRoot,
-  resolveContext,
   resolveDefaultWorkspaceForMutation,
   resolveWorkspacePath,
-  workspaceLabelFor
+  resolveContext
 } from './cli/context-resolution.ts';
-import { parseFrontmatter } from './cli/file-helpers.ts';
-import { assertLocalOverridesValid } from './cli/local-override-config.ts';
-import { diffSlots } from './cli/module-selection.ts';
+import { doctorCommand as runDoctorCommand } from './cli/doctor.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
 import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
-import { buildWorkspaceState, getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
+import { getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot, exists, readJson, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
-import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
-  CliFlags,
   CommandContext,
   LanguageDefinition,
-  ListOverrideScope,
-  ModuleDefinition,
   Registry,
   RunOptions,
-  SlotAliasMeta,
-  SlotDefinition,
-  SlotOverrideRule,
-  TargetDefinition,
-  WorkspaceConfig,
-  WorkspaceOverrideConfig,
-  WorkspaceState
+  WorkspaceConfig
 } from './cli/types.ts';
 
 const CONFIG_FILE = 'ailib.config.json';
@@ -287,118 +274,14 @@ async function removeCommand({ cwd, packageRoot, flags }: CommandContext) {
 }
 
 async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
-  const context = await resolveContext(cwd);
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-  const rootConfig = await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE));
-  const workspaceDirs = await listWorkspaceDirs({
-    rootDir: context.rootDir,
-    rootConfig,
-    workspaceOverride: getStringFlag(flags, 'workspace')
-  });
-
-  const errors: string[] = [];
-  const warnings: string[] = [];
-  try {
-    await assertLocalOverridesValid({
-      rootDir: context.rootDir,
-      rootConfig,
-      registry,
-      canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-      localOverrideFile: LOCAL_OVERRIDE_FILE
-    });
-  } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    errors.push(message);
-  }
-  if (errors.length) {
-    process.stdout.write(`doctor failed:\n- ${errors.join('\n- ')}\n`);
-    process.exitCode = 1;
-    return;
-  }
-
-  const rootEffective = await getEffectiveWorkspaceConfig({
-    workspaceDir: context.rootDir,
-    rootDir: context.rootDir,
-    rootConfig,
-    registry,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
+  await runDoctorCommand({
+    cwd,
+    packageRoot,
+    flags,
     configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE
+    localOverrideFile: LOCAL_OVERRIDE_FILE,
+    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
   });
-  for (const workspaceDir of workspaceDirs) {
-    const workspaceLabel = workspaceLabelFor(context.rootDir, workspaceDir);
-    const configPath = path.join(workspaceDir, CONFIG_FILE);
-    if (!(await exists(configPath))) {
-      errors.push(`[${workspaceLabel}] Missing ${CONFIG_FILE}`);
-      continue;
-    }
-
-    let state: WorkspaceState;
-    try {
-      state = await buildWorkspaceState({
-        workspaceDir,
-        rootDir: context.rootDir,
-        rootConfig,
-        registry,
-        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-        configFile: CONFIG_FILE,
-        localOverrideFile: LOCAL_OVERRIDE_FILE
-      });
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      errors.push(`[${workspaceLabel}] ${message}`);
-      continue;
-    }
-
-    for (const rel of state.requiredFiles) {
-      if (!(await exists(path.join(workspaceDir, rel)))) {
-        errors.push(`[${workspaceLabel}] Missing pointer file: ${rel}`);
-      }
-    }
-
-    for (const rel of state.requiredFiles) {
-      const full = path.join(workspaceDir, rel);
-      if (!(await exists(full))) continue;
-      const text = await fs.readFile(full, 'utf8');
-      const frontmatter = parseFrontmatter(text);
-      if (!frontmatter) {
-        errors.push(`[${workspaceLabel}] Missing frontmatter: ${rel}`);
-        continue;
-      }
-      for (const key of ['id', 'version', 'updated']) {
-        if (!(key in frontmatter)) {
-          errors.push(`[${workspaceLabel}] Frontmatter missing '${key}': ${rel}`);
-        }
-      }
-      if (!('language' in frontmatter) && !('core' in frontmatter)) {
-        errors.push(`[${workspaceLabel}] Frontmatter missing 'language' or 'core': ${rel}`);
-      }
-      if (rel.includes('/modules/') && !('slot' in frontmatter)) {
-        errors.push(`[${workspaceLabel}] Frontmatter missing 'slot': ${rel}`);
-      }
-    }
-
-    if (path.resolve(workspaceDir) !== path.resolve(context.rootDir)) {
-      const slotDiffs = diffSlots({
-        rootModules: rootEffective.modules,
-        workspaceModules: state.effective.modules,
-        registry,
-        language: state.effective.language,
-        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
-      });
-      for (const msg of slotDiffs) warnings.push(`[${workspaceLabel}] ${msg}`);
-    }
-  }
-
-  if (warnings.length) process.stdout.write(`doctor warnings:\n- ${warnings.join('\n- ')}\n`);
-
-  if (errors.length) {
-    process.stdout.write(`doctor failed:\n- ${errors.join('\n- ')}\n`);
-    process.exitCode = 1;
-    return;
-  }
-
-  process.stdout.write('doctor ok\n');
 }
 
 async function uninstallCommand({ cwd, packageRoot, flags }: CommandContext) {
