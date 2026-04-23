@@ -180,7 +180,11 @@ test('getEffectiveWorkspaceConfig falls back to base modules and targets for roo
     modules: ['eslint'],
     targets: ['cursor']
   };
-  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify({ language: 'typescript' }, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(rootDir, configFile),
+    `${JSON.stringify({ language: 'typescript' }, null, 2)}\n`,
+    'utf8'
+  );
 
   const effective = await getEffectiveWorkspaceConfig({
     workspaceDir: rootDir,
