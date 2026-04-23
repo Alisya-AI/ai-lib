@@ -17,6 +17,7 @@ import {
   workspaceLabelFor
 } from './cli/context-resolution.ts';
 import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
+import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './cli/local-overrides.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
@@ -753,14 +754,16 @@ async function applyLocalOverrides({
     values: targets,
     scope: override.targets,
     validSet: validTargets,
-    label: 'target'
+    label: 'targets',
+    localOverrideFile: LOCAL_OVERRIDE_FILE
   });
 
   const moduleResult = applyListOverride({
     values: modules,
     scope: override.modules,
     validSet: validModules,
-    label: 'module'
+    label: 'modules',
+    localOverrideFile: LOCAL_OVERRIDE_FILE
   });
   warnings.push(...moduleResult.warnings);
 
@@ -768,7 +771,9 @@ async function applyLocalOverrides({
     registry,
     language,
     modules: moduleResult.values,
-    slots: override.slots || {}
+    slots: override.slots || {},
+    localOverrideFile: LOCAL_OVERRIDE_FILE,
+    canonicalSlot: (slot) => canonicalSlot(registry, slot)
   });
 
   return {
@@ -892,131 +897,6 @@ async function assertLocalOverridesValid({
   registry: Registry;
 }) {
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
-}
-
-function ensureValidItems({ list, validSet, label }: { list: string[]; validSet: Set<string>; label: string }) {
-  const invalid = list.filter((value) => !validSet.has(value));
-  if (invalid.length) {
-    throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: ${label} contains unknown value(s): ${invalid.join(', ')}`);
-  }
-}
-
-function mergeWorkspaceOverrides(
-  base?: WorkspaceOverrideConfig,
-  workspace?: WorkspaceOverrideConfig
-): WorkspaceOverrideConfig {
-  return {
-    targets: mergeListOverrideScope(base?.targets, workspace?.targets),
-    modules: mergeListOverrideScope(base?.modules, workspace?.modules),
-    slots: {
-      ...(base?.slots || {}),
-      ...(workspace?.slots || {})
-    }
-  };
-}
-
-function mergeListOverrideScope(base?: ListOverrideScope, workspace?: ListOverrideScope): ListOverrideScope {
-  return {
-    set: workspace?.set ?? base?.set,
-    add: uniqueList([...(base?.add || []), ...(workspace?.add || [])]),
-    remove: uniqueList([...(base?.remove || []), ...(workspace?.remove || [])])
-  };
-}
-
-function applyListOverride({
-  values,
-  scope,
-  validSet,
-  label
-}: {
-  values: string[];
-  scope?: ListOverrideScope;
-  validSet?: Set<string>;
-  label: string;
-}): { values: string[]; warnings: string[] } {
-  const warnings: string[] = [];
-  let out = uniqueList(values || []);
-  if (!scope) return { values: out, warnings };
-  const normalize = (input: string[] | undefined, source: string): string[] => uniqueList(input || []);
-
-  if (scope.set && scope.set.length) {
-    const setValues = normalize(scope.set, `${label}.set`);
-    if (validSet) ensureValidItems({ list: setValues, validSet, label: `${label}.set` });
-    out = setValues;
-  }
-
-  const addValues = normalize(scope.add, `${label}.add`);
-  if (validSet) ensureValidItems({ list: addValues, validSet, label: `${label}.add` });
-  for (const item of addValues) {
-    if (!out.includes(item)) out.push(item);
-  }
-
-  const removeValues = normalize(scope.remove, `${label}.remove`);
-  if (validSet) ensureValidItems({ list: removeValues, validSet, label: `${label}.remove` });
-  const removed = new Set(removeValues);
-  if (removed.size) {
-    out = out.filter((value) => !removed.has(value));
-  }
-
-  return { values: out, warnings };
-}
-
-function applySlotOverrides({
-  registry,
-  language,
-  modules,
-  slots
-}: {
-  registry: Registry;
-  language: string;
-  modules: string[];
-  slots: Record<string, SlotOverrideRule>;
-}): { modules: string[]; warnings: string[] } {
-  const warnings: string[] = [];
-  const lang = registry.languages[language];
-  if (!lang) return { modules, warnings };
-
-  const out = uniqueList(modules || []);
-  const knownSlots = new Set(registry.slots || []);
-
-  const moduleSlot = (moduleId: string): string | null => {
-    const slot = lang.modules[moduleId]?.slot;
-    return canonicalSlot(registry, slot);
-  };
-
-  const findBySlot = (slot: string): number => out.findIndex((moduleId) => moduleSlot(moduleId) === slot);
-
-  for (const [rawSlot, rule] of Object.entries(slots || {})) {
-    const slot = canonicalSlot(registry, rawSlot);
-    if (!slot || !knownSlots.has(slot)) {
-      throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: slots.${rawSlot} references unknown slot`);
-    }
-
-    if (rule.remove) {
-      const idx = findBySlot(slot);
-      if (idx >= 0) out.splice(idx, 1);
-    }
-
-    if (rule.set) {
-      const moduleId = rule.set;
-      const def = lang.modules[moduleId];
-      if (!def) {
-        throw new Error(`Invalid ${LOCAL_OVERRIDE_FILE}: slots.${slot}.set references unknown module '${moduleId}'`);
-      }
-      const moduleCanonicalSlot = canonicalSlot(registry, def.slot);
-      if (moduleCanonicalSlot !== slot) {
-        throw new Error(
-          `Invalid ${LOCAL_OVERRIDE_FILE}: slots.${slot}.set module '${moduleId}' belongs to '${moduleCanonicalSlot || '(none)'}'`
-        );
-      }
-
-      const idx = findBySlot(slot);
-      if (idx >= 0) out[idx] = moduleId;
-      else out.push(moduleId);
-    }
-  }
-
-  return { modules: uniqueList(out), warnings };
 }
 
 async function resolveExtendsBase({
