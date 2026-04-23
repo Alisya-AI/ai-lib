@@ -4,17 +4,15 @@ import process from 'node:process';
 import { executeCommand } from './cli/dispatch.ts';
 import { getStringFlag, parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
-import {
-  detectProjectRoot,
-  findNearestMonorepoRoot,
-  resolveDefaultWorkspaceForMutation,
-  resolveWorkspacePath,
-  resolveContext
-} from './cli/context-resolution.ts';
+import { detectProjectRoot, findNearestMonorepoRoot, resolveContext } from './cli/context-resolution.ts';
 import { doctorCommand as runDoctorCommand } from './cli/doctor.ts';
+import {
+  addCommand as runAddCommand,
+  removeCommand as runRemoveCommand,
+  updateCommand as runUpdateCommand
+} from './cli/module-mutations.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
 import { uninstallCommand as runUninstallCommand } from './cli/uninstall.ts';
-import { getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
 import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot, exists, readJson, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
 import type { CommandContext, LanguageDefinition, Registry, RunOptions, WorkspaceConfig } from './cli/types.ts';
@@ -191,80 +189,40 @@ async function initCommand({ cwd, packageRoot, flags }: CommandContext) {
 }
 
 async function updateCommand({ cwd, packageRoot, flags }: CommandContext) {
-  const context = await resolveContext(cwd);
-  const workspaceFlag = getStringFlag(flags, 'workspace');
-  const workspaceOverride = workspaceFlag ? resolveWorkspacePath(context.rootDir, workspaceFlag) : undefined;
-  await applyWorkspaceUpdate({
+  await runUpdateCommand({
+    cwd,
     packageRoot,
-    rootDir: context.rootDir,
-    workspaceOverride,
-    forceOnConflict: 'overwrite'
+    flags,
+    configFile: CONFIG_FILE,
+    localOverrideFile: LOCAL_OVERRIDE_FILE,
+    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
+    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
+      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
   });
-  process.stdout.write('ailib updated\n');
 }
 
 async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
-  const moduleId = flags._[0];
-  ensure(moduleId, 'Usage: ailib add <module>');
-  const context = await resolveContext(cwd);
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-
-  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
-  const configPath = path.join(targetWorkspace, CONFIG_FILE);
-  ensure(await exists(configPath), `Missing ${CONFIG_FILE} in workspace: ${targetWorkspace}`);
-
-  const config = await readJson<WorkspaceConfig>(configPath);
-  const effective = await getEffectiveWorkspaceConfig({
-    workspaceDir: targetWorkspace,
-    rootDir: context.rootDir,
-    rootConfig: await readJson<WorkspaceConfig>(path.join(context.rootDir, CONFIG_FILE)),
-    registry,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-    configFile: CONFIG_FILE,
-    localOverrideFile: LOCAL_OVERRIDE_FILE
-  });
-  validateModuleSelection({
-    registry,
-    language: effective.language,
-    modules: uniqueList([...(config.modules || []), moduleId]),
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot)
-  });
-
-  config.modules = uniqueList([...(config.modules || []), moduleId]);
-  await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-
-  const isRootMutation = path.resolve(targetWorkspace) === path.resolve(context.rootDir);
-  await applyWorkspaceUpdate({
+  await runAddCommand({
+    cwd,
     packageRoot,
-    rootDir: context.rootDir,
-    workspaceOverride: isRootMutation ? undefined : targetWorkspace,
-    forceOnConflict: 'overwrite'
+    flags,
+    configFile: CONFIG_FILE,
+    localOverrideFile: LOCAL_OVERRIDE_FILE,
+    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot),
+    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
+      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
   });
-
-  process.stdout.write(`module added: ${moduleId}\n`);
 }
 
 async function removeCommand({ cwd, packageRoot, flags }: CommandContext) {
-  const moduleId = flags._[0];
-  ensure(moduleId, 'Usage: ailib remove <module>');
-  const context = await resolveContext(cwd);
-  const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
-
-  const configPath = path.join(targetWorkspace, CONFIG_FILE);
-  ensure(await exists(configPath), `Missing ${CONFIG_FILE} in workspace: ${targetWorkspace}`);
-  const config = await readJson<WorkspaceConfig>(configPath);
-  config.modules = (config.modules || []).filter((m) => m !== moduleId);
-  await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
-
-  const isRootMutation = path.resolve(targetWorkspace) === path.resolve(context.rootDir);
-  await applyWorkspaceUpdate({
+  await runRemoveCommand({
+    cwd,
     packageRoot,
-    rootDir: context.rootDir,
-    workspaceOverride: isRootMutation ? undefined : targetWorkspace,
-    forceOnConflict: 'overwrite'
+    flags,
+    configFile: CONFIG_FILE,
+    applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
+      applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
   });
-
-  process.stdout.write(`module removed: ${moduleId}\n`);
 }
 
 async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
