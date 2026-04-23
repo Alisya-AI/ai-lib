@@ -6,6 +6,16 @@ import process from 'node:process';
 import { executeCommand } from './cli/dispatch.ts';
 import { getStringFlag, parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
+import {
+  detectProjectRoot,
+  findNearestMonorepoRoot,
+  isRootWorkspaceConfig,
+  relativePathForPointers,
+  resolveContext,
+  resolveDefaultWorkspaceForMutation,
+  resolveWorkspacePath,
+  workspaceLabelFor
+} from './cli/context-resolution.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
@@ -1288,71 +1298,6 @@ async function writeRootLock({
   await fs.writeFile(path.join(rootDir, LOCK_FILE), `${JSON.stringify(lock, null, 2)}\n`, 'utf8');
 }
 
-async function resolveContext(cwd: string): Promise<{ rootDir: string; workspaceDir: string }> {
-  const workspaceDir = await findNearestWorkspace(path.resolve(cwd));
-  if (!workspaceDir) {
-    const rootDir = await detectProjectRoot(cwd);
-    return { rootDir, workspaceDir: rootDir };
-  }
-
-  const rootDir = (await findNearestMonorepoRoot(path.resolve(cwd))) || workspaceDir;
-  return { rootDir, workspaceDir };
-}
-
-async function findNearestWorkspace(startDir: string): Promise<string | null> {
-  let current = path.resolve(startDir);
-  while (true) {
-    if (await exists(path.join(current, CONFIG_FILE))) return current;
-    const parent = path.dirname(current);
-    if (parent === current) return null;
-    current = parent;
-  }
-}
-
-async function findNearestMonorepoRoot(startDir: string): Promise<string | null> {
-  let current = path.resolve(startDir);
-  let found = null;
-  while (true) {
-    const cfgPath = path.join(current, CONFIG_FILE);
-    if (await exists(cfgPath)) {
-      const cfg = await readJson<WorkspaceConfig>(cfgPath);
-      if (cfg.workspaces) found = current;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  return found;
-}
-
-function resolveDefaultWorkspaceForMutation(
-  context: { rootDir: string; workspaceDir: string },
-  workspaceFlag?: string
-) {
-  if (workspaceFlag) return resolveWorkspacePath(context.rootDir, workspaceFlag);
-  if (path.resolve(context.workspaceDir) !== path.resolve(context.rootDir)) return context.workspaceDir;
-  return context.rootDir;
-}
-
-function resolveWorkspacePath(rootDir: string, value: string) {
-  const resolved = path.isAbsolute(value) ? path.resolve(value) : path.resolve(rootDir, value);
-  return resolved;
-}
-
-function isRootWorkspaceConfig(config: WorkspaceConfig | null | undefined) {
-  return Boolean(config?.workspaces);
-}
-
-function workspaceLabelFor(rootDir: string, workspaceDir: string) {
-  const rel = toPosix(path.relative(rootDir, workspaceDir));
-  return rel || '.';
-}
-
-function relativePathForPointers(fromDir: string, toDir: string) {
-  const rel = toPosix(path.relative(fromDir, toDir));
-  return rel || '.';
-}
-
 async function writeManagedFile({
   outPath,
   rendered,
@@ -1420,23 +1365,6 @@ function parseFrontmatter(markdown: string): Record<string, string | string[]> |
     fields[key] = value;
   }
   return fields;
-}
-
-async function detectProjectRoot(startDir: string): Promise<string> {
-  let current = path.resolve(startDir);
-  while (true) {
-    if (
-      (await exists(path.join(current, '.git'))) ||
-      (await exists(path.join(current, 'package.json'))) ||
-      (await exists(path.join(current, 'pyproject.toml')))
-    ) {
-      return current;
-    }
-    const parent = path.dirname(current);
-    if (parent === current) break;
-    current = parent;
-  }
-  throw new Error('Could not detect project root');
 }
 
 function sha256(value: string) {
