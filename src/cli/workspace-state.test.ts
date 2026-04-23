@@ -172,3 +172,61 @@ test('applyLocalOverrides supports workspace-specific overrides', async () => {
   assert.deepEqual(result.modules, ['biome']);
   assert.deepEqual(result.targets, ['cursor']);
 });
+
+test('getEffectiveWorkspaceConfig falls back to base modules and targets for root workspace', async () => {
+  const rootDir = await tempDir();
+  const rootConfigFromCaller: WorkspaceConfig = {
+    ...rootConfig,
+    modules: ['eslint'],
+    targets: ['cursor']
+  };
+  await fs.writeFile(
+    path.join(rootDir, configFile),
+    `${JSON.stringify({ language: 'typescript' }, null, 2)}\n`,
+    'utf8'
+  );
+
+  const effective = await getEffectiveWorkspaceConfig({
+    workspaceDir: rootDir,
+    rootDir,
+    rootConfig: rootConfigFromCaller,
+    registry,
+    canonicalSlot,
+    configFile,
+    localOverrideFile
+  });
+
+  assert.deepEqual(effective.modules, ['eslint']);
+  assert.deepEqual(effective.targets, ['cursor']);
+  assert.equal(effective.docs_path, 'docs/');
+});
+
+test('getEffectiveWorkspaceConfig inherits parent modules in non-root workspace', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  const rootWithWorkspaces: WorkspaceConfig = {
+    ...rootConfig,
+    workspaces: ['apps/*']
+  };
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootWithWorkspaces, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(workspaceDir, configFile),
+    `${JSON.stringify({ language: 'typescript', targets: ['cursor'] }, null, 2)}\n`,
+    'utf8'
+  );
+
+  const effective = await getEffectiveWorkspaceConfig({
+    workspaceDir,
+    rootDir,
+    rootConfig: rootWithWorkspaces,
+    registry,
+    canonicalSlot,
+    configFile,
+    localOverrideFile
+  });
+
+  assert.deepEqual(effective.inheritedModules, ['eslint']);
+  assert.deepEqual(effective.localModules, []);
+  assert.deepEqual(effective.modules, ['eslint']);
+});
