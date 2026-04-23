@@ -3,6 +3,7 @@ import fs from 'node:fs/promises';
 import { constants as fsConstants } from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { executeCommand } from './cli/dispatch.ts';
 import { getStringFlag, parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
 import type {
@@ -39,40 +40,28 @@ export async function run(argv: string[], options: RunOptions = {}) {
   const packageRoot = options.packageRoot ?? path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
   const [command, ...rest] = argv;
-  if (!command || command === '--help' || command === '-h') {
-    printHelp();
-    return;
-  }
-
   const flags = parseFlags(rest);
-  switch (command) {
-    case 'init':
-      await initCommand({ cwd, packageRoot, flags });
-      break;
-    case 'update':
-      await updateCommand({ cwd, packageRoot, flags });
-      break;
-    case 'add':
-      await addCommand({ cwd, packageRoot, flags, moduleId: flags._[0] });
-      break;
-    case 'remove':
-      await removeCommand({ cwd, packageRoot, flags, moduleId: flags._[0] });
-      break;
-    case 'doctor':
-      await doctorCommand({ cwd, packageRoot, flags });
-      break;
-    case 'uninstall':
-      await uninstallCommand({ cwd, packageRoot, flags });
-      break;
-    case 'slots':
-      await slotsCommand({ packageRoot, flags });
-      break;
-    case 'modules':
-      await modulesCommand({ packageRoot, flags });
-      break;
-    default:
-      throw new Error(`Unknown command: ${command}`);
-  }
+  const context: CommandContext = { cwd, packageRoot, flags };
+
+  await executeCommand({
+    command,
+    context,
+    handlers: createCommandHandlers(),
+    printHelp
+  });
+}
+
+function createCommandHandlers() {
+  return {
+    init: async (context: CommandContext) => initCommand(context),
+    update: async (context: CommandContext) => updateCommand(context),
+    add: async (context: CommandContext) => addCommand(context),
+    remove: async (context: CommandContext) => removeCommand(context),
+    doctor: async (context: CommandContext) => doctorCommand(context),
+    uninstall: async (context: CommandContext) => uninstallCommand(context),
+    slots: async (context: CommandContext) => slotsCommand(context),
+    modules: async (context: CommandContext) => modulesCommand(context)
+  };
 }
 
 async function slotsCommand({ packageRoot, flags }: Pick<CommandContext, 'packageRoot' | 'flags'>) {
@@ -216,7 +205,8 @@ async function updateCommand({ cwd, packageRoot, flags }: CommandContext) {
   process.stdout.write('ailib updated\n');
 }
 
-async function addCommand({ cwd, packageRoot, flags, moduleId }: CommandContext & { moduleId?: string }) {
+async function addCommand({ cwd, packageRoot, flags }: CommandContext) {
+  const moduleId = flags._[0];
   ensure(moduleId, 'Usage: ailib add <module>');
   const context = await resolveContext(cwd);
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
@@ -252,7 +242,8 @@ async function addCommand({ cwd, packageRoot, flags, moduleId }: CommandContext 
   process.stdout.write(`module added: ${moduleId}\n`);
 }
 
-async function removeCommand({ cwd, packageRoot, flags, moduleId }: CommandContext & { moduleId?: string }) {
+async function removeCommand({ cwd, packageRoot, flags }: CommandContext) {
+  const moduleId = flags._[0];
   ensure(moduleId, 'Usage: ailib remove <module>');
   const context = await resolveContext(cwd);
   const targetWorkspace = resolveDefaultWorkspaceForMutation(context, getStringFlag(flags, 'workspace'));
