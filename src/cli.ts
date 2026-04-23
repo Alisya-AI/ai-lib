@@ -18,6 +18,7 @@ import {
 } from './cli/context-resolution.ts';
 import { copySourceFile, parseFrontmatter, writeManagedFile } from './cli/file-helpers.ts';
 import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './cli/local-overrides.ts';
+import { diffSlots, mergeModules, mergeTargets } from './cli/module-selection.ts';
 import { isRecord, validateWorkspaceOverride } from './cli/override-validation.ts';
 import { resolveExtendsBase } from './cli/workspace-config.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
@@ -351,7 +352,13 @@ async function doctorCommand({ cwd, packageRoot, flags }: CommandContext) {
     }
 
     if (path.resolve(workspaceDir) !== path.resolve(context.rootDir)) {
-      const slotDiffs = diffSlots(rootEffective.modules, state.effective.modules, registry, state.effective.language);
+      const slotDiffs = diffSlots({
+        rootModules: rootEffective.modules,
+        workspaceModules: state.effective.modules,
+        registry,
+        language: state.effective.language,
+        canonicalSlot: (slot) => canonicalSlot(registry, slot)
+      });
       for (const msg of slotDiffs) warnings.push(`[${workspaceLabel}] ${msg}`);
     }
   }
@@ -685,7 +692,8 @@ async function getEffectiveWorkspaceConfig({
     registry,
     language,
     parentModules: isRootWorkspace ? [] : base.modules || [],
-    localModules: workspaceRaw.modules || (isRootWorkspace ? base.modules || [] : [])
+    localModules: workspaceRaw.modules || (isRootWorkspace ? base.modules || [] : []),
+    canonicalSlot: (slot) => canonicalSlot(registry, slot)
   });
 
   const targets = mergeTargets({
@@ -898,126 +906,6 @@ async function assertLocalOverridesValid({
   registry: Registry;
 }) {
   await loadLocalOverrideConfig({ rootDir, rootConfig, registry });
-}
-
-function mergeModules({
-  registry,
-  language,
-  parentModules,
-  localModules
-}: {
-  registry: Registry;
-  language: string;
-  parentModules: string[];
-  localModules: string[];
-}): {
-  modules: string[];
-  inheritedModules: string[];
-  localModules: string[];
-  warnings: string[];
-} {
-  const lang = registry.languages[language];
-  const result: string[] = [];
-  const owners: Array<'inherited' | 'local'> = [];
-  const warnings: string[] = [];
-
-  for (const mod of uniqueList(parentModules)) {
-    if (!lang.modules[mod]) continue;
-    result.push(mod);
-    owners.push('inherited');
-  }
-
-  for (const mod of uniqueList(localModules)) {
-    const localDef = lang.modules[mod];
-    if (!localDef) {
-      result.push(mod);
-      owners.push('local');
-      continue;
-    }
-
-    const existingIdx = result.indexOf(mod);
-    if (existingIdx >= 0) {
-      continue;
-    }
-
-    const localSlot = canonicalSlot(registry, localDef.slot);
-    if (localSlot) {
-      const slotIdx = result.findIndex((existingMod) => {
-        const def = lang.modules[existingMod];
-        const existingSlot = canonicalSlot(registry, def?.slot);
-        return existingSlot && existingSlot === localSlot;
-      });
-
-      if (slotIdx >= 0) {
-        warnings.push(`Slot override '${localSlot}': ${result[slotIdx]} -> ${mod}`);
-        result[slotIdx] = mod;
-        owners[slotIdx] = 'local';
-        continue;
-      }
-    }
-
-    result.push(mod);
-    owners.push('local');
-  }
-
-  const inheritedModules: string[] = [];
-  const localOut: string[] = [];
-  for (let i = 0; i < result.length; i += 1) {
-    if (owners[i] === 'inherited') inheritedModules.push(result[i]);
-    else localOut.push(result[i]);
-  }
-
-  return {
-    modules: result,
-    inheritedModules,
-    localModules: localOut,
-    warnings
-  };
-}
-
-function mergeTargets({
-  parentTargets,
-  localTargets,
-  targetsRemoved
-}: {
-  parentTargets: string[];
-  localTargets: string[];
-  targetsRemoved: string[];
-}) {
-  const parent = uniqueList(parentTargets || []);
-  const removed = new Set(targetsRemoved || []);
-  const local = uniqueList(localTargets || []);
-  const merged = new Set(parent);
-  for (const target of local) merged.add(target);
-  for (const rem of removed) merged.delete(rem);
-  return [...merged];
-}
-
-function diffSlots(rootModules: string[], workspaceModules: string[], registry: Registry, language: string) {
-  const lang = registry.languages[language];
-  if (!lang) return [];
-
-  const slotOf = (mod) => canonicalSlot(registry, lang.modules[mod]?.slot);
-  const rootBySlot = new Map();
-  const wsBySlot = new Map();
-
-  for (const mod of rootModules) {
-    const slot = slotOf(mod);
-    if (slot) rootBySlot.set(slot, mod);
-  }
-  for (const mod of workspaceModules) {
-    const slot = slotOf(mod);
-    if (slot) wsBySlot.set(slot, mod);
-  }
-
-  const diffs = [];
-  for (const [slot, rootMod] of rootBySlot.entries()) {
-    const wsMod = wsBySlot.get(slot);
-    if (wsMod && wsMod !== rootMod) {
-      diffs.push(`slot '${slot}' differs from root (${rootMod} -> ${wsMod})`);
-    }
-  }
-  return diffs;
 }
 
 function validateModuleSelection({
