@@ -1,8 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { getStringFlag, parseFlags } from '../src/cli/flags.ts';
-import { printHelp } from '../src/cli/help.ts';
+import { printHelp } from './help.ts';
 
 function captureStdoutSync(fn: () => void): string {
   const chunks: string[] = [];
@@ -22,23 +21,6 @@ function captureStdoutSync(fn: () => void): string {
     mutableStdout.write = originalWrite;
   }
 }
-
-test('parseFlags parses positional and typed boolean values', () => {
-  const flags = parseFlags(['init', '--language=typescript', '--dry-run=true', '--cache=false', '--verbose']);
-
-  assert.deepEqual(flags._, ['init']);
-  assert.equal(getStringFlag(flags, 'language'), 'typescript');
-  assert.equal(flags['dry-run'], true);
-  assert.equal(flags.cache, false);
-  assert.equal(flags.verbose, true);
-});
-
-test('getStringFlag returns undefined for non-string values', () => {
-  const flags = parseFlags(['--enabled=true', '--count=3']);
-  assert.equal(getStringFlag(flags, 'enabled'), undefined);
-  assert.equal(getStringFlag(flags, 'missing'), undefined);
-  assert.equal(getStringFlag(flags, 'count'), '3');
-});
 
 test('printHelp renders expected command listing', () => {
   const output = captureStdoutSync(() => {
