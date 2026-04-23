@@ -14,13 +14,11 @@ import {
   workspaceLabelFor
 } from './cli/context-resolution.ts';
 import { parseFrontmatter } from './cli/file-helpers.ts';
-import { writeRootLock } from './cli/lockfile.ts';
 import { assertLocalOverridesValid } from './cli/local-override-config.ts';
 import { diffSlots } from './cli/module-selection.ts';
 import { validateModuleSelection } from './cli/module-validation.ts';
-import { generateWorkspaceRouters } from './cli/router-generation.ts';
-import { ensureWorkspaceAssets } from './cli/workspace-assets.ts';
 import { buildWorkspaceState, getEffectiveWorkspaceConfig } from './cli/workspace-state.ts';
+import { applyWorkspaceUpdate as applyWorkspaceUpdateCore } from './cli/workspace-update.ts';
 import { canonicalSlot, exists, readJson, rmIfExists, splitCsv, toPosix, uniqueList } from './cli/utils.ts';
 import { listWorkspaceDirs } from './cli/workspace-discovery.ts';
 import type {
@@ -472,56 +470,14 @@ async function applyWorkspaceUpdate({
   workspaceOverride?: string;
   forceOnConflict?: string;
 }) {
-  const rootConfigPath = path.join(rootDir, CONFIG_FILE);
-  ensure(await exists(rootConfigPath), `Missing ${CONFIG_FILE} at root: ${rootDir}`);
-
-  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
-  const packageJson = await readJson<{ version: string }>(path.join(packageRoot, 'package.json'));
-  const rootConfig = await readJson<WorkspaceConfig>(rootConfigPath);
-  await assertLocalOverridesValid({
-    rootDir,
-    rootConfig,
-    registry,
-    canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-    localOverrideFile: LOCAL_OVERRIDE_FILE
-  });
-
-  const workspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig, workspaceOverride });
-  const allWorkspaceDirs = await listWorkspaceDirs({ rootDir, rootConfig });
-
-  const stateMap = new Map<string, WorkspaceState>();
-  for (const workspaceDir of allWorkspaceDirs) {
-    stateMap.set(
-      workspaceDir,
-      await buildWorkspaceState({
-        workspaceDir,
-        rootDir,
-        rootConfig,
-        registry,
-        canonicalSlot: (slot) => resolveCanonicalSlot(registry, slot),
-        configFile: CONFIG_FILE,
-        localOverrideFile: LOCAL_OVERRIDE_FILE
-      })
-    );
-  }
-
-  for (const workspaceDir of workspaceDirs) {
-    const state = stateMap.get(workspaceDir);
-    await ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir });
-  }
-
-  for (const workspaceDir of workspaceDirs) {
-    const state = stateMap.get(workspaceDir);
-    const onConflict = forceOnConflict || state.effective.on_conflict || 'merge';
-    await generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates: stateMap, registry });
-  }
-
-  await writeRootLock({
-    rootDir,
+  await applyWorkspaceUpdateCore({
     packageRoot,
-    packageVersion: packageJson.version,
-    registryRef: rootConfig.registry_ref || registry.version,
-    allStates: stateMap
+    rootDir,
+    workspaceOverride,
+    forceOnConflict,
+    configFile: CONFIG_FILE,
+    localOverrideFile: LOCAL_OVERRIDE_FILE,
+    canonicalSlot: (registry, slot) => resolveCanonicalSlot(registry, slot)
   });
 }
 
