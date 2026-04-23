@@ -61,3 +61,43 @@ test('doctorCommand reports missing managed pointer files', async () => {
   assert.equal(process.exitCode, 1);
   process.exitCode = previousExitCode;
 });
+
+test('doctorCommand reports workspace state build errors', async () => {
+  const rootDir = await tempDir();
+  const packageRoot = path.join(rootDir, 'pkg');
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  await fs.mkdir(packageRoot, { recursive: true });
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(
+    path.join(packageRoot, 'registry.json'),
+    `${JSON.stringify({ version: 'test', slots: [], languages: { typescript: { modules: {} } }, targets: {} })}\n`,
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(rootDir, 'ailib.config.json'),
+    `${JSON.stringify({ language: 'typescript', modules: [], targets: [], workspaces: ['apps/*'] })}\n`,
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(workspaceDir, 'ailib.config.json'),
+    `${JSON.stringify({ language: 'unknownlang', modules: [], targets: [] })}\n`,
+    'utf8'
+  );
+
+  const previousExitCode = process.exitCode;
+  process.exitCode = undefined;
+  const output = await captureStdout(() =>
+    doctorCommand({
+      cwd: rootDir,
+      packageRoot,
+      flags: { _: [] } as CliFlags,
+      configFile: 'ailib.config.json',
+      localOverrideFile: 'ailib.local.json',
+      canonicalSlot: (_registry, slot) => slot || null
+    })
+  );
+
+  assert.match(output, /\[apps\/web\] Unsupported language: unknownlang/);
+  assert.equal(process.exitCode, 1);
+  process.exitCode = previousExitCode;
+});
