@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { copySourceFile } from './file-helpers.ts';
-import { localCustomSkillPath } from './skill-paths.ts';
+import { isUnderLocalCustomSkillsRoot, localCustomSkillPath } from './skill-paths.ts';
 import { exists, rmIfExists } from './utils.ts';
 import type { Registry, WorkspaceState } from './types.ts';
 
@@ -96,7 +96,15 @@ export async function ensureWorkspaceAssets({
     }
 
     const existing = path.join(outRoot, 'skills', `${skillId}.md`);
-    ensure(await exists(existing), `Missing skill source: ${sourceRel}`);
+    if (await exists(existing)) continue;
+
+    if (isUnderLocalCustomSkillsRoot(sourceRel)) {
+      throw new Error(
+        `Missing local custom skill source: ${skillId} (checked ${localCustomSkillPath(skillId)} in workspace and root)`
+      );
+    }
+
+    ensure(false, `Missing skill source: ${sourceRel}`);
   }
 
   const skillDir = path.join(outRoot, 'skills');

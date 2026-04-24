@@ -30,12 +30,16 @@ const registry: Registry = {
     },
     'release-manager': {
       display: 'Release manager workflow',
-      path: '.cursor/skills/release-manager/SKILL.md',
+      path: 'skills/shared-skill.md',
       conflicts_with: ['code-review']
     },
     'bad-path': {
       display: 'Invalid path skill',
       path: '.cursor/skills/other-id/SKILL.md'
+    },
+    'duplicate-path': {
+      display: 'Duplicate path skill',
+      path: 'skills/shared-skill.md'
     }
   }
 };
@@ -147,5 +151,19 @@ test('validateSkillSelection rejects non-canonical local skill paths', () => {
         targets: ['cursor']
       }),
     /Skill path convention mismatch: bad-path must use \.cursor\/skills\/bad-path\/SKILL\.md, got \.cursor\/skills\/other-id\/SKILL\.md/
+  );
+});
+
+test('validateSkillSelection rejects source path collisions', () => {
+  assert.throws(
+    () =>
+      validateSkillSelection({
+        registry,
+        skills: ['release-manager', 'duplicate-path'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor']
+      }),
+    /Skill source collision: release-manager and duplicate-path map to skills\/shared-skill\.md/
   );
 });
