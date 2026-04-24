@@ -26,6 +26,17 @@ const registry: Registry = {
   },
   targets: {
     cursor: { output: '.cursor/rules' }
+  },
+  skills: {
+    'task-driven-gh-flow': {
+      display: 'Task-driven GH flow',
+      path: '.cursor/skills/task-driven-gh-flow/SKILL.md'
+    },
+    'code-review': {
+      display: 'Code review',
+      path: '.cursor/skills/code-review/SKILL.md',
+      requires: ['task-driven-gh-flow']
+    }
   }
 };
 

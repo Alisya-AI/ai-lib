@@ -3,6 +3,7 @@ import { loadLocalOverrideConfig } from './local-override-config.ts';
 import { applyListOverride, applySlotOverrides, mergeWorkspaceOverrides } from './local-overrides.ts';
 import { mergeModules, mergeTargets } from './module-selection.ts';
 import { validateModuleSelection } from './module-validation.ts';
+import { validateSkillSelection } from './skill-validation.ts';
 import { readJson, toPosix } from './utils.ts';
 import { resolveExtendsBase } from './workspace-config.ts';
 import {
@@ -44,6 +45,10 @@ export async function buildWorkspaceState({
     language: effective.language,
     modules: effective.modules,
     canonicalSlot
+  });
+  validateSkillSelection({
+    registry,
+    skills: effective.skills
   });
 
   const requiredFiles = [
