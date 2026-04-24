@@ -22,6 +22,7 @@ export function validateSkillSelection({
   const selected = uniqueList(skills || []);
   const selectedSet = new Set(selected);
   const registrySkills = registry.skills || {};
+  const selectedSourcePaths = new Map<string, string>();
 
   for (const skillId of selected) {
     const skillDef = registrySkills[skillId];
@@ -33,6 +34,12 @@ export function validateSkillSelection({
         `Skill path convention mismatch: ${skillId} must use ${localCustomSkillPath(skillId)}, got ${normalizeRelativeSkillPath(skillDef.path)}`
       );
     }
+    const sourcePath = normalizeRelativeSkillPath(skillDef.path);
+    const existingOwner = selectedSourcePaths.get(sourcePath);
+    if (existingOwner && existingOwner !== skillId) {
+      throw new Error(`Skill source collision: ${existingOwner} and ${skillId} map to ${sourcePath}`);
+    }
+    selectedSourcePaths.set(sourcePath, skillId);
 
     for (const dependency of skillDef.requires || []) {
       if (!selectedSet.has(dependency)) {

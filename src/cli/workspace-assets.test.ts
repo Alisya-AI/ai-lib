@@ -28,6 +28,10 @@ const registry: Registry = {
     'legacy-skill': {
       display: 'Legacy skill',
       path: '.cursor/skills/legacy-skill/SKILL.md'
+    },
+    'custom-only': {
+      display: 'Custom only skill',
+      path: '.cursor/skills/custom-only/SKILL.md'
     }
   }
 };
@@ -159,5 +163,23 @@ test('ensureWorkspaceAssets prefers local custom skill over package source', asy
   assert.equal(
     await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
     'workspace-local-skill'
+  );
+});
+
+test('ensureWorkspaceAssets fails with actionable message for missing local custom skill source', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+
+  await assert.rejects(
+    ensureWorkspaceAssets({
+      workspaceDir,
+      packageRoot,
+      state: state([], ['custom-only']),
+      rootDir,
+      registry
+    }),
+    /Missing local custom skill source: custom-only/
   );
 });
