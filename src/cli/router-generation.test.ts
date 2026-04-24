@@ -23,10 +23,14 @@ function state(targets: string[], inheritedModules: string[] = [], localModules:
       docs_path: 'docs/',
       inheritedModules,
       localModules,
+      inheritedSkills: [],
+      localSkills: [],
       warnings: []
     },
     inheritedModules,
     localModules,
+    inheritedSkills: [],
+    localSkills: [],
     requiredFiles: [],
     warnings: []
   };

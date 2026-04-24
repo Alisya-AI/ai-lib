@@ -20,10 +20,7 @@ export function resolveWorkspaceLanguage({
 }
 
 export function splitModuleOwnership({ modules, inheritedModules }: { modules: string[]; inheritedModules: string[] }) {
-  const inheritedModuleSet = new Set(inheritedModules);
-  const inherited = modules.filter((mod) => inheritedModuleSet.has(mod));
-  const local = modules.filter((mod) => !inheritedModuleSet.has(mod));
-  return { inherited, local };
+  return splitListOwnership({ values: modules, inheritedValues: inheritedModules });
 }
 
 export function buildEffectiveWorkspaceConfig({
@@ -33,8 +30,11 @@ export function buildEffectiveWorkspaceConfig({
   language,
   modules,
   targets,
+  skills,
   inheritedModules,
   localModules,
+  inheritedSkills,
+  localSkills,
   warnings
 }: {
   workspaceRaw: WorkspaceConfig;
@@ -43,11 +43,13 @@ export function buildEffectiveWorkspaceConfig({
   language: string;
   modules: string[];
   targets: string[];
+  skills: string[];
   inheritedModules: string[];
   localModules: string[];
+  inheritedSkills: string[];
+  localSkills: string[];
   warnings: string[];
 }): EffectiveWorkspaceConfig {
-  const skills = workspaceRaw.skills || base.skills || [];
   return {
     $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: workspaceRaw.registry_ref || base.registry_ref,
@@ -59,8 +61,17 @@ export function buildEffectiveWorkspaceConfig({
     docs_path: workspaceRaw.docs_path || (isRootWorkspace ? 'docs/' : './docs/'),
     inheritedModules,
     localModules,
+    inheritedSkills,
+    localSkills,
     warnings
   };
+}
+
+export function splitListOwnership({ values, inheritedValues }: { values: string[]; inheritedValues: string[] }) {
+  const inheritedSet = new Set(inheritedValues);
+  const inherited = values.filter((value) => inheritedSet.has(value));
+  const local = values.filter((value) => !inheritedSet.has(value));
+  return { inherited, local };
 }
 
 function ensure(condition: unknown, message: string): asserts condition {

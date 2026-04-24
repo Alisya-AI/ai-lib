@@ -8,6 +8,7 @@ import { resolveExtendsBase } from './workspace-config.ts';
 import {
   buildEffectiveWorkspaceConfig,
   resolveWorkspaceLanguage,
+  splitListOwnership,
   splitModuleOwnership
 } from './workspace-state-pipeline.ts';
 import type { EffectiveWorkspaceConfig, Registry, WorkspaceConfig, WorkspaceState } from './types.ts';
@@ -57,6 +58,8 @@ export async function buildWorkspaceState({
     effective,
     inheritedModules: effective.inheritedModules,
     localModules: effective.localModules,
+    inheritedSkills: effective.inheritedSkills,
+    localSkills: effective.localSkills,
     requiredFiles,
     warnings: effective.warnings
   };
@@ -104,6 +107,10 @@ export async function getEffectiveWorkspaceConfig({
     localTargets: workspaceRaw.targets || [],
     targetsRemoved: workspaceRaw.targets_removed || []
   });
+  const skills = mergeSelectedSkills({
+    parentSkills: isRootWorkspace ? [] : base.skills || [],
+    localSkills: workspaceRaw.skills || (isRootWorkspace ? base.skills || [] : [])
+  });
 
   const overrideResult = await applyLocalOverrides({
     rootDir,
@@ -120,6 +127,10 @@ export async function getEffectiveWorkspaceConfig({
     modules: overrideResult.modules,
     inheritedModules: mergedModules.inheritedModules || []
   });
+  const skillOwnership = splitListOwnership({
+    values: skills,
+    inheritedValues: isRootWorkspace ? [] : base.skills || []
+  });
 
   return buildEffectiveWorkspaceConfig({
     workspaceRaw,
@@ -128,8 +139,11 @@ export async function getEffectiveWorkspaceConfig({
     language,
     modules: overrideResult.modules,
     targets: overrideResult.targets,
+    skills,
     inheritedModules: ownership.inherited,
     localModules: ownership.local,
+    inheritedSkills: skillOwnership.inherited,
+    localSkills: skillOwnership.local,
     warnings: [...mergedModules.warnings, ...overrideResult.warnings]
   });
 }
@@ -203,4 +217,10 @@ export async function applyLocalOverrides({
     targets: targetResult.values,
     warnings
   };
+}
+
+function mergeSelectedSkills({ parentSkills, localSkills }: { parentSkills: string[]; localSkills: string[] }) {
+  const merged = new Set(parentSkills || []);
+  for (const skill of localSkills || []) merged.add(skill);
+  return [...merged];
 }

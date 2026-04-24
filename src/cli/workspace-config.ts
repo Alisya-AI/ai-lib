@@ -56,6 +56,7 @@ export function normalizeRootConfig(rootConfig: WorkspaceConfig, registry: Regis
     language: rootConfig.language,
     modules: rootConfig.modules || [],
     targets: rootConfig.targets || Object.keys(registry.targets),
+    skills: rootConfig.skills || [],
     docs_path: rootConfig.docs_path || 'docs/',
     workspaces: rootConfig.workspaces
   };
