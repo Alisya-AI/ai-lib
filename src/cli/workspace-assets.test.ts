@@ -24,6 +24,10 @@ const registry: Registry = {
     'task-driven-gh-flow': {
       display: 'Task-driven GH flow',
       path: '.cursor/skills/task-driven-gh-flow/SKILL.md'
+    },
+    'legacy-skill': {
+      display: 'Legacy skill',
+      path: '.cursor/skills/legacy-skill/SKILL.md'
     }
   }
 };
@@ -111,7 +115,8 @@ test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
   const packageRoot = path.join(rootDir, 'pkg');
   await seedPackage(packageRoot);
   await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
-  await fs.writeFile(path.join(workspaceDir, '.ailib/skills/stale.md'), 'stale-skill', 'utf8');
+  await fs.writeFile(path.join(workspaceDir, '.ailib/skills/legacy-skill.md'), 'stale-skill', 'utf8');
+  await fs.writeFile(path.join(workspaceDir, '.ailib/skills/custom.md'), 'custom-skill', 'utf8');
 
   await ensureWorkspaceAssets({
     workspaceDir,
@@ -125,5 +130,6 @@ test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
     await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
     'skill-flow'
   );
-  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/stale.md'), 'utf8'));
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/legacy-skill.md'), 'utf8'));
+  assert.equal(await fs.readFile(path.join(workspaceDir, '.ailib/skills/custom.md'), 'utf8'), 'custom-skill');
 });
