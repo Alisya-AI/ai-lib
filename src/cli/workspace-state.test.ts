@@ -64,10 +64,11 @@ test('applyLocalOverrides returns original values when local file is absent', as
     language: 'typescript',
     modules: ['eslint'],
     targets: ['cursor'],
+    skills: ['task-driven-gh-flow'],
     canonicalSlot,
     localOverrideFile
   });
-  assert.deepEqual(result, { modules: ['eslint'], targets: ['cursor'], warnings: [] });
+  assert.deepEqual(result, { modules: ['eslint'], targets: ['cursor'], skills: ['task-driven-gh-flow'], warnings: [] });
 });
 
 test('getEffectiveWorkspaceConfig applies local override module swap', async () => {
@@ -179,12 +180,51 @@ test('applyLocalOverrides supports workspace-specific overrides', async () => {
     language: 'typescript',
     modules: ['eslint'],
     targets: ['cursor'],
+    skills: ['task-driven-gh-flow'],
     canonicalSlot,
     localOverrideFile
   });
 
   assert.deepEqual(result.modules, ['biome']);
   assert.deepEqual(result.targets, ['cursor']);
+  assert.deepEqual(result.skills, ['task-driven-gh-flow']);
+});
+
+test('applyLocalOverrides applies skills set/add/remove scopes', async () => {
+  const rootDir = await tempDir();
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootConfig, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(rootDir, localOverrideFile),
+    `${JSON.stringify(
+      {
+        version: '1',
+        default_override: {
+          skills: {
+            add: ['code-review'],
+            remove: ['task-driven-gh-flow']
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  const result = await applyLocalOverrides({
+    rootDir,
+    workspaceDir: rootDir,
+    rootConfig,
+    registry,
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['cursor'],
+    skills: ['task-driven-gh-flow'],
+    canonicalSlot,
+    localOverrideFile
+  });
+
+  assert.deepEqual(result.skills, ['code-review']);
 });
 
 test('getEffectiveWorkspaceConfig falls back to base modules and targets for root workspace', async () => {
