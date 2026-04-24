@@ -109,6 +109,8 @@ export interface EffectiveWorkspaceConfig extends WorkspaceConfig {
   docs_path: string;
   inheritedModules: string[];
   localModules: string[];
+  inheritedSkills: string[];
+  localSkills: string[];
   warnings: string[];
 }
 
@@ -116,6 +118,8 @@ export interface WorkspaceState {
   effective: EffectiveWorkspaceConfig;
   inheritedModules: string[];
   localModules: string[];
+  inheritedSkills: string[];
+  localSkills: string[];
   requiredFiles: string[];
   warnings: string[];
 }

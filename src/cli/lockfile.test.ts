@@ -35,10 +35,14 @@ function state(language: string, localModules: string[]): WorkspaceState {
       docs_path: 'docs/',
       inheritedModules: [],
       localModules,
+      inheritedSkills: [],
+      localSkills: [],
       warnings: []
     },
     inheritedModules: [],
     localModules,
+    inheritedSkills: [],
+    localSkills: [],
     requiredFiles: [],
     warnings: []
   };

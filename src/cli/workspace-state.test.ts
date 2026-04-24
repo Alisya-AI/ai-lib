@@ -34,6 +34,7 @@ const rootConfig: WorkspaceConfig = {
   language: 'typescript',
   modules: ['eslint'],
   targets: ['cursor'],
+  skills: ['task-driven-gh-flow'],
   docs_path: 'docs/'
 };
 
@@ -80,6 +81,7 @@ test('getEffectiveWorkspaceConfig applies local override module swap', async () 
   assert.deepEqual(effective.modules, ['biome']);
   assert.deepEqual(effective.localModules, ['biome']);
   assert.deepEqual(effective.targets, ['cursor']);
+  assert.deepEqual(effective.skills, ['task-driven-gh-flow']);
 });
 
 test('buildWorkspaceState includes root behavior file for root workspace', async () => {
@@ -198,6 +200,8 @@ test('getEffectiveWorkspaceConfig falls back to base modules and targets for roo
 
   assert.deepEqual(effective.modules, ['eslint']);
   assert.deepEqual(effective.targets, ['cursor']);
+  assert.deepEqual(effective.skills, ['task-driven-gh-flow']);
+  assert.deepEqual(effective.localSkills, ['task-driven-gh-flow']);
   assert.equal(effective.docs_path, 'docs/');
 });
 
@@ -229,4 +233,7 @@ test('getEffectiveWorkspaceConfig inherits parent modules in non-root workspace'
   assert.deepEqual(effective.inheritedModules, ['eslint']);
   assert.deepEqual(effective.localModules, []);
   assert.deepEqual(effective.modules, ['eslint']);
+  assert.deepEqual(effective.inheritedSkills, ['task-driven-gh-flow']);
+  assert.deepEqual(effective.localSkills, []);
+  assert.deepEqual(effective.skills, ['task-driven-gh-flow']);
 });
