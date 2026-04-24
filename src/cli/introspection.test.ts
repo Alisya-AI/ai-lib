@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { modulesCommand, slotsCommand } from './introspection.ts';
+import { modulesCommand, skillsCatalogCommand, slotsCommand } from './introspection.ts';
 import type { CliFlags, Registry } from './types.ts';
 
 async function tempDir() {
@@ -45,7 +45,22 @@ const registry: Registry = {
       }
     }
   },
-  targets: { cursor: { output: '.cursor/rules/ai.md' } }
+  targets: { cursor: { output: '.cursor/rules/ai.md' } },
+  skills: {
+    'task-driven-gh-flow': {
+      display: 'Task-driven GH flow',
+      path: '.cursor/skills/task-driven-gh-flow/SKILL.md',
+      description: 'Track and execute GH tasks',
+      requires: ['release-manager'],
+      conflicts_with: ['code-review'],
+      compatible: {
+        languages: ['typescript'],
+        modules: ['eslint'],
+        targets: ['cursor'],
+        llms: ['claude']
+      }
+    }
+  }
 };
 
 test('slotsCommand prints slot definitions', async () => {
@@ -75,5 +90,29 @@ test('modulesCommand explain throws for unknown module', async () => {
   await assert.rejects(
     modulesCommand({ packageRoot, flags: { _: ['explain', 'missing'], language: 'typescript' } as CliFlags }),
     /Unknown module for typescript: missing/
+  );
+});
+
+test('skillsCatalogCommand list and explain produce expected output', async () => {
+  const packageRoot = await withRegistry(registry);
+  const listOutput = await captureStdout(() =>
+    skillsCatalogCommand({ packageRoot, flags: { _: ['list'] } as CliFlags })
+  );
+  assert.match(listOutput, /skills:/);
+  assert.match(listOutput, /task-driven-gh-flow - Task-driven GH flow/);
+
+  const explainOutput = await captureStdout(() =>
+    skillsCatalogCommand({ packageRoot, flags: { _: ['explain', 'task-driven-gh-flow'] } as CliFlags })
+  );
+  assert.match(explainOutput, /skill: task-driven-gh-flow/);
+  assert.match(explainOutput, /path: \.cursor\/skills\/task-driven-gh-flow\/SKILL\.md/);
+  assert.match(explainOutput, /compatible.languages: typescript/);
+});
+
+test('skillsCatalogCommand explain throws for unknown skill', async () => {
+  const packageRoot = await withRegistry(registry);
+  await assert.rejects(
+    skillsCatalogCommand({ packageRoot, flags: { _: ['explain', 'missing'] } as CliFlags }),
+    /Unknown skill: missing/
   );
 });

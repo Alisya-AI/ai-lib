@@ -73,6 +73,46 @@ export async function modulesCommand({ packageRoot, flags }: { packageRoot: stri
   throw new Error('Usage: ailib modules list [--language=<lang>] | ailib modules explain <module> [--language=<lang>]');
 }
 
+export async function skillsCatalogCommand({ packageRoot, flags }: { packageRoot: string; flags: CliFlags }) {
+  const sub = flags._[0];
+  const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
+  const skills = registry.skills || {};
+
+  if (sub === 'list') {
+    const lines = ['skills:'];
+    for (const [skillId, skillDef] of Object.entries(skills).sort(([a], [b]) => a.localeCompare(b))) {
+      lines.push(`- ${skillId} - ${skillDef.display}`);
+    }
+    process.stdout.write(`${lines.join('\n')}\n`);
+    return;
+  }
+
+  if (sub === 'explain') {
+    const skillId = flags._[1];
+    ensure(skillId, 'Usage: ailib skills explain <skill-id>');
+    const skillDef = skills[skillId];
+    ensure(skillDef, `Unknown skill: ${skillId}`);
+
+    const compatible = skillDef.compatible || {};
+    const lines = [
+      `skill: ${skillId}`,
+      `display: ${skillDef.display}`,
+      `path: ${skillDef.path}`,
+      `description: ${skillDef.description || '(none)'}`,
+      `requires: ${(skillDef.requires || []).join(', ') || '(none)'}`,
+      `conflicts_with: ${(skillDef.conflicts_with || []).join(', ') || '(none)'}`,
+      `compatible.languages: ${(compatible.languages || []).join(', ') || '(none)'}`,
+      `compatible.modules: ${(compatible.modules || []).join(', ') || '(none)'}`,
+      `compatible.targets: ${(compatible.targets || []).join(', ') || '(none)'}`,
+      `compatible.llms: ${(compatible.llms || []).join(', ') || '(none)'}`
+    ];
+    process.stdout.write(`${lines.join('\n')}\n`);
+    return;
+  }
+
+  throw new Error('Usage: ailib skills list | ailib skills explain <skill-id>');
+}
+
 function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }

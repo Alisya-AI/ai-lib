@@ -116,6 +116,6 @@ export function createCommandHandlers({
       }),
     slots: async ({ packageRoot, flags }: CommandContext) => runners.slotsCommand({ packageRoot, flags }),
     modules: async ({ packageRoot, flags }: CommandContext) => runners.modulesCommand({ packageRoot, flags }),
-    skills: async ({ cwd, flags }: CommandContext) => runners.skillsCommand({ cwd, flags })
+    skills: async ({ cwd, packageRoot, flags }: CommandContext) => runners.skillsCommand({ cwd, packageRoot, flags })
   };
 }

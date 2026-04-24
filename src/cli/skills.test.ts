@@ -12,7 +12,7 @@ async function tempDir() {
 test('skillsCommand rejects unsupported subcommands', async () => {
   await assert.rejects(
     skillsCommand({ cwd: process.cwd(), flags: { _: ['unknown'] } }),
-    /Usage: ailib skills init <skill-id>.*ailib skills validate/s
+    /Usage: ailib skills list.*ailib skills validate/s
   );
 });
 

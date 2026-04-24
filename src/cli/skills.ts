@@ -3,14 +3,28 @@ import path from 'node:path';
 import { ensure } from './assertions.ts';
 import { resolveContext, resolveDefaultWorkspaceForMutation } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
+import { skillsCatalogCommand } from './introspection.ts';
 import { renderSkillTemplate } from './skill-template.ts';
 import { skillsValidateCommand } from './skills-validate.ts';
 import type { CliFlags } from './types.ts';
 
 const SKILL_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
 
-export async function skillsCommand({ cwd, flags }: { cwd: string; flags: CliFlags }) {
+export async function skillsCommand({
+  cwd,
+  packageRoot,
+  flags
+}: {
+  cwd: string;
+  packageRoot?: string;
+  flags: CliFlags;
+}) {
   const sub = flags._[0];
+  if (sub === 'list' || sub === 'explain') {
+    ensure(packageRoot, 'Internal error: packageRoot is required for skills discovery commands');
+    await skillsCatalogCommand({ packageRoot, flags });
+    return;
+  }
   if (sub === 'init') {
     await skillsInitCommand({ cwd, flags });
     return;
@@ -20,7 +34,7 @@ export async function skillsCommand({ cwd, flags }: { cwd: string; flags: CliFla
     return;
   }
   throw new Error(
-    'Usage: ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force] | ailib skills validate [--workspace=<path>] [--path=<path>]'
+    'Usage: ailib skills list | ailib skills explain <skill-id> | ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force] | ailib skills validate [--workspace=<path>] [--path=<path>]'
   );
 }
 
