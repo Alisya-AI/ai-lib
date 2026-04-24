@@ -214,6 +214,21 @@ Workspace-local refinement in `ailib.local.json`:
 
 Use this when backend architecture work needs heavier decision artifacts, while frontend delivery work needs rollout-focused guidance.
 
+### 1.3) Time quality skills by delivery stage
+
+Use quality skills based on where work currently sits in the delivery flow:
+
+- Planning and test design: use `test-strategy-design` to define risk-based coverage, edge cases, and test-layer choices before coding.
+- Active implementation and refactors: use `clean-code-refactoring` when simplifying complexity without changing external behavior.
+- Pre-PR self-check: use `code-review-rigor` to sanity-check regressions, failure paths, and missing tests before opening a review.
+- PR review and merge readiness: use `code-review-rigor` as the default reviewer lens, and cross-check with `test-strategy-design` when coverage looks shallow.
+
+Practical quality-skill bundle:
+
+- Start features with `test-strategy-design` when risk or domain complexity is high.
+- Add `clean-code-refactoring` whenever implementation requires structural cleanup to stay maintainable.
+- Keep `code-review-rigor` active for final review gates, especially on user-impacting or high-blast-radius changes.
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
