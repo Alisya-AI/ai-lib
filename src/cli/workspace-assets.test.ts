@@ -4,13 +4,31 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { ensureWorkspaceAssets } from './workspace-assets.ts';
-import type { WorkspaceState } from './types.ts';
+import type { Registry, WorkspaceState } from './types.ts';
 
 async function tempDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), 'ailib-workspace-assets-'));
 }
 
-function state(localModules: string[]): WorkspaceState {
+const registry: Registry = {
+  version: 'test-registry',
+  languages: {
+    typescript: {
+      modules: {}
+    }
+  },
+  targets: {
+    cursor: { output: '.cursor/rules/ailib.mdc' }
+  },
+  skills: {
+    'task-driven-gh-flow': {
+      display: 'Task-driven GH flow',
+      path: '.cursor/skills/task-driven-gh-flow/SKILL.md'
+    }
+  }
+};
+
+function state(localModules: string[], localSkills: string[] = []): WorkspaceState {
   return {
     effective: {
       $schema: 'https://ailib.dev/schema/config.schema.json',
@@ -19,18 +37,18 @@ function state(localModules: string[]): WorkspaceState {
       language: 'typescript',
       modules: localModules,
       targets: ['cursor'],
-      skills: [],
+      skills: localSkills,
       docs_path: 'docs/',
       inheritedModules: [],
       localModules,
       inheritedSkills: [],
-      localSkills: [],
+      localSkills,
       warnings: []
     },
     inheritedModules: [],
     localModules,
     inheritedSkills: [],
-    localSkills: [],
+    localSkills,
     requiredFiles: [],
     warnings: []
   };
@@ -44,6 +62,8 @@ async function seedPackage(packageRoot: string) {
   await fs.writeFile(path.join(packageRoot, 'core/test-standards.md'), 'test', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'languages/typescript/core.md'), 'lang-core', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'languages/typescript/modules/eslint.md'), 'eslint', 'utf8');
+  await fs.mkdir(path.join(packageRoot, '.cursor/skills/task-driven-gh-flow'), { recursive: true });
+  await fs.writeFile(path.join(packageRoot, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'skill-flow', 'utf8');
 }
 
 test('ensureWorkspaceAssets copies core and module assets for root workspace', async () => {
@@ -55,7 +75,8 @@ test('ensureWorkspaceAssets copies core and module assets for root workspace', a
     workspaceDir: rootDir,
     packageRoot,
     state: state(['eslint']),
-    rootDir
+    rootDir,
+    registry
   });
 
   assert.equal(await fs.readFile(path.join(rootDir, '.ailib/behavior.md'), 'utf8'), 'behavior');
@@ -76,9 +97,33 @@ test('ensureWorkspaceAssets keeps local-only modules and removes stale module fi
     workspaceDir,
     packageRoot,
     state: state(['custom']),
-    rootDir
+    rootDir,
+    registry
   });
 
   assert.equal(await fs.readFile(path.join(workspaceDir, '.ailib/modules/custom.md'), 'utf8'), 'custom');
   await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/modules/stale.md'), 'utf8'));
+});
+
+test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
+  await fs.writeFile(path.join(workspaceDir, '.ailib/skills/stale.md'), 'stale-skill', 'utf8');
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['task-driven-gh-flow']),
+    rootDir,
+    registry
+  });
+
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
+    'skill-flow'
+  );
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/stale.md'), 'utf8'));
 });
