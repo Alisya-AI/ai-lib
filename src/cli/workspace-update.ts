@@ -63,7 +63,7 @@ export async function applyWorkspaceUpdate({
   for (const workspaceDir of workspaceDirs) {
     const state = stateMap.get(workspaceDir);
     ensure(state, `Missing workspace state for ${workspaceDir}`);
-    await ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir });
+    await ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir, registry });
   }
 
   for (const workspaceDir of workspaceDirs) {

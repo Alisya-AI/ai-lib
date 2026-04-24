@@ -2,21 +2,24 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { copySourceFile } from './file-helpers.ts';
 import { exists, rmIfExists } from './utils.ts';
-import type { WorkspaceState } from './types.ts';
+import type { Registry, WorkspaceState } from './types.ts';
 
 export async function ensureWorkspaceAssets({
   workspaceDir,
   packageRoot,
   state,
-  rootDir
+  rootDir,
+  registry
 }: {
   workspaceDir: string;
   packageRoot: string;
   state: WorkspaceState;
   rootDir: string;
+  registry: Registry;
 }) {
   const outRoot = path.join(workspaceDir, '.ailib');
   await fs.mkdir(path.join(outRoot, 'modules'), { recursive: true });
+  await fs.mkdir(path.join(outRoot, 'skills'), { recursive: true });
 
   if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
     await copySourceFile({ packageRoot, sourceRel: 'core/behavior.md', target: path.join(outRoot, 'behavior.md') });
@@ -61,6 +64,34 @@ export async function ensureWorkspaceAssets({
       if (!entry.endsWith('.md')) continue;
       const id = entry.replace(/\.md$/u, '');
       if (!localSet.has(id)) await rmIfExists(path.join(moduleDir, entry));
+    }
+  }
+
+  const localSkills = state.localSkills;
+  const localSkillSet = new Set(localSkills);
+  const registrySkills = registry.skills || {};
+  for (const skillId of localSkills) {
+    const skillDef = registrySkills[skillId];
+    ensure(skillDef, `Missing skill definition: ${skillId}`);
+
+    const sourceRel = skillDef.path;
+    const source = path.join(packageRoot, sourceRel);
+    const target = path.join(outRoot, 'skills', `${skillId}.md`);
+    if (await exists(source)) {
+      await copySourceFile({ packageRoot, sourceRel, target });
+      continue;
+    }
+
+    const existing = path.join(outRoot, 'skills', `${skillId}.md`);
+    ensure(await exists(existing), `Missing skill source: ${sourceRel}`);
+  }
+
+  const skillDir = path.join(outRoot, 'skills');
+  if (await exists(skillDir)) {
+    for (const entry of await fs.readdir(skillDir)) {
+      if (!entry.endsWith('.md')) continue;
+      const id = entry.replace(/\.md$/u, '');
+      if (!localSkillSet.has(id)) await rmIfExists(path.join(skillDir, entry));
     }
   }
 }
