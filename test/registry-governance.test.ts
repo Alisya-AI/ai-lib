@@ -235,6 +235,11 @@ test('registry skills contract is well-formed', async () => {
   for (const [skillId, skillDef] of Object.entries(skills)) {
     assert.ok(skillDef.display.trim().length > 0, `skills.${skillId}.display must not be empty`);
     assert.ok(skillDef.path.trim().length > 0, `skills.${skillId}.path must not be empty`);
+    assert.ok(!path.isAbsolute(skillDef.path), `skills.${skillId}.path must be relative`);
+    assert.ok(
+      skillDef.path.startsWith('skills/') && skillDef.path.endsWith('.md'),
+      `skills.${skillId}.path must point to skills/*.md`
+    );
 
     const requires = skillDef.requires || [];
     const conflicts = skillDef.conflicts_with || [];
@@ -252,5 +257,21 @@ test('registry skills contract is well-formed', async () => {
         `skills.${skillId} cannot both require and conflict with '${dependency}'`
       );
     }
+
+    const skillPath = path.join(packageRoot, skillDef.path);
+    const markdown = await fs.readFile(skillPath, 'utf8');
+    const frontmatter = parseFrontmatter(markdown);
+    assert.ok(frontmatter, `Missing frontmatter in '${skillDef.path}'`);
+    assert.equal(frontmatter.name, skillId, `Frontmatter name mismatch for '${skillId}'`);
+    assert.equal(typeof frontmatter.description, 'string', `Frontmatter description must be string for '${skillId}'`);
+    assert.ok(
+      String(frontmatter.description).trim().length > 0,
+      `Frontmatter description must not be empty for '${skillId}'`
+    );
+    assert.equal(
+      frontmatter.description,
+      skillDef.description || '',
+      `Registry/frontmatter description mismatch for '${skillId}'`
+    );
   }
 });
