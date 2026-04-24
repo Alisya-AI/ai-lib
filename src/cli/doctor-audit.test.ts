@@ -31,3 +31,22 @@ test('auditWorkspaceRequiredFiles reports pointer and frontmatter issues', async
   assert.match(joined, /Frontmatter missing 'slot': \.ailib\/modules\/eslint\.md/);
   assert.doesNotMatch(joined, /Missing pointer file/);
 });
+
+test('auditWorkspaceRequiredFiles skips frontmatter validation for skill pointers', async () => {
+  const workspaceDir = await tempDir();
+  const requiredFiles = ['.ailib/skills/task-driven-gh-flow.md'];
+  await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'),
+    '---\nname: task-driven-gh-flow\n---\ncontent',
+    'utf8'
+  );
+
+  const errors = await auditWorkspaceRequiredFiles({
+    workspaceDir,
+    workspaceLabel: '.',
+    requiredFiles
+  });
+
+  assert.deepEqual(errors, []);
+});

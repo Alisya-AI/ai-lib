@@ -23,6 +23,7 @@ export async function auditWorkspaceRequiredFiles({
   for (const rel of requiredFiles) {
     const full = path.join(workspaceDir, rel);
     if (!(await exists(full))) continue;
+    if (rel.includes('/skills/')) continue;
     const text = await fs.readFile(full, 'utf8');
     const frontmatter = parseFrontmatter(text);
     if (!frontmatter) {
