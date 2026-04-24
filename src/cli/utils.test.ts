@@ -4,9 +4,9 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import {
-  canonicalSlot,
   exists,
   readJson,
+  resolveCanonicalSlotAlias,
   rmIfExists,
   sanitizeForFilename,
   splitCsv,
@@ -43,7 +43,7 @@ test('file utilities support existence checks, reads, and safe removals', async 
   await rmIfExists(path.join(root, 'missing'));
 });
 
-test('canonicalSlot resolves aliases and warns only once', () => {
+test('resolveCanonicalSlotAlias resolves aliases and warns once', () => {
   const registry: Registry = {
     version: 'test',
     slots: ['runtime'],
@@ -59,10 +59,10 @@ test('canonicalSlot resolves aliases and warns only once', () => {
     warnings.push(line);
   };
 
-  assert.equal(canonicalSlot({ registry, slot: 'platform', warnedSlotAliases, writeWarning }), 'runtime');
-  assert.equal(canonicalSlot({ registry, slot: 'platform', warnedSlotAliases, writeWarning }), 'runtime');
-  assert.equal(canonicalSlot({ registry, slot: 'runtime', warnedSlotAliases, writeWarning }), 'runtime');
-  assert.equal(canonicalSlot({ registry, slot: undefined, warnedSlotAliases, writeWarning }), null);
+  assert.equal(resolveCanonicalSlotAlias({ registry, slot: 'platform', warnedSlotAliases, writeWarning }), 'runtime');
+  assert.equal(resolveCanonicalSlotAlias({ registry, slot: 'platform', warnedSlotAliases, writeWarning }), 'runtime');
+  assert.equal(resolveCanonicalSlotAlias({ registry, slot: 'runtime', warnedSlotAliases, writeWarning }), 'runtime');
+  assert.equal(resolveCanonicalSlotAlias({ registry, slot: undefined, warnedSlotAliases, writeWarning }), null);
   assert.equal(warnings.length, 1);
   assert.match(warnings[0], /slot alias 'platform' is deprecated/);
 });

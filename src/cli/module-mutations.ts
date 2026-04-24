@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { ensure } from './assertions.ts';
 import { resolveContext, resolveDefaultWorkspaceForMutation, resolveWorkspacePath } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
 import { validateModuleSelection } from './module-validation.ts';
@@ -12,9 +13,9 @@ export async function updateCommand({
   cwd,
   packageRoot,
   flags,
-  configFile,
-  localOverrideFile,
-  canonicalSlot,
+  configFile: _configFile,
+  localOverrideFile: _localOverrideFile,
+  canonicalSlot: _canonicalSlot,
   applyWorkspaceUpdate
 }: {
   cwd: string;
@@ -143,8 +144,4 @@ export async function removeCommand({
   });
 
   process.stdout.write(`module removed: ${moduleId}\n`);
-}
-
-function ensure(condition: unknown, message: string): asserts condition {
-  if (!condition) throw new Error(message);
 }

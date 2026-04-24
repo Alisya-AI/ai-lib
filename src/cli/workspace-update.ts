@@ -62,11 +62,13 @@ export async function applyWorkspaceUpdate({
 
   for (const workspaceDir of workspaceDirs) {
     const state = stateMap.get(workspaceDir);
+    ensure(state, `Missing workspace state for ${workspaceDir}`);
     await ensureWorkspaceAssets({ workspaceDir, packageRoot, state, rootDir });
   }
 
   for (const workspaceDir of workspaceDirs) {
     const state = stateMap.get(workspaceDir);
+    ensure(state, `Missing workspace state for ${workspaceDir}`);
     const onConflict = forceOnConflict || state.effective.on_conflict || 'merge';
     await generateWorkspaceRouters({ workspaceDir, rootDir, state, onConflict, allStates: stateMap, registry });
   }

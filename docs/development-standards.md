@@ -41,7 +41,9 @@ Expected loop:
 
 ## 5) Quality Gates for PRs
 
-- `bun run lint` (includes standards + Prettier checks) must pass.
+- `bun run standards:check` must pass.
+- `bun run lint` (ESLint) must pass.
+- `bun run format:check` (Prettier) must pass.
 - `bun run typecheck` must pass.
 - `bun run check` must pass.
 - New behavior should include/adjust tests.

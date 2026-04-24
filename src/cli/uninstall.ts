@@ -24,16 +24,22 @@ export async function uninstallCommand({
 
   const rootConfigPath = path.join(context.rootDir, configFile);
   const rootConfig = (await exists(rootConfigPath)) ? await readJson<WorkspaceConfig>(rootConfigPath) : null;
-  const atRoot = path.resolve(context.workspaceDir) === path.resolve(context.rootDir);
-  const monorepo = Boolean(rootConfig?.workspaces);
+  const scope = resolveUninstallScope({
+    atRoot: path.resolve(context.workspaceDir) === path.resolve(context.rootDir),
+    isMonorepo: Boolean(rootConfig?.workspaces),
+    removeAll: flags.all === true
+  });
 
-  if (atRoot && monorepo && flags.all !== true) {
+  if (scope === 'root-only') {
     await uninstallWorkspace(context.rootDir, rootConfig, registry, configFile);
     process.stdout.write('ailib uninstalled\n');
     return;
   }
 
-  if (atRoot && monorepo && flags.all === true) {
+  if (scope === 'all-workspaces') {
+    if (!rootConfig) {
+      throw new Error(`Missing ${configFile} at root: ${context.rootDir}`);
+    }
     const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig });
     for (const workspaceDir of workspaceDirs) {
       const cfgPath = path.join(workspaceDir, configFile);
@@ -75,9 +81,27 @@ export async function uninstallWorkspace(
       if (targetDef.root_output && isRootWorkspaceConfig(config)) {
         await rmIfExists(path.join(workspaceDir, targetDef.root_output));
       }
-      if (target === 'copilot' && isRootWorkspaceConfig(config)) {
+      if (shouldRemoveRootInstructions({ target, config })) {
         await rmIfExists(path.join(workspaceDir, '.github/instructions'));
       }
     }
   }
+}
+
+function resolveUninstallScope({
+  atRoot,
+  isMonorepo,
+  removeAll
+}: {
+  atRoot: boolean;
+  isMonorepo: boolean;
+  removeAll: boolean;
+}): 'root-only' | 'all-workspaces' | 'current-workspace' {
+  if (atRoot && isMonorepo && !removeAll) return 'root-only';
+  if (atRoot && isMonorepo && removeAll) return 'all-workspaces';
+  return 'current-workspace';
+}
+
+function shouldRemoveRootInstructions({ target, config }: { target: string; config: WorkspaceConfig }) {
+  return target === 'copilot' && isRootWorkspaceConfig(config);
 }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 
 import { run } from './cli.ts';
 
-function captureStdoutSync(fn: () => void): string {
+async function captureStdout(fn: () => Promise<void>): Promise<string> {
   const chunks: string[] = [];
   const mutableStdout = process.stdout as unknown as { write: typeof process.stdout.write };
   const originalWrite = mutableStdout.write.bind(process.stdout);
@@ -14,7 +14,7 @@ function captureStdoutSync(fn: () => void): string {
     return true;
   }) as typeof process.stdout.write;
   try {
-    fn();
+    await fn();
     return chunks.join('');
   } finally {
     mutableStdout.write = originalWrite;
@@ -22,8 +22,8 @@ function captureStdoutSync(fn: () => void): string {
 }
 
 test('run prints help for --help flag', async () => {
-  const output = captureStdoutSync(() => {
-    run(['--help'], { cwd: process.cwd(), packageRoot: process.cwd() });
+  const output = await captureStdout(async () => {
+    await run(['--help'], { cwd: process.cwd(), packageRoot: process.cwd() });
   });
   assert.match(output, /ailib commands:/);
 });
