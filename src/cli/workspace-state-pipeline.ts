@@ -47,6 +47,7 @@ export function buildEffectiveWorkspaceConfig({
   localModules: string[];
   warnings: string[];
 }): EffectiveWorkspaceConfig {
+  const skills = workspaceRaw.skills || base.skills || [];
   return {
     $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: workspaceRaw.registry_ref || base.registry_ref,
@@ -54,6 +55,7 @@ export function buildEffectiveWorkspaceConfig({
     language,
     modules,
     targets,
+    skills,
     docs_path: workspaceRaw.docs_path || (isRootWorkspace ? 'docs/' : './docs/'),
     inheritedModules,
     localModules,

@@ -39,7 +39,7 @@ test('splitModuleOwnership separates inherited and local', () => {
 
 test('buildEffectiveWorkspaceConfig builds expected shape', () => {
   const workspaceRaw: WorkspaceConfig = {};
-  const base: WorkspaceConfig = {};
+  const base: WorkspaceConfig = { skills: ['task-driven-gh-flow'] };
   const result = buildEffectiveWorkspaceConfig({
     workspaceRaw,
     base,
@@ -52,5 +52,6 @@ test('buildEffectiveWorkspaceConfig builds expected shape', () => {
     warnings: ['warn']
   });
   assert.equal(result.docs_path, 'docs/');
+  assert.deepEqual(result.skills, ['task-driven-gh-flow']);
   assert.deepEqual(result.warnings, ['warn']);
 });

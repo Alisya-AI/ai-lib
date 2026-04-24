@@ -19,6 +19,7 @@ function state(localModules: string[]): WorkspaceState {
       language: 'typescript',
       modules: localModules,
       targets: ['cursor'],
+      skills: [],
       docs_path: 'docs/',
       inheritedModules: [],
       localModules,

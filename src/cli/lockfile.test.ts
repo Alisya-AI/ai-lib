@@ -31,6 +31,7 @@ function state(language: string, localModules: string[]): WorkspaceState {
       language,
       modules: localModules,
       targets: ['cursor'],
+      skills: [],
       docs_path: 'docs/',
       inheritedModules: [],
       localModules,
