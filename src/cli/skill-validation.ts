@@ -1,3 +1,9 @@
+import {
+  isLocalCustomSkillPath,
+  isUnderLocalCustomSkillsRoot,
+  localCustomSkillPath,
+  normalizeRelativeSkillPath
+} from './skill-paths.ts';
 import type { Registry } from './types.ts';
 
 export function validateSkillSelection({
@@ -21,6 +27,11 @@ export function validateSkillSelection({
     const skillDef = registrySkills[skillId];
     if (!skillDef) {
       throw new Error(`Unsupported skill: ${skillId}`);
+    }
+    if (isUnderLocalCustomSkillsRoot(skillDef.path) && !isLocalCustomSkillPath(skillId, skillDef.path)) {
+      throw new Error(
+        `Skill path convention mismatch: ${skillId} must use ${localCustomSkillPath(skillId)}, got ${normalizeRelativeSkillPath(skillDef.path)}`
+      );
     }
 
     for (const dependency of skillDef.requires || []) {

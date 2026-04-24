@@ -32,6 +32,10 @@ const registry: Registry = {
       display: 'Release manager workflow',
       path: '.cursor/skills/release-manager/SKILL.md',
       conflicts_with: ['code-review']
+    },
+    'bad-path': {
+      display: 'Invalid path skill',
+      path: '.cursor/skills/other-id/SKILL.md'
     }
   }
 };
@@ -129,5 +133,19 @@ test('validateSkillSelection rejects incompatible module selection', () => {
         targets: ['cursor']
       }),
     /Skill compatibility mismatch: code-review supports modules \[eslint, biome\], got \[nextjs\]/
+  );
+});
+
+test('validateSkillSelection rejects non-canonical local skill paths', () => {
+  assert.throws(
+    () =>
+      validateSkillSelection({
+        registry,
+        skills: ['bad-path'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor']
+      }),
+    /Skill path convention mismatch: bad-path must use \.cursor\/skills\/bad-path\/SKILL\.md, got \.cursor\/skills\/other-id\/SKILL\.md/
   );
 });
