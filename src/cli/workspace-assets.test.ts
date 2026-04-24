@@ -133,3 +133,31 @@ test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
   await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/legacy-skill.md'), 'utf8'));
   assert.equal(await fs.readFile(path.join(workspaceDir, '.ailib/skills/custom.md'), 'utf8'), 'custom-skill');
 });
+
+test('ensureWorkspaceAssets prefers local custom skill over package source', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  await fs.mkdir(path.join(workspaceDir, '.cursor/skills/task-driven-gh-flow'), { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, '.cursor/skills/task-driven-gh-flow/SKILL.md'),
+    'workspace-local-skill',
+    'utf8'
+  );
+  await fs.mkdir(path.join(rootDir, '.cursor/skills/task-driven-gh-flow'), { recursive: true });
+  await fs.writeFile(path.join(rootDir, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'root-local-skill', 'utf8');
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['task-driven-gh-flow']),
+    rootDir,
+    registry
+  });
+
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
+    'workspace-local-skill'
+  );
+});

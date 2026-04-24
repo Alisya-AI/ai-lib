@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { copySourceFile } from './file-helpers.ts';
+import { localCustomSkillPath } from './skill-paths.ts';
 import { exists, rmIfExists } from './utils.ts';
 import type { Registry, WorkspaceState } from './types.ts';
 
@@ -74,9 +75,21 @@ export async function ensureWorkspaceAssets({
     const skillDef = registrySkills[skillId];
     ensure(skillDef, `Missing skill definition: ${skillId}`);
 
+    const target = path.join(outRoot, 'skills', `${skillId}.md`);
+    const workspaceLocalSource = path.join(workspaceDir, localCustomSkillPath(skillId));
+    if (await exists(workspaceLocalSource)) {
+      await copyFileFromSource(workspaceLocalSource, target);
+      continue;
+    }
+
+    const rootLocalSource = path.join(rootDir, localCustomSkillPath(skillId));
+    if (await exists(rootLocalSource)) {
+      await copyFileFromSource(rootLocalSource, target);
+      continue;
+    }
+
     const sourceRel = skillDef.path;
     const source = path.join(packageRoot, sourceRel);
-    const target = path.join(outRoot, 'skills', `${skillId}.md`);
     if (await exists(source)) {
       await copySourceFile({ packageRoot, sourceRel, target });
       continue;
@@ -98,4 +111,9 @@ export async function ensureWorkspaceAssets({
 
 function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
+}
+
+async function copyFileFromSource(source: string, target: string) {
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.copyFile(source, target);
 }
