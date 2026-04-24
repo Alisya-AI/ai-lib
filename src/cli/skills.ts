@@ -3,9 +3,9 @@ import path from 'node:path';
 import { ensure } from './assertions.ts';
 import { resolveContext, resolveDefaultWorkspaceForMutation } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
+import { renderSkillTemplate } from './skill-template.ts';
 import type { CliFlags } from './types.ts';
 
-const DEFAULT_SKILL_DESCRIPTION = 'TODO: describe this skill';
 const SKILL_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
 
 export async function skillsCommand({ cwd, flags }: { cwd: string; flags: CliFlags }) {
@@ -31,7 +31,7 @@ export async function skillsInitCommand({ cwd, flags }: { cwd: string; flags: Cl
   const workspaceFlag = getStringFlag(flags, 'workspace');
   const targetWorkspace = resolveDefaultWorkspaceForMutation(context, workspaceFlag);
   const pathFlag = getStringFlag(flags, 'path');
-  const description = getStringFlag(flags, 'description') || DEFAULT_SKILL_DESCRIPTION;
+  const description = getStringFlag(flags, 'description');
   const force = flags.force === true;
 
   const target = resolveSkillFilePath({ targetWorkspace, skillId, pathFlag });
@@ -71,22 +71,4 @@ export function resolveSkillFilePath({
 function assertPathUnderWorkspace({ targetWorkspace, target }: { targetWorkspace: string; target: string }) {
   const rel = path.relative(path.resolve(targetWorkspace), path.resolve(target));
   ensure(!rel.startsWith('..') && !path.isAbsolute(rel), `Skill path must be within workspace: ${targetWorkspace}`);
-}
-
-function renderSkillTemplate({ skillId, description }: { skillId: string; description: string }) {
-  return [
-    '---',
-    `name: ${skillId}`,
-    `description: ${description}`,
-    '---',
-    '',
-    `# ${skillId}`,
-    '',
-    '## Purpose',
-    '- TODO: describe when to use this skill',
-    '',
-    '## Workflow',
-    '- TODO: add concrete implementation steps',
-    ''
-  ].join('\n');
 }
