@@ -163,6 +163,26 @@ test('skills list and explain include built-in architecture skills', async () =>
   assert.match(explainRfc, /requires: architecture-decision-flow/);
 });
 
+test('skills list and explain include review and refactor skills', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- clean-code-refactoring - Clean code refactoring/);
+  assert.match(listOutput, /- code-review-rigor - Code review rigor/);
+
+  const explainRefactor = await captureStdout(async () => {
+    await run(['skills', 'explain', 'clean-code-refactoring'], { packageRoot });
+  });
+  assert.match(explainRefactor, /skill: clean-code-refactoring/);
+  assert.match(explainRefactor, /path: skills\/clean-code-refactoring\.md/);
+
+  const explainReview = await captureStdout(async () => {
+    await run(['skills', 'explain', 'code-review-rigor'], { packageRoot });
+  });
+  assert.match(explainReview, /skill: code-review-rigor/);
+  assert.match(explainReview, /path: skills\/code-review-rigor\.md/);
+});
+
 test('skills explain rejects unknown skill id', async () => {
   await assert.rejects(run(['skills', 'explain', 'missing-skill'], { packageRoot }), /Unknown skill: missing-skill/);
 });
