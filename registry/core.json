@@ -140,6 +140,15 @@
         "targets": ["cursor", "claude-code", "copilot", "openai", "gemini", "windsurf", "jetbrains"]
       }
     },
+    "clean-code-refactoring": {
+      "display": "Clean code refactoring",
+      "description": "Plan and execute safe refactors with clear boundaries, SOLID checks, and behavior-preserving verification.",
+      "path": "skills/clean-code-refactoring.md",
+      "compatible": {
+        "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
+        "targets": ["cursor", "claude-code", "copilot", "openai", "gemini", "windsurf", "jetbrains"]
+      }
+    },
     "rfc-authoring": {
       "display": "RFC authoring",
       "description": "Write concise RFCs with context, options, tradeoffs, recommendation, and rollout planning.",
