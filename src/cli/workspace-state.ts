@@ -48,7 +48,10 @@ export async function buildWorkspaceState({
   });
   validateSkillSelection({
     registry,
-    skills: effective.skills
+    skills: effective.skills,
+    language: effective.language,
+    modules: effective.modules,
+    targets: effective.targets
   });
 
   const requiredFiles = [
