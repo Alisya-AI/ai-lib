@@ -85,6 +85,68 @@ test('renderRouterDoc renders root and service docs with correct references', ()
   assert.match(serviceDoc, /- @\.ailib\/skills\/local-skill\.md/);
 });
 
+test('renderRouterDoc snapshot includes skill pointer layout', () => {
+  const rootDir = '/repo';
+  const rootDoc = renderRouterDoc({
+    label: 'Cursor',
+    workspaceDir: rootDir,
+    rootDir,
+    state: state(['cursor'], ['eslint'], ['pytest'], [], ['task-driven-gh-flow'])
+  });
+  const expectedRootDoc = [
+    '# ailib Router (Cursor)',
+    '',
+    '# AILIB SYSTEM PROMPT',
+    'Act as the AI Agent defined in @.ailib/behavior.md.',
+    'Adhere to the coding standards in @.ailib/standards.md.',
+    'Apply development workflow rules in @.ailib/development-standards.md.',
+    'Apply test and coverage rules in @.ailib/test-standards.md.',
+    '',
+    '# MODULES & EXTENSIONS',
+    '- @.ailib/modules/eslint.md',
+    '- @.ailib/modules/pytest.md',
+    '',
+    '# SKILLS',
+    '- @.ailib/skills/task-driven-gh-flow.md',
+    '',
+    '# PROJECT-SPECIFIC CONTEXT',
+    'Prioritize project context in @./docs/.',
+    ''
+  ].join('\n');
+  assert.equal(rootDoc, expectedRootDoc);
+
+  const serviceDoc = renderRouterDoc({
+    label: 'Cursor',
+    workspaceDir: '/repo/apps/api',
+    rootDir,
+    state: state(['cursor'], ['eslint'], ['pytest'], ['task-driven-gh-flow'], ['local-skill'])
+  });
+  const expectedServiceDoc = [
+    '# ailib Router (Cursor)',
+    '',
+    '# AILIB SYSTEM PROMPT',
+    'Act as the AI Agent defined in @../../.ailib/behavior.md.',
+    'Adhere to the coding standards in @.ailib/standards.md.',
+    'Apply development workflow rules in @.ailib/development-standards.md.',
+    'Apply test and coverage rules in @.ailib/test-standards.md.',
+    '',
+    '# MODULES & EXTENSIONS',
+    '- @../../.ailib/modules/eslint.md',
+    '- @.ailib/modules/pytest.md',
+    '',
+    '# SKILLS',
+    '- @../../.ailib/skills/task-driven-gh-flow.md',
+    '- @.ailib/skills/local-skill.md',
+    '',
+    '# PROJECT-SPECIFIC CONTEXT',
+    'Prioritize service-local business logic in @./docs/.',
+    'For cross-service context, consult @../../docs/.',
+    'If guidance conflicts, service-local docs win for service-scoped work.',
+    ''
+  ].join('\n');
+  assert.equal(serviceDoc, expectedServiceDoc);
+});
+
 test('generateWorkspaceRouters writes target outputs and copilot bundle', async () => {
   const rootDir = await tempDir();
   const appDir = path.join(rootDir, 'apps', 'api');
