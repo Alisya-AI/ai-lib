@@ -227,6 +227,63 @@ test('applyLocalOverrides applies skills set/add/remove scopes', async () => {
   assert.deepEqual(result.skills, ['code-review']);
 });
 
+test('applyLocalOverrides applies deterministic precedence for default and workspace skill scopes', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  const rootWithWorkspaces: WorkspaceConfig = {
+    ...rootConfig,
+    workspaces: ['apps/*']
+  };
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootWithWorkspaces, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(workspaceDir, configFile),
+    `${JSON.stringify({ language: 'typescript', modules: ['eslint'], targets: ['cursor'] }, null, 2)}\n`,
+    'utf8'
+  );
+  await fs.writeFile(
+    path.join(rootDir, localOverrideFile),
+    `${JSON.stringify(
+      {
+        version: '1',
+        default_override: {
+          skills: {
+            set: ['task-driven-gh-flow'],
+            add: ['code-review']
+          }
+        },
+        workspace_overrides: {
+          'apps/web': {
+            skills: {
+              set: ['code-review'],
+              add: ['task-driven-gh-flow'],
+              remove: ['code-review']
+            }
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  const result = await applyLocalOverrides({
+    rootDir,
+    workspaceDir,
+    rootConfig: rootWithWorkspaces,
+    registry,
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['cursor'],
+    skills: ['task-driven-gh-flow'],
+    canonicalSlot,
+    localOverrideFile
+  });
+
+  assert.deepEqual(result.skills, ['task-driven-gh-flow']);
+});
+
 test('getEffectiveWorkspaceConfig falls back to base modules and targets for root workspace', async () => {
   const rootDir = await tempDir();
   const rootConfigFromCaller: WorkspaceConfig = {
