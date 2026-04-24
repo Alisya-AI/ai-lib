@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://ailib.dev/schema/registry.schema.json",
   "type": "object",
-  "required": ["version", "schema", "slots", "languages", "targets"],
+  "required": ["version", "schema", "slots", "languages", "targets", "skills"],
   "properties": {
     "version": { "type": "string" },
     "schema": { "type": "string" },
@@ -52,6 +52,29 @@
                 "requires": { "type": "array", "items": { "type": "string" } },
                 "conflicts_with": { "type": "array", "items": { "type": "string" } }
               }
+            }
+          }
+        }
+      }
+    },
+    "skills": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "required": ["display", "path"],
+        "properties": {
+          "display": { "type": "string" },
+          "description": { "type": "string" },
+          "path": { "type": "string" },
+          "requires": { "type": "array", "items": { "type": "string" } },
+          "conflicts_with": { "type": "array", "items": { "type": "string" } },
+          "compatible": {
+            "type": "object",
+            "properties": {
+              "languages": { "type": "array", "items": { "type": "string" } },
+              "modules": { "type": "array", "items": { "type": "string" } },
+              "targets": { "type": "array", "items": { "type": "string" } },
+              "llms": { "type": "array", "items": { "type": "string" } }
             }
           }
         }

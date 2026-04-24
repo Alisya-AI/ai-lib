@@ -258,6 +258,7 @@
       "template": "targets/gemini.md.tmpl"
     }
   },
+  "skills": {},
   "languages": {
     "go": {
       "display": "Go",
