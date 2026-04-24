@@ -50,6 +50,7 @@ bun run local:install
 ## Documentation index
 
 - CLI usage: [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
+- Built-in skills catalog: [docs/built-in-skills-catalog.md](docs/built-in-skills-catalog.md)
 - Add targets: [docs/targets-guide.md](docs/targets-guide.md)
 - Add modules/slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md)
 - Slot governance rules: [docs/slot-standards.md](docs/slot-standards.md)
