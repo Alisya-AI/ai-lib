@@ -129,5 +129,6 @@
       "output": "GEMINI.md",
       "template": "targets/gemini.md.tmpl"
     }
-  }
+  },
+  "skills": {}
 }

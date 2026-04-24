@@ -32,12 +32,29 @@ interface AliasMeta {
   remove_in: string;
 }
 
+interface SkillCompatibility {
+  languages?: string[];
+  modules?: string[];
+  targets?: string[];
+  llms?: string[];
+}
+
+interface SkillDef {
+  display: string;
+  description?: string;
+  path: string;
+  requires?: string[];
+  conflicts_with?: string[];
+  compatible?: SkillCompatibility;
+}
+
 interface Registry {
   slots?: string[];
   slot_defs?: Record<string, SlotDef>;
   slot_aliases?: Record<string, string>;
   slot_alias_meta?: Record<string, AliasMeta>;
   languages?: Record<string, LanguageDef>;
+  skills?: Record<string, SkillDef>;
 }
 
 async function loadRegistry(): Promise<Registry> {
@@ -209,4 +226,31 @@ test('split registry and generated catalog are in sync', () => {
 
   run('tools/sync-registry.ts', '--check');
   run('tools/generate-module-catalog.ts', '--check');
+});
+
+test('registry skills contract is well-formed', async () => {
+  const registry = await loadRegistry();
+  const skills = registry.skills || {};
+
+  for (const [skillId, skillDef] of Object.entries(skills)) {
+    assert.ok(skillDef.display.trim().length > 0, `skills.${skillId}.display must not be empty`);
+    assert.ok(skillDef.path.trim().length > 0, `skills.${skillId}.path must not be empty`);
+
+    const requires = skillDef.requires || [];
+    const conflicts = skillDef.conflicts_with || [];
+    const requiresSet = new Set(requires);
+    const conflictsSet = new Set(conflicts);
+
+    assert.equal(requires.length, requiresSet.size, `skills.${skillId}.requires must not contain duplicates`);
+    assert.equal(conflicts.length, conflictsSet.size, `skills.${skillId}.conflicts_with must not contain duplicates`);
+    assert.ok(!requiresSet.has(skillId), `skills.${skillId}.requires cannot contain itself`);
+    assert.ok(!conflictsSet.has(skillId), `skills.${skillId}.conflicts_with cannot contain itself`);
+
+    for (const dependency of requiresSet) {
+      assert.ok(
+        !conflictsSet.has(dependency),
+        `skills.${skillId} cannot both require and conflict with '${dependency}'`
+      );
+    }
+  }
 });
