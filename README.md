@@ -6,6 +6,7 @@
 
 - Creates and updates `.ailib/` pointer files from the built-in registry.
 - Generates target-specific instruction files (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`).
+- Installs and validates reusable AI skills for architecture, RFCs, DACI, design review, and delivery flow.
 - Supports monorepos with root + service workspaces.
 - Verifies generated files with `ailib doctor`.
 

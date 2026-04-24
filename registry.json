@@ -258,7 +258,134 @@
       "template": "targets/gemini.md.tmpl"
     }
   },
-  "skills": {},
+  "skills": {
+    "architecture-decision-flow": {
+      "display": "Architecture decision flow",
+      "description": "Drive architecture decisions end-to-end using RFC and DACI, from problem framing to rollout review.",
+      "path": "skills/architecture-decision-flow.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "rfc-authoring": {
+      "display": "RFC authoring",
+      "description": "Write concise RFCs with context, options, tradeoffs, recommendation, and rollout planning.",
+      "path": "skills/rfc-authoring.md",
+      "requires": [
+        "architecture-decision-flow"
+      ],
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "daci-facilitation": {
+      "display": "DACI facilitation",
+      "description": "Establish DACI ownership and run efficient decision reviews with clear accountability.",
+      "path": "skills/daci-facilitation.md",
+      "requires": [
+        "architecture-decision-flow"
+      ],
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "design-review-checklist": {
+      "display": "Design review checklist",
+      "description": "Run consistent technical design reviews for correctness, operability, security, and maintainability.",
+      "path": "skills/design-review-checklist.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "delivery-flow-refinement": {
+      "display": "Delivery flow refinement",
+      "description": "Improve software delivery flow by reducing bottlenecks across planning, implementation, review, and release.",
+      "path": "skills/delivery-flow-refinement.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    }
+  },
   "languages": {
     "go": {
       "display": "Go",
