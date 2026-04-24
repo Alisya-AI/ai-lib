@@ -15,6 +15,10 @@ Core commands:
 - `ailib slots list`
 - `ailib modules list`
 - `ailib modules explain <module>`
+- `ailib skills list`
+- `ailib skills explain <skill-id>`
+- `ailib skills init <skill-id>`
+- `ailib skills validate`
 
 ## Single-repo flow
 
@@ -120,6 +124,98 @@ Explain one module:
 ailib modules explain prisma --language=typescript
 ```
 
+List available skills:
+
+```bash
+ailib skills list
+```
+
+Explain one skill:
+
+```bash
+ailib skills explain task-driven-gh-flow
+```
+
+## Skills workflow (select, override, author)
+
+### 1) Select skills in workspace config
+
+Add `skills` to `ailib.config.json`:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint"],
+  "targets": ["claude-code", "cursor"],
+  "skills": ["task-driven-gh-flow"]
+}
+```
+
+Apply and validate:
+
+```bash
+ailib update
+ailib doctor
+```
+
+### 2) Override skill selection locally
+
+Use `ailib.local.json` to add/remove/set skills without changing managed config:
+
+```json
+{
+  "version": "1.0.0",
+  "default_override": {
+    "skills": {
+      "add": ["task-driven-gh-flow"]
+    }
+  },
+  "workspace_overrides": {
+    "apps/web": {
+      "skills": {
+        "remove": ["task-driven-gh-flow"]
+      }
+    }
+  }
+}
+```
+
+Then regenerate:
+
+```bash
+ailib update
+```
+
+### 3) Author a new skill scaffold
+
+Create a new skill file:
+
+```bash
+ailib skills init release-manager --workspace=apps/web --description="Release orchestration workflow"
+```
+
+This writes a scaffold to `.cursor/skills/release-manager/SKILL.md` in the target workspace (or a custom path when `--path` is provided).
+
+### 4) Validate authored skills
+
+Validate all skill files in the target workspace:
+
+```bash
+ailib skills validate --workspace=apps/web
+```
+
+Validate a single skill file:
+
+```bash
+ailib skills validate --path=.cursor/skills/release-manager/SKILL.md
+```
+
+Validation checks include:
+
+- Required frontmatter keys (`name`, `description`)
+- Required sections (`## Purpose`, `## Workflow`)
+- Compatibility declaration shape (`compatible_languages`, `compatible_modules`, `compatible_targets`, `compatible_llms`)
+
 ## Local override workflow
 
 Use `ailib.local.json` to customize local targets/modules/slots without changing managed `ailib.config.json`.
@@ -164,6 +260,9 @@ Reference model and schema:
 - `Unknown module` / `Unknown module for <language>`:
   - run `ailib modules list --language=<lang>` and use exact module id.
 
+- `Unknown skill`:
+  - run `ailib skills list` and use an exact skill id.
+
 - `Missing ailib.config.json` in workspace:
   - run `ailib init` in that workspace (or root for monorepo-first flow).
 
@@ -176,6 +275,10 @@ Reference model and schema:
 - `Invalid ailib.local.json`:
   - fix invalid keys or unknown references reported by error output
   - re-run `ailib update`, then `ailib doctor`.
+
+- `skills validate failed`:
+  - fix the reported frontmatter/section issues in each listed `SKILL.md`
+  - re-run `ailib skills validate` until it passes.
 
 ## Recommended validation loop
 
