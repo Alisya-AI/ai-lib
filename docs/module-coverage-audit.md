@@ -5,8 +5,8 @@ Run `bun tools/generate-coverage-audit.ts` after registry/module documentation c
 
 ## Summary
 
-- Registry modules: **37**
-- Module docs: **37**
+- Registry modules: **39**
+- Module docs: **39**
 - Canonical slots: **28**
 
 ## Coverage by Language
@@ -58,8 +58,8 @@ Run `bun tools/generate-coverage-audit.ts` after registry/module documentation c
 
 ### TypeScript (`typescript`)
 
-- Registry modules: 31
-- Module docs: 31
+- Registry modules: 33
+- Module docs: 33
 - Missing docs: 0
 - Orphan docs: 0
 - Frontmatter issues: 0
@@ -67,8 +67,8 @@ Run `bun tools/generate-coverage-audit.ts` after registry/module documentation c
 
 ## Slot Usage
 
-- `linter`: 3 module(s)
-  - `python:ruff`, `typescript:eslint`, `typescript:biome`
+- `linter`: 5 module(s)
+  - `python:ruff`, `typescript:eslint`, `typescript:typescript-eslint`, `typescript:eslint-js`, `typescript:biome`
 - `formatter`: 2 module(s)
   - `python:black`, `typescript:prettier`
 - `package_manager`: 4 module(s)
