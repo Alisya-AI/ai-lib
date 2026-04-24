@@ -93,6 +93,8 @@ Core: `languages/typescript/core.md`
 
 - `biome` — requires: (none); conflicts: eslint, prettier
 - `eslint` — requires: (none); conflicts: biome
+- `eslint-js` — requires: eslint; conflicts: biome
+- `typescript-eslint` — requires: eslint; conflicts: biome
 
 #### formatter
 
