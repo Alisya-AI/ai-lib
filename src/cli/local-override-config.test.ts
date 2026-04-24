@@ -30,6 +30,12 @@ const registry: Registry = {
   },
   targets: {
     cursor: { output: '.cursor/rules' }
+  },
+  skills: {
+    'task-driven-gh-flow': {
+      display: 'Task-driven GH flow',
+      path: '.cursor/skills/task-driven-gh-flow/SKILL.md'
+    }
   }
 };
 
@@ -84,7 +90,8 @@ test('loadLocalOverrideConfig accepts a valid override file', async () => {
   const config: LocalOverrideConfig = {
     version: '1',
     default_override: {
-      modules: { set: ['eslint'] }
+      modules: { set: ['eslint'] },
+      skills: { add: ['task-driven-gh-flow'] }
     }
   };
   await fs.writeFile(path.join(rootDir, 'ailib.local.json'), `${JSON.stringify(config, null, 2)}\n`, 'utf8');

@@ -26,6 +26,12 @@ const registry: Registry = {
   targets: {
     'claude-code': { output: 'CLAUDE.md' },
     cursor: { output: '.cursor/rules/ailib.mdc' }
+  },
+  skills: {
+    'task-driven-gh-flow': {
+      display: 'Task-driven GH flow',
+      path: '.cursor/skills/task-driven-gh-flow/SKILL.md'
+    }
   }
 };
 
@@ -65,6 +71,19 @@ test('validateWorkspaceOverride validates non-object values and unsupported keys
   });
 
   assert.match(errors.join('\n'), /'default_override' has unsupported key 'unknown'/);
+});
+
+test('validateWorkspaceOverride validates skills scope and unknown values', () => {
+  const errors = validateWorkspaceOverride({
+    override: {
+      skills: { set: ['task-driven-gh-flow', 'unknown-skill'] }
+    },
+    label: 'default_override',
+    registry,
+    canonicalSlot: (slot) => slot ?? null
+  });
+
+  assert.match(errors.join('\n'), /contains unknown skill 'unknown-skill'/);
 });
 
 test('validateWorkspaceOverride validates slots and alias resolution', () => {

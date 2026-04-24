@@ -7,6 +7,7 @@ export function mergeWorkspaceOverrides(
   return {
     targets: mergeListOverrideScope(base?.targets, workspace?.targets),
     modules: mergeListOverrideScope(base?.modules, workspace?.modules),
+    skills: mergeListOverrideScope(base?.skills, workspace?.skills),
     slots: {
       ...(base?.slots || {}),
       ...(workspace?.slots || {})
