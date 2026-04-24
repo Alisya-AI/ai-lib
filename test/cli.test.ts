@@ -296,6 +296,32 @@ test('add and remove enforce module argument', async () => {
   await assert.rejects(run(['remove'], { cwd: root, packageRoot }), /Usage: ailib remove <module>/);
 });
 
+test('skills init scaffolds skill file in target workspace', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+
+  await run(
+    ['skills', 'init', 'release-manager', '--workspace=apps/web', '--description=Release orchestration workflow'],
+    {
+      cwd: root,
+      packageRoot
+    }
+  );
+
+  const skillPath = path.join(root, 'apps', 'web', '.cursor', 'skills', 'release-manager', 'SKILL.md');
+  assert.equal(await exists(skillPath), true);
+  const content = await fs.readFile(skillPath, 'utf8');
+  assert.match(content, /name: release-manager/);
+  assert.match(content, /description: Release orchestration workflow/);
+});
+
 test('doctor validates all workspaces and keeps healthy status', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {

@@ -7,6 +7,7 @@ import {
   removeCommand as runRemoveCommand,
   updateCommand as runUpdateCommand
 } from './module-mutations.ts';
+import { skillsCommand as runSkillsCommand } from './skills.ts';
 import { uninstallCommand as runUninstallCommand } from './uninstall.ts';
 
 export type CanonicalSlotResolver = (registry: Registry, slot: string | undefined) => string | null;
@@ -26,6 +27,7 @@ type Runners = {
   uninstallCommand: typeof runUninstallCommand;
   slotsCommand: typeof runSlotsCommand;
   modulesCommand: typeof runModulesCommand;
+  skillsCommand: typeof runSkillsCommand;
 };
 
 const DEFAULT_RUNNERS: Runners = {
@@ -36,7 +38,8 @@ const DEFAULT_RUNNERS: Runners = {
   doctorCommand: runDoctorCommand,
   uninstallCommand: runUninstallCommand,
   slotsCommand: runSlotsCommand,
-  modulesCommand: runModulesCommand
+  modulesCommand: runModulesCommand,
+  skillsCommand: runSkillsCommand
 };
 
 export function createCommandHandlers({
@@ -112,6 +115,7 @@ export function createCommandHandlers({
           applyWorkspaceUpdate({ packageRoot: rootPackage, rootDir, forceOnConflict })
       }),
     slots: async ({ packageRoot, flags }: CommandContext) => runners.slotsCommand({ packageRoot, flags }),
-    modules: async ({ packageRoot, flags }: CommandContext) => runners.modulesCommand({ packageRoot, flags })
+    modules: async ({ packageRoot, flags }: CommandContext) => runners.modulesCommand({ packageRoot, flags }),
+    skills: async ({ cwd, flags }: CommandContext) => runners.skillsCommand({ cwd, flags })
   };
 }

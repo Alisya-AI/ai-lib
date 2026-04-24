@@ -20,7 +20,8 @@ test('createCommandHandlers wires calls to provided runners', async () => {
     doctorCommand: async () => void calls.push('doctor'),
     uninstallCommand: async () => void calls.push('uninstall'),
     slotsCommand: async () => void calls.push('slots'),
-    modulesCommand: async () => void calls.push('modules')
+    modulesCommand: async () => void calls.push('modules'),
+    skillsCommand: async () => void calls.push('skills')
   };
 
   const handlers = createCommandHandlers({
@@ -40,6 +41,7 @@ test('createCommandHandlers wires calls to provided runners', async () => {
   await handlers.uninstall(context);
   await handlers.slots(context);
   await handlers.modules(context);
+  await handlers.skills(context);
 
-  assert.deepEqual(calls, ['init', 'update', 'add', 'remove', 'doctor', 'uninstall', 'slots', 'modules']);
+  assert.deepEqual(calls, ['init', 'update', 'add', 'remove', 'doctor', 'uninstall', 'slots', 'modules', 'skills']);
 });
