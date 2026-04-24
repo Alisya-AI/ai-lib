@@ -18,6 +18,7 @@ Use this workflow for every roadmap or backlog implementation task.
 7. Set real GitHub Issue Types (`Epic`, `Story`, `Task`) on every created item; never rely only on title prefixes.
 8. Keep `Phase XX` in Epic titles only. Story and Task titles must be clean, without `[Phase XX][Story]` or `[Phase XX][Task]` prefixes.
 9. Add all created items to the target GitHub Project and set required fields (at minimum `Status` and `Team` when configured).
+10. Every task issue must show its PR in the GitHub issue `Development` field (not only in comments/body links).
 
 ## Default PR Metadata
 
@@ -119,12 +120,14 @@ PR requirements:
   - Test plan checklist
   - `Refs #<task>`
 - Set assignee and label at creation time.
+- Verify the task issue `Development` field shows the created PR link.
 
 ## 7) Sync task issue immediately after PR creation
 
 - Update task body checkboxes to reflect progress.
 - Maintain a `## Mapped PRs` section and append the PR.
 - Add a short comment like `Implemented in #<pr>`.
+- Confirm `Development` still references the PR after any PR body/title edits.
 
 ## 8) Post-merge sync (mandatory before next task)
 
