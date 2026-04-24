@@ -160,6 +160,22 @@ ailib update
 ailib doctor
 ```
 
+### 1.1) Choose umbrella vs focused architecture skills
+
+Use `architecture-decision-flow` as the umbrella skill when your team needs an end-to-end decision workflow that spans framing, RFC drafting, DACI alignment, rollout planning, and retrospective follow-up.
+
+Use focused skills when you only need one part of that flow:
+
+- `rfc-authoring`: writing or reviewing RFC content and tradeoffs.
+- `daci-facilitation`: decision role alignment and review facilitation.
+- `design-review-checklist`: design quality/risk checks before implementation.
+- `delivery-flow-refinement`: implementation sequencing, rollout safety, and verification loops.
+
+Practical default:
+
+- Start with `architecture-decision-flow` for cross-team or high-impact changes.
+- Add focused skills for deep dives in specific steps (for example RFC-heavy or review-heavy work).
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
