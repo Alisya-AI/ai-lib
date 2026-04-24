@@ -141,11 +141,26 @@ test('modules explain rejects unknown module in requested language', async () =>
   );
 });
 
-test('skills list prints discovery header', async () => {
+test('skills list and explain include built-in architecture skills', async () => {
   const listOutput = await captureStdout(async () => {
     await run(['skills', 'list'], { packageRoot });
   });
   assert.match(listOutput, /skills:/);
+  assert.match(listOutput, /- architecture-decision-flow - Architecture decision flow/);
+  assert.match(listOutput, /- rfc-authoring - RFC authoring/);
+
+  const explainArchitecture = await captureStdout(async () => {
+    await run(['skills', 'explain', 'architecture-decision-flow'], { packageRoot });
+  });
+  assert.match(explainArchitecture, /skill: architecture-decision-flow/);
+  assert.match(explainArchitecture, /path: skills\/architecture-decision-flow\.md/);
+  assert.match(explainArchitecture, /compatible.targets: .*claude-code/);
+
+  const explainRfc = await captureStdout(async () => {
+    await run(['skills', 'explain', 'rfc-authoring'], { packageRoot });
+  });
+  assert.match(explainRfc, /skill: rfc-authoring/);
+  assert.match(explainRfc, /requires: architecture-decision-flow/);
 });
 
 test('skills explain rejects unknown skill id', async () => {
