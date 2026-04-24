@@ -135,7 +135,7 @@ If the list is empty, no skills are currently registered in your project registr
 Explain one skill:
 
 ```bash
-ailib skills explain <skill-id>
+ailib skills explain architecture-decision-flow
 ```
 
 ## Skills workflow (select, override, author)
@@ -149,7 +149,7 @@ Add `skills` to `ailib.config.json`:
   "language": "typescript",
   "modules": ["eslint"],
   "targets": ["claude-code", "cursor"],
-  "skills": ["<skill-id-from-registry>"]
+  "skills": ["architecture-decision-flow"]
 }
 ```
 
