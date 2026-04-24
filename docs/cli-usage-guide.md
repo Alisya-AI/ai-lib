@@ -229,6 +229,34 @@ Practical quality-skill bundle:
 - Add `clean-code-refactoring` whenever implementation requires structural cleanup to stay maintainable.
 - Keep `code-review-rigor` active for final review gates, especially on user-impacting or high-blast-radius changes.
 
+### 1.4) Select release-readiness for rollout confidence
+
+Use `release-readiness` when work is close to merge or release and you need explicit checks for rollout safety, rollback ownership, and post-merge verification.
+
+Practical selection examples:
+
+- Pair `delivery-flow-refinement` + `release-readiness` when implementation sequencing is done and the next risk is safe rollout execution.
+- Use `release-readiness` alone for low-code operational changes (for example config toggles) where checklist discipline matters more than architecture planning.
+- Add `release-readiness` alongside `code-review-rigor` on reliability-critical changes that need both code-level scrutiny and operational go-live gates.
+
+Release-focused workspace override in `ailib.local.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "workspace_overrides": {
+    "apps/api": {
+      "skills": {
+        "add": ["release-readiness"],
+        "remove": ["daci-facilitation"]
+      }
+    }
+  }
+}
+```
+
+Use this when API changes are implementation-complete and the main concern shifts to release window checks, rollback paths, and early production monitoring.
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
