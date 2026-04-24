@@ -19,6 +19,7 @@ function state(targets: string[], inheritedModules: string[] = [], localModules:
       language: 'typescript',
       modules: [...inheritedModules, ...localModules],
       targets,
+      skills: [],
       docs_path: 'docs/',
       inheritedModules,
       localModules,

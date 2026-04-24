@@ -26,6 +26,22 @@ export interface TargetDefinition {
   };
 }
 
+export interface SkillCompatibility {
+  languages?: string[];
+  modules?: string[];
+  targets?: string[];
+  llms?: string[];
+}
+
+export interface SkillDefinition {
+  display: string;
+  path: string;
+  description?: string;
+  requires?: string[];
+  conflicts_with?: string[];
+  compatible?: SkillCompatibility;
+}
+
 export interface SlotDefinition {
   kind?: 'exclusive' | 'composable';
   description?: string;
@@ -45,6 +61,7 @@ export interface Registry {
   slot_alias_meta?: Record<string, SlotAliasMeta>;
   languages: Record<string, LanguageDefinition>;
   targets: Record<string, TargetDefinition>;
+  skills?: Record<string, SkillDefinition>;
 }
 
 export interface WorkspaceConfig {
@@ -55,6 +72,7 @@ export interface WorkspaceConfig {
   language?: string;
   modules?: string[];
   targets?: string[];
+  skills?: string[];
   targets_removed?: string[];
   docs_path?: string;
   workspaces?: string[];
@@ -87,6 +105,7 @@ export interface EffectiveWorkspaceConfig extends WorkspaceConfig {
   language: string;
   modules: string[];
   targets: string[];
+  skills: string[];
   docs_path: string;
   inheritedModules: string[];
   localModules: string[];
