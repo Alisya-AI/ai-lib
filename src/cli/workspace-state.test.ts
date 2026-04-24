@@ -237,3 +237,43 @@ test('getEffectiveWorkspaceConfig inherits parent modules in non-root workspace'
   assert.deepEqual(effective.localSkills, []);
   assert.deepEqual(effective.skills, ['task-driven-gh-flow']);
 });
+
+test('getEffectiveWorkspaceConfig merges inherited and local skills in workspace', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/web');
+  const rootWithWorkspaces: WorkspaceConfig = {
+    ...rootConfig,
+    skills: ['task-driven-gh-flow'],
+    workspaces: ['apps/*']
+  };
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(path.join(rootDir, configFile), `${JSON.stringify(rootWithWorkspaces, null, 2)}\n`, 'utf8');
+  await fs.writeFile(
+    path.join(workspaceDir, configFile),
+    `${JSON.stringify(
+      {
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor'],
+        skills: ['task-driven-gh-flow', 'code-review']
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  const effective = await getEffectiveWorkspaceConfig({
+    workspaceDir,
+    rootDir,
+    rootConfig: rootWithWorkspaces,
+    registry,
+    canonicalSlot,
+    configFile,
+    localOverrideFile
+  });
+
+  assert.deepEqual(effective.skills, ['task-driven-gh-flow', 'code-review']);
+  assert.deepEqual(effective.inheritedSkills, ['task-driven-gh-flow']);
+  assert.deepEqual(effective.localSkills, ['code-review']);
+});
