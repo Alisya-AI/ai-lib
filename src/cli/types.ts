@@ -92,6 +92,7 @@ export interface SlotOverrideRule {
 export interface WorkspaceOverrideConfig {
   targets?: ListOverrideScope;
   modules?: ListOverrideScope;
+  skills?: ListOverrideScope;
   slots?: Record<string, SlotOverrideRule>;
 }
 

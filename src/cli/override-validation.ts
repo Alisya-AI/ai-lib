@@ -16,7 +16,7 @@ export function validateWorkspaceOverride({
     return [`'${label}' must be an object`];
   }
 
-  const allowed = new Set(['targets', 'modules', 'slots']);
+  const allowed = new Set(['targets', 'modules', 'skills', 'slots']);
   for (const key of Object.keys(override)) {
     if (!allowed.has(key)) {
       errors.push(`'${label}' has unsupported key '${key}'`);
@@ -40,6 +40,17 @@ export function validateWorkspaceOverride({
         scope: override.modules,
         label: `${label}.modules`,
         valueLabel: 'module'
+      })
+    );
+  }
+
+  if (override.skills !== undefined) {
+    errors.push(
+      ...validateListOverrideScope({
+        scope: override.skills,
+        label: `${label}.skills`,
+        validSet: new Set(Object.keys(registry.skills || {})),
+        valueLabel: 'skill'
       })
     );
   }

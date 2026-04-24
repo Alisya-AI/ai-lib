@@ -30,11 +30,20 @@ const registry: Registry = {
 
 test('mergeWorkspaceOverrides merges list scopes and slot overrides', () => {
   const merged = mergeWorkspaceOverrides(
-    { targets: { add: ['claude-code'] }, slots: { linter: { set: 'eslint' } } },
-    { targets: { remove: ['claude-code'] }, slots: { framework: { set: 'nextjs' } } }
+    {
+      targets: { add: ['claude-code'] },
+      skills: { add: ['task-driven-gh-flow'] },
+      slots: { linter: { set: 'eslint' } }
+    },
+    {
+      targets: { remove: ['claude-code'] },
+      skills: { remove: ['task-driven-gh-flow'] },
+      slots: { framework: { set: 'nextjs' } }
+    }
   );
 
   assert.deepEqual(merged.targets, { set: undefined, add: ['claude-code'], remove: ['claude-code'] });
+  assert.deepEqual(merged.skills, { set: undefined, add: ['task-driven-gh-flow'], remove: ['task-driven-gh-flow'] });
   assert.deepEqual(merged.slots, { linter: { set: 'eslint' }, framework: { set: 'nextjs' } });
 });
 
