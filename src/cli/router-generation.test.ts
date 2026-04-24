@@ -10,7 +10,13 @@ async function tempDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), 'ailib-router-generation-'));
 }
 
-function state(targets: string[], inheritedModules: string[] = [], localModules: string[] = []): WorkspaceState {
+function state(
+  targets: string[],
+  inheritedModules: string[] = [],
+  localModules: string[] = [],
+  inheritedSkills: string[] = [],
+  localSkills: string[] = []
+): WorkspaceState {
   return {
     effective: {
       $schema: 'https://ailib.dev/schema/config.schema.json',
@@ -19,18 +25,18 @@ function state(targets: string[], inheritedModules: string[] = [], localModules:
       language: 'typescript',
       modules: [...inheritedModules, ...localModules],
       targets,
-      skills: [],
+      skills: [...inheritedSkills, ...localSkills],
       docs_path: 'docs/',
       inheritedModules,
       localModules,
-      inheritedSkills: [],
-      localSkills: [],
+      inheritedSkills,
+      localSkills,
       warnings: []
     },
     inheritedModules,
     localModules,
-    inheritedSkills: [],
-    localSkills: [],
+    inheritedSkills,
+    localSkills,
     requiredFiles: [],
     warnings: []
   };
@@ -60,19 +66,23 @@ test('renderRouterDoc renders root and service docs with correct references', ()
     label: 'Cursor',
     workspaceDir: rootDir,
     rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'])
+    state: state(['cursor'], ['eslint'], ['pytest'], [], ['task-driven-gh-flow'])
   });
   assert.match(rootDoc, /Act as the AI Agent defined in @\.ailib\/behavior\.md/);
   assert.match(rootDoc, /- @\.ailib\/modules\/pytest\.md/);
+  assert.match(rootDoc, /# SKILLS/);
+  assert.match(rootDoc, /- @\.ailib\/skills\/task-driven-gh-flow\.md/);
 
   const serviceDoc = renderRouterDoc({
     label: 'Cursor',
     workspaceDir: '/repo/apps/api',
     rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'])
+    state: state(['cursor'], ['eslint'], ['pytest'], ['task-driven-gh-flow'], ['local-skill'])
   });
   assert.match(serviceDoc, /@\.\.\/\.\.\/\.ailib\/behavior\.md/);
   assert.match(serviceDoc, /consult @\.\.\/\.\.\/docs\//);
+  assert.match(serviceDoc, /- @\.\.\/\.\.\/\.ailib\/skills\/task-driven-gh-flow\.md/);
+  assert.match(serviceDoc, /- @\.ailib\/skills\/local-skill\.md/);
 });
 
 test('generateWorkspaceRouters writes target outputs and copilot bundle', async () => {

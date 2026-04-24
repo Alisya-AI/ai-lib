@@ -148,11 +148,18 @@ export function renderRouterDoc({
 
   const localModuleLines = state.localModules.map((mod) => `- @.ailib/modules/${mod}.md`);
   const moduleLines = [...inheritedModuleLines, ...localModuleLines];
+  const inheritedSkillLines = state.inheritedSkills.map((skill) => {
+    const skillPath = `@${toPosix(path.join(relToRoot, '.ailib/skills', `${skill}.md`))}`;
+    return `- ${skillPath}`;
+  });
+  const localSkillLines = state.localSkills.map((skill) => `- @.ailib/skills/${skill}.md`);
+  const skillLines = [...inheritedSkillLines, ...localSkillLines];
   const docsBlock =
     path.resolve(workspaceDir) === path.resolve(rootDir)
       ? '# PROJECT-SPECIFIC CONTEXT\nPrioritize project context in @./docs/.\n'
       : `# PROJECT-SPECIFIC CONTEXT\nPrioritize service-local business logic in @./docs/.\nFor cross-service context, consult @${toPosix(path.join(relToRoot, 'docs/'))}.\nIf guidance conflicts, service-local docs win for service-scoped work.\n`;
 
   const modulesText = moduleLines.length ? moduleLines.join('\n') : '- (none)';
-  return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\nApply test and coverage rules in @.ailib/test-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n${docsBlock}`;
+  const skillsText = skillLines.length ? skillLines.join('\n') : '- (none)';
+  return `# ailib Router (${label})\n\n# AILIB SYSTEM PROMPT\nAct as the AI Agent defined in ${behaviorRef}.\nAdhere to the coding standards in @.ailib/standards.md.\nApply development workflow rules in @.ailib/development-standards.md.\nApply test and coverage rules in @.ailib/test-standards.md.\n\n# MODULES & EXTENSIONS\n${modulesText}\n\n# SKILLS\n${skillsText}\n\n${docsBlock}`;
 }
