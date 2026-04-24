@@ -166,6 +166,28 @@ test('ensureWorkspaceAssets prefers local custom skill over package source', asy
   );
 });
 
+test('ensureWorkspaceAssets prefers root local custom skill over package source', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  await fs.mkdir(path.join(rootDir, '.cursor/skills/task-driven-gh-flow'), { recursive: true });
+  await fs.writeFile(path.join(rootDir, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'root-local-skill', 'utf8');
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['task-driven-gh-flow']),
+    rootDir,
+    registry
+  });
+
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
+    'root-local-skill'
+  );
+});
+
 test('ensureWorkspaceAssets fails with actionable message for missing local custom skill source', async () => {
   const rootDir = await tempDir();
   const workspaceDir = path.join(rootDir, 'apps/api');
