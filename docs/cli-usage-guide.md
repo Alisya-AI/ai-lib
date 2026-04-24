@@ -130,10 +130,12 @@ List available skills:
 ailib skills list
 ```
 
+If the list is empty, no skills are currently registered in your project registry yet.
+
 Explain one skill:
 
 ```bash
-ailib skills explain task-driven-gh-flow
+ailib skills explain <skill-id>
 ```
 
 ## Skills workflow (select, override, author)
@@ -147,7 +149,7 @@ Add `skills` to `ailib.config.json`:
   "language": "typescript",
   "modules": ["eslint"],
   "targets": ["claude-code", "cursor"],
-  "skills": ["task-driven-gh-flow"]
+  "skills": ["<skill-id-from-registry>"]
 }
 ```
 
