@@ -432,6 +432,102 @@
           "jetbrains"
         ]
       }
+    },
+    "release-readiness": {
+      "display": "Release readiness",
+      "description": "Validate a change is safe to release with checklist-driven checks, rollback preparation, and post-merge verification.",
+      "path": "skills/release-readiness.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "observability-design": {
+      "display": "Observability design",
+      "description": "Design observability across logs, metrics, traces, alerts, and dashboards to detect and diagnose production issues quickly.",
+      "path": "skills/observability-design.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "incident-review": {
+      "display": "Incident review",
+      "description": "Run a structured incident review with timeline reconstruction, contributing-factor analysis, action planning, and clear ownership.",
+      "path": "skills/incident-review.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
+    },
+    "migration-planning": {
+      "display": "Migration planning",
+      "description": "Plan data and API migrations with phased rollouts, compatibility safeguards, and tested fallback paths.",
+      "path": "skills/migration-planning.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
     }
   },
   "languages": {
