@@ -257,6 +257,50 @@ Release-focused workspace override in `ailib.local.json`:
 
 Use this when API changes are implementation-complete and the main concern shifts to release window checks, rollback paths, and early production monitoring.
 
+### 1.5) Bundle defaults plus workspace overrides
+
+Use `ailib.config.json` for baseline bundle intent, then refine by workspace in `ailib.local.json`.
+
+Baseline bundle in `ailib.config.json`:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint", "vitest"],
+  "targets": ["claude-code", "cursor", "copilot"],
+  "skills": [
+    "architecture-decision-flow",
+    "design-review-checklist",
+    "test-strategy-design",
+    "release-readiness",
+    "observability-design"
+  ]
+}
+```
+
+Workspace overrides in `ailib.local.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "workspace_overrides": {
+    "apps/api": {
+      "skills": {
+        "add": ["migration-planning", "incident-review"]
+      }
+    },
+    "apps/web": {
+      "skills": {
+        "add": ["delivery-flow-refinement"],
+        "remove": ["migration-planning"]
+      }
+    }
+  }
+}
+```
+
+Use this when you need one cross-repo default bundle but different operational emphasis per workspace.
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
