@@ -326,6 +326,24 @@
             "biome"
           ]
         },
+        "typescript-eslint": {
+          "slot": "linter",
+          "requires": [
+            "eslint"
+          ],
+          "conflicts_with": [
+            "biome"
+          ]
+        },
+        "eslint-js": {
+          "slot": "linter",
+          "requires": [
+            "eslint"
+          ],
+          "conflicts_with": [
+            "biome"
+          ]
+        },
         "biome": {
           "slot": "linter",
           "conflicts_with": [

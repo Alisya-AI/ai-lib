@@ -3,6 +3,8 @@
   "path": "languages/typescript/core.md",
   "modules": {
     "eslint": { "slot": "linter", "conflicts_with": ["biome"] },
+    "typescript-eslint": { "slot": "linter", "requires": ["eslint"], "conflicts_with": ["biome"] },
+    "eslint-js": { "slot": "linter", "requires": ["eslint"], "conflicts_with": ["biome"] },
     "biome": { "slot": "linter", "conflicts_with": ["eslint", "prettier"] },
     "prettier": { "slot": "formatter", "conflicts_with": ["biome"] },
     "bun": { "slot": "package_manager", "conflicts_with": ["npm", "pnpm", "yarn"] },
