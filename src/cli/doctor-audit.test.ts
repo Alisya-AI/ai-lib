@@ -32,13 +32,32 @@ test('auditWorkspaceRequiredFiles reports pointer and frontmatter issues', async
   assert.doesNotMatch(joined, /Missing pointer file/);
 });
 
-test('auditWorkspaceRequiredFiles skips frontmatter validation for skill pointers', async () => {
+test('auditWorkspaceRequiredFiles validates skill frontmatter keys', async () => {
   const workspaceDir = await tempDir();
   const requiredFiles = ['.ailib/skills/task-driven-gh-flow.md'];
   await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
   await fs.writeFile(
     path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'),
     '---\nname: task-driven-gh-flow\n---\ncontent',
+    'utf8'
+  );
+
+  const errors = await auditWorkspaceRequiredFiles({
+    workspaceDir,
+    workspaceLabel: '.',
+    requiredFiles
+  });
+
+  assert.match(errors.join('\n'), /Skill frontmatter missing 'description': \.ailib\/skills\/task-driven-gh-flow\.md/);
+});
+
+test('auditWorkspaceRequiredFiles accepts valid skill frontmatter', async () => {
+  const workspaceDir = await tempDir();
+  const requiredFiles = ['.ailib/skills/task-driven-gh-flow.md'];
+  await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'),
+    '---\nname: task-driven-gh-flow\ndescription: Track GH tasks\n---\ncontent',
     'utf8'
   );
 

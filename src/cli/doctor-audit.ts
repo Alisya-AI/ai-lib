@@ -23,11 +23,18 @@ export async function auditWorkspaceRequiredFiles({
   for (const rel of requiredFiles) {
     const full = path.join(workspaceDir, rel);
     if (!(await exists(full))) continue;
-    if (rel.includes('/skills/')) continue;
     const text = await fs.readFile(full, 'utf8');
     const frontmatter = parseFrontmatter(text);
     if (!frontmatter) {
       errors.push(`[${workspaceLabel}] Missing frontmatter: ${rel}`);
+      continue;
+    }
+    if (rel.includes('/skills/')) {
+      for (const key of ['name', 'description']) {
+        if (!(key in frontmatter)) {
+          errors.push(`[${workspaceLabel}] Skill frontmatter missing '${key}': ${rel}`);
+        }
+      }
       continue;
     }
     for (const key of ['id', 'version', 'updated']) {
