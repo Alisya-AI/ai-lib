@@ -4,6 +4,7 @@ import { ensure } from './assertions.ts';
 import { resolveContext, resolveDefaultWorkspaceForMutation } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
 import { renderSkillTemplate } from './skill-template.ts';
+import { skillsValidateCommand } from './skills-validate.ts';
 import type { CliFlags } from './types.ts';
 
 const SKILL_ID_RE = /^[a-z0-9][a-z0-9-]*$/;
@@ -14,8 +15,12 @@ export async function skillsCommand({ cwd, flags }: { cwd: string; flags: CliFla
     await skillsInitCommand({ cwd, flags });
     return;
   }
+  if (sub === 'validate') {
+    await skillsValidateCommand({ cwd, flags });
+    return;
+  }
   throw new Error(
-    'Usage: ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]'
+    'Usage: ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force] | ailib skills validate [--workspace=<path>] [--path=<path>]'
   );
 }
 

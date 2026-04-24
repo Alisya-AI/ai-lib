@@ -322,6 +322,30 @@ test('skills init scaffolds skill file in target workspace', async () => {
   assert.match(content, /description: Release orchestration workflow/);
 });
 
+test('skills validate reports workspace skill quality issues', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+  await run(['skills', 'init', 'release-manager', '--workspace=apps/web'], { cwd: root, packageRoot });
+
+  await run(['skills', 'validate', '--workspace=apps/web'], { cwd: root, packageRoot });
+
+  const invalid = path.join(root, 'apps', 'web', '.cursor', 'skills', 'broken', 'SKILL.md');
+  await fs.mkdir(path.dirname(invalid), { recursive: true });
+  await fs.writeFile(invalid, '---\nname: broken\n---\n# broken\n', 'utf8');
+
+  await assert.rejects(
+    run(['skills', 'validate', '--workspace=apps/web'], { cwd: root, packageRoot }),
+    /skills validate failed:/
+  );
+});
+
 test('doctor validates all workspaces and keeps healthy status', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
