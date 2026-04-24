@@ -141,6 +141,17 @@ test('modules explain rejects unknown module in requested language', async () =>
   );
 });
 
+test('skills list prints discovery header', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /skills:/);
+});
+
+test('skills explain rejects unknown skill id', async () => {
+  await assert.rejects(run(['skills', 'explain', 'missing-skill'], { packageRoot }), /Unknown skill: missing-skill/);
+});
+
 test('modules command rejects invalid subcommand usage', async () => {
   await assert.rejects(run(['modules', 'invalid-subcommand'], { packageRoot }), /Usage: ailib modules list/);
 });
