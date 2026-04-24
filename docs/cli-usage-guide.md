@@ -176,6 +176,44 @@ Practical default:
 - Start with `architecture-decision-flow` for cross-team or high-impact changes.
 - Add focused skills for deep dives in specific steps (for example RFC-heavy or review-heavy work).
 
+### 1.2) Architecture skill bundle examples
+
+Default architecture bundle in `ailib.config.json`:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint", "vitest"],
+  "targets": ["claude-code", "cursor", "copilot"],
+  "skills": ["architecture-decision-flow", "design-review-checklist"]
+}
+```
+
+Use this when teams want a strong default architecture workflow with routine design quality checks.
+
+Workspace-local refinement in `ailib.local.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "workspace_overrides": {
+    "apps/api": {
+      "skills": {
+        "add": ["rfc-authoring", "daci-facilitation"]
+      }
+    },
+    "apps/web": {
+      "skills": {
+        "add": ["delivery-flow-refinement"],
+        "remove": ["daci-facilitation"]
+      }
+    }
+  }
+}
+```
+
+Use this when backend architecture work needs heavier decision artifacts, while frontend delivery work needs rollout-focused guidance.
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
