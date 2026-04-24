@@ -91,7 +91,7 @@ export async function ensureWorkspaceAssets({
     for (const entry of await fs.readdir(skillDir)) {
       if (!entry.endsWith('.md')) continue;
       const id = entry.replace(/\.md$/u, '');
-      if (!localSkillSet.has(id)) await rmIfExists(path.join(skillDir, entry));
+      if (!localSkillSet.has(id) && registrySkills[id]) await rmIfExists(path.join(skillDir, entry));
     }
   }
 }
