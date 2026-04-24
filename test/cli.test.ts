@@ -183,6 +183,28 @@ test('skills list and explain include review and refactor skills', async () => {
   assert.match(explainReview, /path: skills\/code-review-rigor\.md/);
 });
 
+test('skills list and explain include reliability skills', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- release-readiness - Release readiness/);
+  assert.match(listOutput, /- observability-design - Observability design/);
+  assert.match(listOutput, /- incident-review - Incident review/);
+  assert.match(listOutput, /- migration-planning - Migration planning/);
+
+  const explainRelease = await captureStdout(async () => {
+    await run(['skills', 'explain', 'release-readiness'], { packageRoot });
+  });
+  assert.match(explainRelease, /skill: release-readiness/);
+  assert.match(explainRelease, /path: skills\/release-readiness\.md/);
+
+  const explainMigration = await captureStdout(async () => {
+    await run(['skills', 'explain', 'migration-planning'], { packageRoot });
+  });
+  assert.match(explainMigration, /skill: migration-planning/);
+  assert.match(explainMigration, /path: skills\/migration-planning\.md/);
+});
+
 test('skills explain rejects unknown skill id', async () => {
   await assert.rejects(run(['skills', 'explain', 'missing-skill'], { packageRoot }), /Unknown skill: missing-skill/);
 });
