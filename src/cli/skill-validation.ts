@@ -1,6 +1,18 @@
 import type { Registry } from './types.ts';
 
-export function validateSkillSelection({ registry, skills }: { registry: Registry; skills: string[] }) {
+export function validateSkillSelection({
+  registry,
+  skills,
+  language,
+  modules,
+  targets
+}: {
+  registry: Registry;
+  skills: string[];
+  language: string;
+  modules: string[];
+  targets: string[];
+}) {
   const selected = uniqueList(skills || []);
   const selectedSet = new Set(selected);
   const registrySkills = registry.skills || {};
@@ -14,6 +26,33 @@ export function validateSkillSelection({ registry, skills }: { registry: Registr
     for (const dependency of skillDef.requires || []) {
       if (!selectedSet.has(dependency)) {
         throw new Error(`Skill dependency missing: ${skillId} requires ${dependency}`);
+      }
+    }
+
+    const compatible = skillDef.compatible;
+    if (compatible?.languages?.length && !compatible.languages.includes(language)) {
+      throw new Error(
+        `Skill compatibility mismatch: ${skillId} supports languages [${compatible.languages.join(', ')}], got ${language}`
+      );
+    }
+
+    if (compatible?.targets?.length) {
+      const compatibleTargets = new Set(compatible.targets);
+      const targetMatch = uniqueList(targets).some((targetId) => compatibleTargets.has(targetId));
+      if (!targetMatch) {
+        throw new Error(
+          `Skill compatibility mismatch: ${skillId} supports targets [${compatible.targets.join(', ')}], got [${uniqueList(targets).join(', ')}]`
+        );
+      }
+    }
+
+    if (compatible?.modules?.length) {
+      const compatibleModules = new Set(compatible.modules);
+      const moduleMatch = uniqueList(modules).some((moduleId) => compatibleModules.has(moduleId));
+      if (!moduleMatch) {
+        throw new Error(
+          `Skill compatibility mismatch: ${skillId} supports modules [${compatible.modules.join(', ')}], got [${uniqueList(modules).join(', ')}]`
+        );
       }
     }
   }

@@ -21,7 +21,12 @@ const registry: Registry = {
     'code-review': {
       display: 'Code review workflow',
       path: '.cursor/skills/code-review/SKILL.md',
-      requires: ['task-driven-gh-flow']
+      requires: ['task-driven-gh-flow'],
+      compatible: {
+        languages: ['typescript'],
+        modules: ['eslint', 'biome'],
+        targets: ['cursor']
+      }
     },
     'release-manager': {
       display: 'Release manager workflow',
@@ -35,7 +40,10 @@ test('validateSkillSelection accepts valid dependency graph', () => {
   assert.doesNotThrow(() => {
     validateSkillSelection({
       registry,
-      skills: ['task-driven-gh-flow', 'code-review']
+      skills: ['task-driven-gh-flow', 'code-review'],
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor']
     });
   });
 });
@@ -45,7 +53,10 @@ test('validateSkillSelection rejects unknown skill id', () => {
     () =>
       validateSkillSelection({
         registry,
-        skills: ['unknown-skill']
+        skills: ['unknown-skill'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor']
       }),
     /Unsupported skill: unknown-skill/
   );
@@ -56,7 +67,10 @@ test('validateSkillSelection rejects missing required skill', () => {
     () =>
       validateSkillSelection({
         registry,
-        skills: ['code-review']
+        skills: ['code-review'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor']
       }),
     /Skill dependency missing: code-review requires task-driven-gh-flow/
   );
@@ -67,8 +81,53 @@ test('validateSkillSelection rejects conflicting skill set', () => {
     () =>
       validateSkillSelection({
         registry,
-        skills: ['task-driven-gh-flow', 'code-review', 'release-manager']
+        skills: ['task-driven-gh-flow', 'code-review', 'release-manager'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['cursor']
       }),
     /Skill conflict: release-manager conflicts with code-review/
+  );
+});
+
+test('validateSkillSelection rejects incompatible language', () => {
+  assert.throws(
+    () =>
+      validateSkillSelection({
+        registry,
+        skills: ['task-driven-gh-flow', 'code-review'],
+        language: 'python',
+        modules: ['eslint'],
+        targets: ['cursor']
+      }),
+    /Skill compatibility mismatch: code-review supports languages \[typescript\], got python/
+  );
+});
+
+test('validateSkillSelection rejects incompatible target selection', () => {
+  assert.throws(
+    () =>
+      validateSkillSelection({
+        registry,
+        skills: ['task-driven-gh-flow', 'code-review'],
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['copilot']
+      }),
+    /Skill compatibility mismatch: code-review supports targets \[cursor\], got \[copilot\]/
+  );
+});
+
+test('validateSkillSelection rejects incompatible module selection', () => {
+  assert.throws(
+    () =>
+      validateSkillSelection({
+        registry,
+        skills: ['task-driven-gh-flow', 'code-review'],
+        language: 'typescript',
+        modules: ['nextjs'],
+        targets: ['cursor']
+      }),
+    /Skill compatibility mismatch: code-review supports modules \[eslint, biome\], got \[nextjs\]/
   );
 });
