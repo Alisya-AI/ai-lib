@@ -246,7 +246,7 @@ Behavior:
 
 Reference model and schema:
 
-- [docs/local-override-model.md](docs/local-override-model.md)
+- [docs/local-override-model.md](local-override-model.md)
 - [schema/override.schema.json](../schema/override.schema.json)
 
 ## Troubleshooting
