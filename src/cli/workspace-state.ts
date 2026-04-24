@@ -129,6 +129,7 @@ export async function getEffectiveWorkspaceConfig({
     language,
     modules: mergedModules.modules,
     targets,
+    skills,
     canonicalSlot,
     localOverrideFile
   });
@@ -137,7 +138,7 @@ export async function getEffectiveWorkspaceConfig({
     inheritedModules: mergedModules.inheritedModules || []
   });
   const skillOwnership = splitListOwnership({
-    values: skills,
+    values: overrideResult.skills,
     inheritedValues: isRootWorkspace ? [] : base.skills || []
   });
 
@@ -148,7 +149,7 @@ export async function getEffectiveWorkspaceConfig({
     language,
     modules: overrideResult.modules,
     targets: overrideResult.targets,
-    skills,
+    skills: overrideResult.skills,
     inheritedModules: ownership.inherited,
     localModules: ownership.local,
     inheritedSkills: skillOwnership.inherited,
@@ -165,6 +166,7 @@ export async function applyLocalOverrides({
   language,
   modules,
   targets,
+  skills,
   canonicalSlot,
   localOverrideFile
 }: {
@@ -175,9 +177,10 @@ export async function applyLocalOverrides({
   language: string;
   modules: string[];
   targets: string[];
+  skills: string[];
   canonicalSlot: (slot: string | undefined) => string | null;
   localOverrideFile: string;
-}): Promise<{ modules: string[]; targets: string[]; warnings: string[] }> {
+}): Promise<{ modules: string[]; targets: string[]; skills: string[]; warnings: string[] }> {
   const warnings: string[] = [];
   const config = await loadLocalOverrideConfig({
     rootDir,
@@ -186,7 +189,7 @@ export async function applyLocalOverrides({
     canonicalSlot,
     localOverrideFile
   });
-  if (!config) return { modules, targets, warnings };
+  if (!config) return { modules, targets, skills, warnings };
 
   const workspaceKey =
     path.resolve(workspaceDir) === path.resolve(rootDir) ? '.' : toPosix(path.relative(rootDir, workspaceDir));
@@ -194,6 +197,7 @@ export async function applyLocalOverrides({
 
   const validTargets = new Set(Object.keys(registry.targets || {}));
   const validModules = new Set(Object.keys(registry.languages[language]?.modules || {}));
+  const validSkills = new Set(Object.keys(registry.skills || {}));
 
   const targetResult = applyListOverride({
     values: targets,
@@ -212,6 +216,15 @@ export async function applyLocalOverrides({
   });
   warnings.push(...moduleResult.warnings);
 
+  const skillResult = applyListOverride({
+    values: skills,
+    scope: override.skills,
+    validSet: validSkills,
+    label: 'skills',
+    localOverrideFile
+  });
+  warnings.push(...skillResult.warnings);
+
   const slotResult = applySlotOverrides({
     registry,
     language,
@@ -224,6 +237,7 @@ export async function applyLocalOverrides({
   return {
     modules: slotResult.modules,
     targets: targetResult.values,
+    skills: skillResult.values,
     warnings
   };
 }
