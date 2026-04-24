@@ -10,6 +10,7 @@ export function printHelp() {
       '  ailib slots list\n' +
       '  ailib modules list [--language=<lang>]\n' +
       '  ailib modules explain <module> [--language=<lang>]\n' +
-      '  ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]\n'
+      '  ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]\n' +
+      '  ailib skills validate [--workspace=<path>] [--path=<path>]\n'
   );
 }

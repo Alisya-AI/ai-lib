@@ -31,4 +31,5 @@ test('printHelp renders expected command listing', () => {
   assert.match(output, /ailib init/);
   assert.match(output, /ailib modules explain <module>/);
   assert.match(output, /ailib skills init <skill-id>/);
+  assert.match(output, /ailib skills validate/);
 });
