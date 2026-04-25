@@ -1,14 +1,15 @@
 # ailib
 
-`ailib` generates and maintains AI instruction files for your repo from a language + module + target configuration.
+`ailib` is a context-as-code CLI for AI tooling. It generates, validates, and keeps instruction files in sync across Claude Code, Cursor, Copilot, OpenAI, Gemini, and more from one shared configuration.
 
-## What it does
+## What you get
 
-- Creates and updates `.ailib/` pointer files from the built-in registry.
-- Generates target-specific instruction files (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`).
-- Installs and validates reusable AI skills for architecture, RFCs, DACI, design review, and delivery flow.
-- Supports monorepos with root + service workspaces.
-- Verifies generated files with `ailib doctor`.
+- One source of truth for AI tooling behavior (`ailib.config.json` + generated outputs).
+- Managed `.ailib/` pointer files from the built-in registry.
+- Target-specific instruction files (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`).
+- Reusable built-in skills plus custom workspace-local skills.
+- Monorepo support with root and workspace-level operations.
+- Health checks with `ailib doctor`.
 
 ## Install
 
@@ -33,67 +34,58 @@ brew tap Alisya-AI/ailib
 brew install ailib
 ```
 
-Homebrew publishing and release steps: [docs/homebrew-publishing.md](docs/homebrew-publishing.md).
-Workflow hardening patterns for external PRs: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md).
-Branch protection and required check policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md).
-Guide for adding new targets: [docs/targets-guide.md](docs/targets-guide.md).
-Guide for adding modules and slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md).
-End-to-end CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md).
-Local override workflow and guarantees: [docs/local-override-model.md](docs/local-override-model.md).
-
 ### Local install from repository
 
 ```bash
 bun run local:install
 ```
 
-## Documentation index
+## Guided quick start (single repo)
 
-- CLI usage: [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
-- Built-in skills catalog: [docs/built-in-skills-catalog.md](docs/built-in-skills-catalog.md)
-- Add targets: [docs/targets-guide.md](docs/targets-guide.md)
-- Add modules/slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md)
-- Slot governance rules: [docs/slot-standards.md](docs/slot-standards.md)
-- Development standards: [docs/development-standards.md](docs/development-standards.md)
-- Test standards: [docs/test-standards.md](docs/test-standards.md)
-- Coverage exceptions and rationale: [docs/coverage-exceptions.md](docs/coverage-exceptions.md)
-- Quality gates quickstart: [docs/quality-gates-quickstart.md](docs/quality-gates-quickstart.md)
-- Workflow hardening: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md)
-- Branch protection policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md)
-- Homebrew publishing: [docs/homebrew-publishing.md](docs/homebrew-publishing.md)
-- Local override workflow and guarantees: [docs/local-override-model.md](docs/local-override-model.md)
-- Module catalog: [docs/module-catalog.md](docs/module-catalog.md)
-- Module/slot coverage audit: [docs/module-coverage-audit.md](docs/module-coverage-audit.md)
-- Follow-up roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md)
-
-## Quick start
-
-Initialize in the current repo:
+1. Initialize your project:
 
 ```bash
 ailib init --language=typescript --modules=eslint,vitest --targets=claude-code,copilot
 ```
 
-Update generated outputs:
+2. Generate/update outputs after config changes:
 
 ```bash
 ailib update
 ```
 
-Add/remove a module:
+3. Validate generated files:
+
+```bash
+ailib doctor
+```
+
+4. Evolve your stack over time:
 
 ```bash
 ailib add prettier
 ailib remove prettier
 ```
 
-Validate workspace files:
+## Guided monorepo workflow
+
+Initialize root with workspace patterns:
 
 ```bash
-ailib doctor
+ailib init --language=typescript --modules=eslint --targets=claude-code,cursor --workspaces=apps/*,services/*
 ```
 
-Discover available modules and skills:
+Run commands for a specific workspace:
+
+```bash
+ailib update --workspace=apps/web
+ailib add prettier --workspace=apps/web
+ailib doctor --workspace=apps/web
+```
+
+## Discover modules and skills
+
+Use discovery commands before changing config:
 
 ```bash
 ailib modules list --language=typescript
@@ -102,34 +94,62 @@ ailib skills list
 ailib skills explain release-readiness
 ```
 
-Author and validate custom skills for a workspace:
+Author and validate custom skills in a workspace:
 
 ```bash
 ailib skills init release-manager --workspace=apps/web --description="Release orchestration workflow"
 ailib skills validate --workspace=apps/web
 ```
 
-Run workspace-scoped commands in a monorepo:
+## Customize behavior with local overrides
 
-```bash
-ailib update --workspace=apps/web
-ailib add prettier --workspace=apps/web
-ailib doctor --workspace=apps/web
-```
+Use `ailib.local.json` when specific workspaces need different modules, slots, targets, or skills than your default baseline.
 
-Uninstall generated files:
+See [docs/local-override-model.md](docs/local-override-model.md) for the schema, precedence rules, and examples.
+
+## Uninstall
+
+Remove generated files for the current workspace:
 
 ```bash
 ailib uninstall
+```
+
+Remove generated files across all workspaces from monorepo root:
+
+```bash
 ailib uninstall --all
 ```
 
-Use `ailib.local.json` when you need workspace-specific overrides for modules, slots, targets, or skills.
-See [docs/local-override-model.md](docs/local-override-model.md) for the override model and examples.
+## Documentation map
 
-For complete CLI and maintenance command coverage, see:
+Getting started:
 
-- [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
+- CLI usage guide: [docs/cli-usage-guide.md](docs/cli-usage-guide.md)
+- Built-in skills catalog: [docs/built-in-skills-catalog.md](docs/built-in-skills-catalog.md)
+- Local override workflow: [docs/local-override-model.md](docs/local-override-model.md)
+
+Extending `ailib`:
+
+- Add targets: [docs/targets-guide.md](docs/targets-guide.md)
+- Add modules/slots: [docs/modules-slots-guide.md](docs/modules-slots-guide.md)
+- Slot governance rules: [docs/slot-standards.md](docs/slot-standards.md)
+
+Quality and governance:
+
+- Development standards: [docs/development-standards.md](docs/development-standards.md)
+- Test standards: [docs/test-standards.md](docs/test-standards.md)
+- Quality gates quickstart: [docs/quality-gates-quickstart.md](docs/quality-gates-quickstart.md)
+- Coverage exceptions and rationale: [docs/coverage-exceptions.md](docs/coverage-exceptions.md)
+- Module catalog: [docs/module-catalog.md](docs/module-catalog.md)
+- Module/slot coverage audit: [docs/module-coverage-audit.md](docs/module-coverage-audit.md)
+
+Release and security:
+
+- Homebrew publishing: [docs/homebrew-publishing.md](docs/homebrew-publishing.md)
+- Workflow hardening patterns: [docs/workflow-security-hardening.md](docs/workflow-security-hardening.md)
+- Branch protection policy: [docs/branch-protection-policy.md](docs/branch-protection-policy.md)
+- Follow-up roadmap: [docs/follow-up-plan.md](docs/follow-up-plan.md)
 
 ## Supported languages
 
