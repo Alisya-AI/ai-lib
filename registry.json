@@ -528,6 +528,30 @@
           "jetbrains"
         ]
       }
+    },
+    "tdd-cycle-workflow": {
+      "display": "TDD cycle workflow",
+      "description": "Drive implementation with red-green-refactor loops and seam-first testability for safe, incremental delivery.",
+      "path": "skills/tdd-cycle-workflow.md",
+      "compatible": {
+        "languages": [
+          "typescript",
+          "python",
+          "go",
+          "java",
+          "rust",
+          "javascript"
+        ],
+        "targets": [
+          "cursor",
+          "claude-code",
+          "copilot",
+          "openai",
+          "gemini",
+          "windsurf",
+          "jetbrains"
+        ]
+      }
     }
   },
   "languages": {
