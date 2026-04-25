@@ -85,6 +85,32 @@ test('validateLocalOverrideConfig reports unknown workspace and shape issues', a
   assert.ok(errors.some((error) => error.includes("unknown workspace override key 'apps/missing'")));
 });
 
+test('validateLocalOverrideConfig rejects non-object workspace_overrides', async () => {
+  const rootDir = await tempDir();
+  const config = {
+    version: '1',
+    workspace_overrides: [] as unknown
+  } as unknown as LocalOverrideConfig;
+
+  const errors = await validateLocalOverrideConfig({ rootDir, rootConfig, registry, config, canonicalSlot });
+  assert.ok(errors.some((error) => error.includes("'workspace_overrides' must be an object")));
+});
+
+test('validateLocalOverrideConfig rejects blank workspace override keys', async () => {
+  const rootDir = await tempDir();
+  const config = {
+    version: '1',
+    workspace_overrides: {
+      '   ': {
+        targets: { add: ['cursor'] }
+      }
+    }
+  } as unknown as LocalOverrideConfig;
+
+  const errors = await validateLocalOverrideConfig({ rootDir, rootConfig, registry, config, canonicalSlot });
+  assert.ok(errors.some((error) => error.includes('workspace override key must be a non-empty string')));
+});
+
 test('loadLocalOverrideConfig accepts a valid override file', async () => {
   const rootDir = await tempDir();
   const config: LocalOverrideConfig = {

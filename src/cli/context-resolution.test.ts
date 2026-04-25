@@ -69,6 +69,17 @@ test('findNearestMonorepoRoot returns nearest config with workspaces', async () 
   assert.equal(found, path.resolve(root));
 });
 
+test('findNearestMonorepoRoot returns null when configs have no workspaces', async () => {
+  const root = await makeTempRoot();
+  const appDir = path.join(root, 'apps', 'web');
+  await fs.mkdir(appDir, { recursive: true });
+  await writeJson(path.join(root, CONFIG_FILE), { language: 'typescript' });
+  await writeJson(path.join(appDir, CONFIG_FILE), { language: 'typescript' });
+
+  const found = await findNearestMonorepoRoot(appDir);
+  assert.equal(found, null);
+});
+
 test('resolveContext uses workspace and monorepo root when available', async () => {
   const root = await makeTempRoot();
   const appDir = path.join(root, 'apps', 'web');
@@ -90,6 +101,18 @@ test('resolveContext falls back to project root when no workspace config', async
 
   const resolved = await resolveContext(nested);
   assert.deepEqual(resolved, { rootDir: path.resolve(root), workspaceDir: path.resolve(root) });
+});
+
+test('resolveContext uses workspace as root when no monorepo root exists', async () => {
+  const root = await makeTempRoot();
+  const appDir = path.join(root, 'apps', 'web');
+  const nested = path.join(appDir, 'src');
+  await fs.mkdir(nested, { recursive: true });
+  await fs.writeFile(path.join(root, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  await writeJson(path.join(appDir, CONFIG_FILE), { language: 'typescript' });
+
+  const resolved = await resolveContext(nested);
+  assert.deepEqual(resolved, { rootDir: path.resolve(appDir), workspaceDir: path.resolve(appDir) });
 });
 
 test('resolveDefaultWorkspaceForMutation prioritizes flag then workspace', () => {

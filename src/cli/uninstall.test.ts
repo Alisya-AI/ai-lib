@@ -63,3 +63,32 @@ test('uninstallCommand uninstalls root workspace in monorepo without --all', asy
   assert.equal(applyCalled, false);
   await assert.rejects(fs.readFile(path.join(rootDir, 'ailib.config.json'), 'utf8'));
 });
+
+test('uninstallCommand removes lock at root when not in monorepo mode', async () => {
+  const rootDir = await tempDir();
+  const packageRoot = path.join(rootDir, 'pkg');
+  await fs.mkdir(path.join(packageRoot), { recursive: true });
+  await fs.writeFile(path.join(packageRoot, 'registry.json'), `${JSON.stringify(registry)}\n`, 'utf8');
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(path.join(rootDir, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  await fs.writeFile(
+    path.join(rootDir, 'ailib.config.json'),
+    `${JSON.stringify({ language: 'typescript', modules: [], targets: ['cursor'] })}\n`,
+    'utf8'
+  );
+  await fs.writeFile(path.join(rootDir, 'ailib.lock'), 'lock', 'utf8');
+
+  let applyCalled = false;
+  await uninstallCommand({
+    cwd: rootDir,
+    packageRoot,
+    flags: {},
+    configFile: 'ailib.config.json',
+    lockFile: 'ailib.lock',
+    applyWorkspaceUpdate: async () => {
+      applyCalled = true;
+    }
+  });
+  assert.equal(applyCalled, false);
+  await assert.rejects(fs.readFile(path.join(rootDir, 'ailib.lock'), 'utf8'));
+});

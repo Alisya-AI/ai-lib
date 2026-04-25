@@ -83,7 +83,8 @@ async function findNearestWorkspace(startDir: string): Promise<string | null> {
   while (true) {
     if (await exists(path.join(current, CONFIG_FILE))) return current;
     const parent = path.dirname(current);
-    if (parent === current) return null;
+    if (parent === current) break;
     current = parent;
   }
+  return null;
 }
