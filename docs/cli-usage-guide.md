@@ -343,6 +343,46 @@ Workspace overrides in `ailib.local.json`:
 
 Use this when you need one cross-repo default bundle but different operational emphasis per workspace.
 
+### 1.6) TDD and SOLID starter bundle examples
+
+Use this bundle when your primary adoption goal is tight red/green/refactor loops plus SOLID-oriented cleanup.
+
+Default TDD + SOLID bundle in `ailib.config.json`:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint", "vitest"],
+  "targets": ["claude-code", "cursor", "copilot"],
+  "skills": ["test-strategy-design", "clean-code-refactoring", "code-review-rigor"]
+}
+```
+
+Use this as the default when most workspaces share the same test-first delivery expectations and refactoring standards.
+
+Workspace overrides in `ailib.local.json`:
+
+```json
+{
+  "version": "1.0.0",
+  "workspace_overrides": {
+    "apps/api": {
+      "skills": {
+        "add": ["release-readiness"]
+      }
+    },
+    "apps/web": {
+      "skills": {
+        "add": ["delivery-flow-refinement"],
+        "remove": ["release-readiness"]
+      }
+    }
+  }
+}
+```
+
+Use workspace overrides when one team needs extra rollout controls or delivery sequencing on top of the default TDD + SOLID baseline.
+
 ### 2) Override skill selection locally
 
 Use `ailib.local.json` to add/remove/set skills without changing managed config:
