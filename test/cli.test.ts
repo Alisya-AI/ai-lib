@@ -205,6 +205,22 @@ test('skills list and explain include reliability skills', async () => {
   assert.match(explainMigration, /path: skills\/migration-planning\.md/);
 });
 
+test('skills list and explain include tdd workflow skill metadata', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- tdd-cycle-workflow - TDD cycle workflow/);
+
+  const explainTdd = await captureStdout(async () => {
+    await run(['skills', 'explain', 'tdd-cycle-workflow'], { packageRoot });
+  });
+  assert.match(explainTdd, /skill: tdd-cycle-workflow/);
+  assert.match(explainTdd, /path: skills\/tdd-cycle-workflow\.md/);
+  assert.match(explainTdd, /description: Drive implementation with red-green-refactor loops/);
+  assert.match(explainTdd, /compatible.languages: .*typescript/);
+  assert.match(explainTdd, /compatible.targets: .*claude-code/);
+});
+
 test('skills explain rejects unknown skill id', async () => {
   await assert.rejects(run(['skills', 'explain', 'missing-skill'], { packageRoot }), /Unknown skill: missing-skill/);
 });
