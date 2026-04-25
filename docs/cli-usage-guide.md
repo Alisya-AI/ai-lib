@@ -42,6 +42,43 @@ ailib update
 
 Use this after changing config, registry inputs, or module/target selection.
 
+### 2.1) Backup and conflict behavior for managed files
+
+`ailib` writes a sibling backup file (`<target-file>.bak`) for managed outputs so consumers can recover prior content when needed.
+
+When backups are created or refreshed:
+
+- On first successful write of a managed file, `ailib` creates `<target-file>.bak` if it does not exist yet.
+- When a managed file already exists and `--on-conflict=overwrite` or `--on-conflict=merge` is used, `ailib` refreshes `<target-file>.bak` from the pre-write file content.
+- `--on-conflict=skip` and `--on-conflict=abort` do not modify existing files, so they do not create or refresh backups for those conflicts.
+
+User-facing conflict mode behavior:
+
+- `overwrite`: replace the target file with the freshly rendered managed content and keep a `.bak` snapshot for rollback.
+- `merge`: preserve non-managed content and rewrite only the managed block between `<!-- ailib:start -->` and `<!-- ailib:end -->`, with a `.bak` snapshot taken first.
+- `skip`: leave the existing file untouched and continue without writing this target.
+- `abort`: stop with a conflict error so you can resolve manually or rerun with a different conflict mode.
+
+How consumers can recover from backups:
+
+1. Inspect differences between current and backup files:
+
+```bash
+diff -u path/to/file path/to/file.bak
+```
+
+2. Restore the previous version from backup when needed:
+
+```bash
+cp path/to/file.bak path/to/file
+```
+
+3. Re-run generation with your desired conflict mode:
+
+```bash
+ailib update --on-conflict=merge
+```
+
 ### 3) Add/remove modules
 
 ```bash
