@@ -6,6 +6,7 @@ import path from 'node:path';
 
 const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 const registryPath = path.join(packageRoot, 'registry.json');
+const coreRegistryPath = path.join(packageRoot, 'registry/core.json');
 const slotNamePattern = /^[a-z]+(?:_[a-z]+)*$/u;
 
 type FrontmatterValue = string | string[];
@@ -59,6 +60,14 @@ interface Registry {
 
 async function loadRegistry(): Promise<Registry> {
   return JSON.parse(await fs.readFile(registryPath, 'utf8'));
+}
+
+async function loadCoreRegistry(): Promise<Registry> {
+  return JSON.parse(await fs.readFile(coreRegistryPath, 'utf8'));
+}
+
+function isBuiltInSkillPath(skillPath: string) {
+  return skillPath.startsWith('skills/') && skillPath.endsWith('.md');
 }
 
 function parseFrontmatter(markdown: string): Frontmatter | null {
@@ -228,6 +237,20 @@ test('split registry and generated catalog are in sync', () => {
   run('tools/generate-module-catalog.ts', '--check');
 });
 
+test('core registry built-in skills reference existing markdown sources', async () => {
+  const registry = await loadCoreRegistry();
+  const skills = registry.skills || {};
+  const builtInSkills = Object.entries(skills).filter(([, skillDef]) => isBuiltInSkillPath(skillDef.path));
+
+  assert.ok(builtInSkills.length > 0, 'registry/core.json must register at least one built-in skill');
+
+  for (const [skillId, skillDef] of builtInSkills) {
+    const source = path.join(packageRoot, skillDef.path);
+    const stat = await fs.stat(source).catch(() => null);
+    assert.ok(stat?.isFile(), `Missing built-in skill source: skills.${skillId}.path -> ${skillDef.path}`);
+  }
+});
+
 test('registry skills contract is well-formed', async () => {
   const registry = await loadRegistry();
   const skills = registry.skills || {};
@@ -236,10 +259,7 @@ test('registry skills contract is well-formed', async () => {
     assert.ok(skillDef.display.trim().length > 0, `skills.${skillId}.display must not be empty`);
     assert.ok(skillDef.path.trim().length > 0, `skills.${skillId}.path must not be empty`);
     assert.ok(!path.isAbsolute(skillDef.path), `skills.${skillId}.path must be relative`);
-    assert.ok(
-      skillDef.path.startsWith('skills/') && skillDef.path.endsWith('.md'),
-      `skills.${skillId}.path must point to skills/*.md`
-    );
+    assert.ok(isBuiltInSkillPath(skillDef.path), `skills.${skillId}.path must point to skills/*.md`);
 
     const requires = skillDef.requires || [];
     const conflicts = skillDef.conflicts_with || [];
