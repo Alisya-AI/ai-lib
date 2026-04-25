@@ -17,7 +17,7 @@ test('npm-release-publish supports dry-run verification with fixture version', a
   const publishedVersionFile = path.join(dir, 'published-version.json');
   const reportFile = path.join(dir, 'report.json');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '9.9.9' }), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '9.9.9' }), 'utf8');
   await fs.writeFile(publishedVersionFile, JSON.stringify('9.9.9'), 'utf8');
 
   const result = spawnSync(
@@ -36,7 +36,7 @@ test('npm-release-publish supports dry-run verification with fixture version', a
   assert.match(result.stdout, /npm publish verification passed/);
 
   const report = JSON.parse(await fs.readFile(reportFile, 'utf8')) as Record<string, unknown>;
-  assert.equal(report.packageName, '@ailib/cli');
+  assert.equal(report.packageName, '@alisya.ai/ailib');
   assert.equal(report.version, '9.9.9');
   assert.equal(report.dryRun, true);
 });
@@ -46,7 +46,7 @@ test('npm-release-publish fails dry-run when resolved version mismatches package
   const packageFile = path.join(dir, 'package.json');
   const publishedVersionFile = path.join(dir, 'published-version.json');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '1.2.3' }), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '1.2.3' }), 'utf8');
   await fs.writeFile(publishedVersionFile, JSON.stringify('1.2.4'), 'utf8');
 
   const result = spawnSync(

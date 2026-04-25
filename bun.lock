@@ -2,7 +2,7 @@
   "lockfileVersion": 1,
   "workspaces": {
     "": {
-      "name": "@ailib/cli",
+      "name": "@alisya.ai/ailib",
       "devDependencies": {
         "@eslint/js": "^10.0.1",
         "@types/node": "^25.6.0",
