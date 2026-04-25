@@ -15,6 +15,8 @@ export async function writeManagedFile({
   onConflict: string;
 }) {
   await fs.mkdir(path.dirname(outPath), { recursive: true });
+  const backupPath = `${outPath}.bak`;
+  let wroteBackup = false;
 
   if (await exists(outPath)) {
     if (onConflict === 'skip') return;
@@ -27,14 +29,19 @@ export async function writeManagedFile({
         ? `${existing.slice(0, existing.indexOf(AILIB_BLOCK_START)).trimEnd()}\n`
         : `${existing.trimEnd()}\n`;
       const merged = `${withoutOld}\n${AILIB_BLOCK_START}\n${rendered.trim()}\n${AILIB_BLOCK_END}\n`;
-      await fs.copyFile(outPath, `${outPath}.bak`);
+      await fs.copyFile(outPath, backupPath);
+      wroteBackup = true;
       await fs.writeFile(outPath, merged, 'utf8');
       return;
     }
-    await fs.copyFile(outPath, `${outPath}.bak`);
+    await fs.copyFile(outPath, backupPath);
+    wroteBackup = true;
   }
 
   await fs.writeFile(outPath, `${rendered.trim()}\n`, 'utf8');
+  if (!wroteBackup && !(await exists(backupPath))) {
+    await fs.copyFile(outPath, backupPath);
+  }
 }
 
 export async function copySourceFile({
