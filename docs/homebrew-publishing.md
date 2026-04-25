@@ -28,6 +28,12 @@ Outputs are written to `dist/release/`:
 - checksum manifest (`release-checksums.txt`)
 - formula snippet helper (`homebrew-formula-snippet.txt`)
 
+To run npm release readiness checks (artifact + unpublished-version validation):
+
+```bash
+bun run release:npm:preflight
+```
+
 For a quicker local run that skips full checks:
 
 ```bash
