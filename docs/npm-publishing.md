@@ -7,6 +7,7 @@ This document defines the publish + verification flow for npm releases.
 - npm account with publish access to `@ailib/cli`
 - npm auth already configured (`npm whoami`)
 - repository on a clean release commit
+- for GitHub Actions publishing: repository secret `NPM_TOKEN` with npm automation token
 
 ## 1) Preflight release validation
 
@@ -67,3 +68,31 @@ The publish verification command writes:
 - `dist/release/npm-release-record.md`
 
 Keep these artifacts linked in the release task/PR for traceability.
+
+## 6) GitHub Actions release workflow
+
+This repository includes a manual publish workflow:
+
+- Workflow: `.github/workflows/npm-publish.yml`
+- Trigger: `workflow_dispatch`
+- Inputs:
+  - `release_notes_url` (required)
+  - `ref` (optional, default `main`)
+
+The workflow runs:
+
+1. `bun run release:npm:publish`
+2. `bun run release:npm:record -- --release-notes-url=<input>`
+3. Uploads `dist/release/` as `npm-release-evidence` artifact
+
+### Secret configuration
+
+Set `NPM_TOKEN` in repository secrets:
+
+- npm type: Automation token (recommended for CI publish)
+- scope: minimal publish permissions for `@ailib/cli`
+
+### Optional hardening: npm trusted publishing
+
+You can migrate from `NPM_TOKEN` to npm Trusted Publishing (OIDC) later.
+That removes long-lived token storage and uses GitHub-issued identity.
