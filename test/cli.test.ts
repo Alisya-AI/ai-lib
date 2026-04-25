@@ -221,6 +221,22 @@ test('skills list and explain include tdd workflow skill metadata', async () => 
   assert.match(explainTdd, /compatible.targets: .*claude-code/);
 });
 
+test('skills list and explain include solid principles skill metadata', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- solid-principles-application - SOLID principles application/);
+
+  const explainSolid = await captureStdout(async () => {
+    await run(['skills', 'explain', 'solid-principles-application'], { packageRoot });
+  });
+  assert.match(explainSolid, /skill: solid-principles-application/);
+  assert.match(explainSolid, /path: skills\/solid-principles-application\.md/);
+  assert.match(explainSolid, /description: Apply SRP, OCP, LSP, ISP, and DIP with practical design checks/);
+  assert.match(explainSolid, /compatible.languages: .*typescript/);
+  assert.match(explainSolid, /compatible.targets: .*claude-code/);
+});
+
 test('skills explain rejects unknown skill id', async () => {
   await assert.rejects(run(['skills', 'explain', 'missing-skill'], { packageRoot }), /Unknown skill: missing-skill/);
 });
