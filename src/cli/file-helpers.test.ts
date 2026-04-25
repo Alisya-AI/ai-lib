@@ -44,6 +44,27 @@ test('writeManagedFile supports overwrite, skip, merge, and abort modes', async 
   );
 });
 
+test('writeManagedFile creates .bak for first-run nested paths', async () => {
+  const root = await tempDir();
+  const target = path.join(root, 'nested', 'configs', 'rules.md');
+  const backup = `${target}.bak`;
+
+  await writeManagedFile({ outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
+  assert.equal(await fs.readFile(target, 'utf8'), 'first-run\n');
+  assert.equal(await fs.readFile(backup, 'utf8'), 'first-run\n');
+});
+
+test('writeManagedFile preserves existing backup on first write', async () => {
+  const root = await tempDir();
+  const target = path.join(root, 'rules.md');
+  const backup = `${target}.bak`;
+  await fs.writeFile(backup, 'existing-backup\n', 'utf8');
+
+  await writeManagedFile({ outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
+  assert.equal(await fs.readFile(target, 'utf8'), 'first-run\n');
+  assert.equal(await fs.readFile(backup, 'utf8'), 'existing-backup\n');
+});
+
 test('copySourceFile copies from package source and validates existence', async () => {
   const root = await tempDir();
   const packageRoot = path.join(root, 'pkg');
