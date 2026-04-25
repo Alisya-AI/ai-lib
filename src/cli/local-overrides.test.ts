@@ -112,4 +112,30 @@ test('applySlotOverrides applies slot replacement/removal and validates mismatch
       }),
     /belongs to 'linter'/
   );
+
+  assert.throws(
+    () =>
+      applySlotOverrides({
+        registry,
+        language: 'typescript',
+        modules: ['eslint'],
+        slots: { non_existent_slot: { remove: true } },
+        localOverrideFile: 'ailib.local.json',
+        canonicalSlot: (slot) => (slot ? registry.slot_aliases?.[slot] || slot : null)
+      }),
+    /slots\.non_existent_slot references unknown slot/
+  );
+
+  assert.throws(
+    () =>
+      applySlotOverrides({
+        registry,
+        language: 'typescript',
+        modules: ['eslint'],
+        slots: { linter: { set: 'missing-module' } },
+        localOverrideFile: 'ailib.local.json',
+        canonicalSlot: (slot) => (slot ? registry.slot_aliases?.[slot] || slot : null)
+      }),
+    /slots\.linter\.set references unknown module 'missing-module'/
+  );
 });

@@ -37,13 +37,11 @@ export async function uninstallCommand({
   }
 
   if (scope === 'all-workspaces') {
-    if (!rootConfig) {
-      throw new Error(`Missing ${configFile} at root: ${context.rootDir}`);
-    }
-    const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig });
+    const monorepoRootConfig = rootConfig as WorkspaceConfig;
+    const workspaceDirs = await listWorkspaceDirs({ rootDir: context.rootDir, rootConfig: monorepoRootConfig });
     for (const workspaceDir of workspaceDirs) {
       const cfgPath = path.join(workspaceDir, configFile);
-      const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : rootConfig;
+      const cfg = (await exists(cfgPath)) ? await readJson<WorkspaceConfig>(cfgPath) : monorepoRootConfig;
       await uninstallWorkspace(workspaceDir, cfg, registry, configFile);
     }
     await rmIfExists(path.join(context.rootDir, lockFile));

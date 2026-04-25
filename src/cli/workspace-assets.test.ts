@@ -36,6 +36,10 @@ const registry: Registry = {
     'custom-only': {
       display: 'Custom only skill',
       path: '.cursor/skills/custom-only/SKILL.md'
+    },
+    'missing-packaged-skill': {
+      display: 'Missing packaged skill',
+      path: 'skills/missing-packaged-skill.md'
     }
   }
 };
@@ -229,5 +233,23 @@ test('ensureWorkspaceAssets fails with actionable message for missing local cust
       registry
     }),
     /Missing local custom skill source: custom-only/
+  );
+});
+
+test('ensureWorkspaceAssets fails for missing packaged skill source', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+
+  await assert.rejects(
+    ensureWorkspaceAssets({
+      workspaceDir,
+      packageRoot,
+      state: state([], ['missing-packaged-skill']),
+      rootDir,
+      registry
+    }),
+    /Missing skill source: skills\/missing-packaged-skill\.md/
   );
 });

@@ -153,3 +153,88 @@ test('listWorkspaceDirs supports slash and basename gitignore rules', async () =
   assert.equal(dirs.includes(path.resolve(nameIgnored)), false);
   assert.equal(dirs.includes(path.resolve(kept)), true);
 });
+
+test('listWorkspaceDirs skips directories that fail readdir', async () => {
+  const root = await makeRoot();
+  await writeConfig(root, {
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['claude-code']
+  });
+
+  const blocked = path.join(root, 'blocked');
+  await fs.mkdir(blocked, { recursive: true });
+
+  try {
+    await fs.chmod(blocked, 0o000);
+    const dirs = await listWorkspaceDirs({
+      rootDir: root,
+      rootConfig: {
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['claude-code']
+      }
+    });
+    assert.equal(dirs.includes(path.resolve(root)), true);
+  } finally {
+    await fs.chmod(blocked, 0o755);
+  }
+});
+
+test('listWorkspaceDirs skips symbolic link directories', async () => {
+  const root = await makeRoot();
+  await writeConfig(root, {
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['claude-code']
+  });
+
+  const realWorkspace = path.join(root, 'apps', 'web');
+  const linkedWorkspace = path.join(root, 'apps-link');
+  await writeConfig(realWorkspace, { language: 'typescript', modules: ['biome'], targets: ['claude-code'] });
+  await fs.symlink(realWorkspace, linkedWorkspace, 'dir');
+
+  const dirs = await listWorkspaceDirs({
+    rootDir: root,
+    rootConfig: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['claude-code']
+    }
+  });
+
+  assert.equal(dirs.includes(path.resolve(realWorkspace)), true);
+  assert.equal(dirs.includes(path.resolve(linkedWorkspace)), false);
+});
+
+test('listWorkspaceDirs tolerates lstat errors while walking', { concurrency: false }, async () => {
+  const root = await makeRoot();
+  await writeConfig(root, {
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['claude-code']
+  });
+
+  const nested = path.join(root, 'apps', 'web');
+  await writeConfig(nested, { language: 'typescript', modules: ['biome'], targets: ['claude-code'] });
+
+  const mutableFs = fs as unknown as { lstat: typeof fs.lstat };
+  const originalLstat = mutableFs.lstat;
+  mutableFs.lstat = (async () => {
+    throw new Error('synthetic lstat failure');
+  }) as typeof fs.lstat;
+
+  try {
+    const dirs = await listWorkspaceDirs({
+      rootDir: root,
+      rootConfig: {
+        language: 'typescript',
+        modules: ['eslint'],
+        targets: ['claude-code']
+      }
+    });
+    assert.deepEqual(dirs, [path.resolve(root)]);
+  } finally {
+    mutableFs.lstat = originalLstat;
+  }
+});

@@ -92,10 +92,8 @@ async function walkForWorkspaceConfigs({
       entries.map(async (entry) => {
         if (!entry.isDirectory()) return;
         const child = path.join(currentDir, entry.name);
-        try {
-          const stat = await fs.lstat(child);
-          if (stat.isSymbolicLink()) return;
-        } catch {
+        const stat = await fs.lstat(child).catch(() => null);
+        if (!stat || stat.isSymbolicLink()) {
           return;
         }
         await walk(child, depth + 1);

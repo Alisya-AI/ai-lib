@@ -93,6 +93,22 @@ test('modulesCommand explain throws for unknown module', async () => {
   );
 });
 
+test('modulesCommand explain throws for unknown module without language flag', async () => {
+  const packageRoot = await withRegistry(registry);
+  await assert.rejects(
+    modulesCommand({ packageRoot, flags: { _: ['explain', 'missing'] } as CliFlags }),
+    /Unknown module: missing/
+  );
+});
+
+test('modulesCommand throws usage for unsupported subcommand', async () => {
+  const packageRoot = await withRegistry(registry);
+  await assert.rejects(
+    modulesCommand({ packageRoot, flags: { _: ['oops'] } as CliFlags }),
+    /Usage: ailib modules list/
+  );
+});
+
 test('skillsCatalogCommand list and explain produce expected output', async () => {
   const packageRoot = await withRegistry(registry);
   const listOutput = await captureStdout(() =>
@@ -114,5 +130,18 @@ test('skillsCatalogCommand explain throws for unknown skill', async () => {
   await assert.rejects(
     skillsCatalogCommand({ packageRoot, flags: { _: ['explain', 'missing'] } as CliFlags }),
     /Unknown skill: missing/
+  );
+});
+
+test('slotsCommand throws usage for unsupported subcommand', async () => {
+  const packageRoot = await withRegistry(registry);
+  await assert.rejects(slotsCommand({ packageRoot, flags: { _: ['oops'] } as CliFlags }), /Usage: ailib slots list/);
+});
+
+test('skillsCatalogCommand throws usage for unsupported subcommand', async () => {
+  const packageRoot = await withRegistry(registry);
+  await assert.rejects(
+    skillsCatalogCommand({ packageRoot, flags: { _: ['oops'] } as CliFlags }),
+    /Usage: ailib skills list/
   );
 });
