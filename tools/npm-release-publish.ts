@@ -131,6 +131,42 @@ function parseVersionPayload(data: unknown): string {
   throw new Error('Invalid npm version payload: expected string or non-empty string array');
 }
 
+function isNpmPackageNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes('npm error code E404') ||
+    error.message.includes('npm ERR! code E404') ||
+    error.message.includes('404 Not Found')
+  );
+}
+
+async function sleep(ms: number): Promise<void> {
+  await new Promise((resolve) => {
+    setTimeout(resolve, ms);
+  });
+}
+
+async function resolvePublishedVersionWithRetry(packageName: string): Promise<unknown> {
+  const maxAttempts = 10;
+  const delayMs = 3000;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      return JSON.parse((await runCommand('npm', ['view', packageName, 'version', '--json'])).stdout);
+    } catch (error: unknown) {
+      if (!isNpmPackageNotFoundError(error) || attempt === maxAttempts) {
+        throw error;
+      }
+      process.stdout.write(
+        `npm view retry ${attempt}/${String(maxAttempts)} for ${packageName} after registry 404; waiting ${String(delayMs / 1000)}s...\n`
+      );
+      await sleep(delayMs);
+    }
+  }
+
+  throw new Error(`Unable to resolve published version for ${packageName}`);
+}
+
 async function verifyInstalledCli(pkg: PackageMetadata): Promise<void> {
   const installDir = await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-npm-install-check-'));
   try {
@@ -178,7 +214,7 @@ async function main() {
 
   const publishedVersionPayload = args.publishedVersionJsonFile
     ? await readJsonFromFile(args.publishedVersionJsonFile)
-    : JSON.parse((await runCommand('npm', ['view', pkg.name, 'version', '--json'])).stdout);
+    : await resolvePublishedVersionWithRetry(pkg.name);
   const publishedVersion = parseVersionPayload(publishedVersionPayload);
   if (publishedVersion !== pkg.version) {
     throw new Error(
