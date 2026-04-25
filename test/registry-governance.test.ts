@@ -8,6 +8,13 @@ const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname)
 const registryPath = path.join(packageRoot, 'registry.json');
 const coreRegistryPath = path.join(packageRoot, 'registry/core.json');
 const slotNamePattern = /^[a-z]+(?:_[a-z]+)*$/u;
+const requiredBuiltInSkillSections = ['Purpose', 'Workflow'] as const;
+const compatibilityFrontmatterKeys = [
+  'compatible_languages',
+  'compatible_modules',
+  'compatible_targets',
+  'compatible_llms'
+] as const;
 
 type FrontmatterValue = string | string[];
 type Frontmatter = Record<string, FrontmatterValue>;
@@ -237,7 +244,7 @@ test('split registry and generated catalog are in sync', () => {
   run('tools/generate-module-catalog.ts', '--check');
 });
 
-test('core registry built-in skills reference existing markdown sources', async () => {
+test('core registry built-in skills reference existing markdown sources and required sections', async () => {
   const registry = await loadCoreRegistry();
   const skills = registry.skills || {};
   const builtInSkills = Object.entries(skills).filter(([, skillDef]) => isBuiltInSkillPath(skillDef.path));
@@ -248,6 +255,39 @@ test('core registry built-in skills reference existing markdown sources', async 
     const source = path.join(packageRoot, skillDef.path);
     const stat = await fs.stat(source).catch(() => null);
     assert.ok(stat?.isFile(), `Missing built-in skill source: skills.${skillId}.path -> ${skillDef.path}`);
+
+    const markdown = await fs.readFile(source, 'utf8');
+    const frontmatter = parseFrontmatter(markdown);
+    assert.ok(frontmatter, `Missing frontmatter in '${skillDef.path}'`);
+    assert.equal(frontmatter.name, skillId, `Frontmatter name mismatch for '${skillId}'`);
+    assert.equal(typeof frontmatter.description, 'string', `Frontmatter description must be string for '${skillId}'`);
+    assert.ok(
+      String(frontmatter.description).trim().length > 0,
+      `Frontmatter description must not be empty for '${skillId}'`
+    );
+    assert.equal(
+      frontmatter.description,
+      skillDef.description || '',
+      `Registry/frontmatter description mismatch for '${skillId}'`
+    );
+
+    for (const heading of requiredBuiltInSkillSections) {
+      assert.match(
+        markdown,
+        new RegExp(`^## ${heading}\\s*$`, 'm'),
+        `Missing required section '## ${heading}' in '${skillId}'`
+      );
+    }
+
+    for (const key of compatibilityFrontmatterKeys) {
+      const value = frontmatter[key];
+      if (value === undefined) continue;
+      assert.ok(Array.isArray(value), `Frontmatter '${key}' must be a list like [a,b] for '${skillId}'`);
+      assert.ok(
+        value.length > 0 && value.every((entry) => entry.trim().length > 0),
+        `Frontmatter '${key}' must include at least one value for '${skillId}'`
+      );
+    }
   }
 });
 
