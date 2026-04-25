@@ -23,9 +23,11 @@ test('parseFrontmatter returns null when block missing', () => {
 test('writeManagedFile supports overwrite, skip, merge, and abort modes', async () => {
   const root = await tempDir();
   const target = path.join(root, 'rules.md');
+  const backup = `${target}.bak`;
 
   await writeManagedFile({ outPath: target, rendered: 'first', onConflict: 'overwrite' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first\n');
+  assert.equal(await fs.readFile(backup, 'utf8'), 'first\n');
 
   await writeManagedFile({ outPath: target, rendered: 'second', onConflict: 'skip' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first\n');
@@ -34,7 +36,7 @@ test('writeManagedFile supports overwrite, skip, merge, and abort modes', async 
   const merged = await fs.readFile(target, 'utf8');
   assert.match(merged, /<!-- ailib:start -->/);
   assert.match(merged, /merged-content/);
-  assert.equal(await fs.readFile(`${target}.bak`, 'utf8'), 'first\n');
+  assert.equal(await fs.readFile(backup, 'utf8'), 'first\n');
 
   await assert.rejects(
     writeManagedFile({ outPath: target, rendered: 'ignored', onConflict: 'abort' }),
