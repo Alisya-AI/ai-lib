@@ -93,11 +93,39 @@ Validate workspace files:
 ailib doctor
 ```
 
+Discover available modules and skills:
+
+```bash
+ailib modules list --language=typescript
+ailib modules explain nextjs --language=typescript
+ailib skills list
+ailib skills explain release-readiness
+```
+
+Author and validate custom skills for a workspace:
+
+```bash
+ailib skills init release-manager --workspace=apps/web --description="Release orchestration workflow"
+ailib skills validate --workspace=apps/web
+```
+
+Run workspace-scoped commands in a monorepo:
+
+```bash
+ailib update --workspace=apps/web
+ailib add prettier --workspace=apps/web
+ailib doctor --workspace=apps/web
+```
+
 Uninstall generated files:
 
 ```bash
 ailib uninstall
+ailib uninstall --all
 ```
+
+Use `ailib.local.json` when you need workspace-specific overrides for modules, slots, targets, or skills.
+See [docs/local-override-model.md](docs/local-override-model.md) for the override model and examples.
 
 For complete CLI and maintenance command coverage, see:
 
