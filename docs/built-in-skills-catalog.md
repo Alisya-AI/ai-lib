@@ -92,6 +92,40 @@ All built-in skills currently declare compatibility with:
 - Dependency notes: requires `architecture-decision-flow`.
 - Recommended usage: add when the task requires a formal decision record with clear alternatives and migration plan.
 
+## Principle-to-skill mapping
+
+Use this section to map common engineering principles to the current built-in skills. TDD and SOLID are still applied as development standards, then reinforced by the mapped skills below.
+
+### DRY (Don't Repeat Yourself)
+
+- Primary skills: `clean-code-refactoring`, `design-review-checklist`
+- Supporting skills: `code-review-rigor`
+- Mapping notes: `clean-code-refactoring` explicitly includes SOLID checks, which helps remove duplication without coupling unrelated responsibilities.
+
+### KISS (Keep It Simple, Stupid)
+
+- Primary skills: `design-review-checklist`, `architecture-decision-flow`
+- Supporting skills: `delivery-flow-refinement`
+- Mapping notes: use design reviews and tradeoff framing to prefer the simplest implementation that still satisfies acceptance criteria.
+
+### YAGNI (You Aren't Gonna Need It)
+
+- Primary skills: `architecture-decision-flow`, `delivery-flow-refinement`
+- Supporting skills: `release-readiness`
+- Mapping notes: defer speculative scope, ship in small increments, and use TDD red/green boundaries to implement only what current behavior requires.
+
+### DDD-lite (Pragmatic Domain-Driven Design)
+
+- Primary skills: `architecture-decision-flow`, `rfc-authoring`, `design-review-checklist`
+- Supporting skills: `migration-planning`, `observability-design`
+- Mapping notes: keep domain boundaries lightweight, capture shared vocabulary in RFC/design artifacts, and phase domain-model changes safely.
+
+### Fail-fast
+
+- Primary skills: `code-review-rigor`, `release-readiness`, `observability-design`
+- Supporting skills: `incident-review`, `migration-planning`
+- Mapping notes: detect incorrect assumptions early with review/test gates (including TDD), then add runtime signals and rollback paths to limit blast radius.
+
 ## Starter skill bundles
 
 Starter bundles provide default skill combinations by workflow. Treat these as practical baselines and refine per workspace using `ailib.local.json`.
