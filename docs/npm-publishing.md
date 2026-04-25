@@ -46,10 +46,24 @@ To exercise non-publish verification paths without uploading:
 bun run release:npm:publish:dry-run
 ```
 
-## 4) Release evidence artifact
+## 4) Generate release record
+
+After publish verification, generate a markdown release record with release notes linkage:
+
+```bash
+bun run release:npm:record -- --release-notes-url=https://github.com/Alisya-AI/ai-lib/releases/tag/vX.Y.Z
+```
+
+This writes:
+
+- `dist/release/npm-release-record.md`
+
+## 5) Release evidence artifacts
 
 The publish verification command writes:
 
 - `dist/release/npm-publish-report.json`
+- `dist/release/npm-preflight-report.json`
+- `dist/release/npm-release-record.md`
 
-Keep that report linked in the release task/PR for traceability.
+Keep these artifacts linked in the release task/PR for traceability.
