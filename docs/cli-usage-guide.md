@@ -140,6 +140,48 @@ ailib skills explain architecture-decision-flow
 
 ## Skills workflow (select, override, author)
 
+### 0) Pick a starter workflow bundle
+
+Choose one of these starter bundles as your baseline, then tune per workspace with `ailib.local.json`.
+
+- Architecture workflow:
+  - `architecture-decision-flow`
+  - `rfc-authoring`
+  - `daci-facilitation`
+  - `design-review-checklist`
+- Delivery workflow:
+  - `delivery-flow-refinement`
+  - `release-readiness`
+  - `migration-planning`
+- Quality workflow:
+  - `clean-code-refactoring`
+  - `code-review-rigor`
+  - `design-review-checklist`
+- Operations workflow:
+  - `release-readiness`
+  - `observability-design`
+  - `incident-review`
+
+Example starter bundle in `ailib.config.json`:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint", "vitest"],
+  "targets": ["claude-code", "cursor", "copilot"],
+  "skills": ["delivery-flow-refinement", "release-readiness", "migration-planning"]
+}
+```
+
+Then apply and verify:
+
+```bash
+ailib update
+ailib doctor
+```
+
+For bundle rationale and expanded examples, see [Built-In Skills Catalog](./built-in-skills-catalog.md#starter-skill-bundles).
+
 ### 1) Select skills in workspace config
 
 Add `skills` to `ailib.config.json`:
