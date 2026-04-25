@@ -22,6 +22,7 @@
     "release:npm:preflight": "bun run release:build && bun tools/npm-release-preflight.ts",
     "release:npm:publish": "bun run release:npm:preflight && bun tools/npm-release-publish.ts",
     "release:npm:publish:dry-run": "bun run release:npm:preflight && bun tools/npm-release-publish.ts --dry-run",
+    "release:npm:record": "bun tools/generate-npm-release-record.ts",
     "local:install": "bash scripts/install-local.sh",
     "security:audit": "bun audit --audit-level=high",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
