@@ -11,7 +11,7 @@ async function tempDir() {
   return await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-npm-preflight-'));
 }
 
-test('npm-release-preflight succeeds with fixture payloads', async () => {
+test('npm-release-preflight succeeds for first-time publish fixture payloads', async () => {
   const dir = await tempDir();
   const packageFile = path.join(dir, 'package.json');
   const versionsFile = path.join(dir, 'versions.json');
@@ -19,7 +19,7 @@ test('npm-release-preflight succeeds with fixture payloads', async () => {
   const reportFile = path.join(dir, 'report.json');
 
   await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '9.9.9' }), 'utf8');
-  await fs.writeFile(versionsFile, JSON.stringify(['1.0.0', '1.0.1']), 'utf8');
+  await fs.writeFile(versionsFile, JSON.stringify([]), 'utf8');
   await fs.writeFile(
     packFile,
     JSON.stringify([

@@ -91,6 +91,15 @@ async function runCommand(command: string, args: string[]): Promise<string> {
   });
 }
 
+function isNpmPackageNotFoundError(error: unknown): boolean {
+  if (!(error instanceof Error)) return false;
+  return (
+    error.message.includes('npm error code E404') ||
+    error.message.includes('npm ERR! code E404') ||
+    error.message.includes('404 Not Found')
+  );
+}
+
 function parsePackageMetadata(data: unknown): PackageMetadata {
   if (!data || typeof data !== 'object') {
     throw new Error('Invalid package.json: expected object');
@@ -151,9 +160,21 @@ async function main() {
   const packageData = await readJsonFromFile(args.packageFile);
   const pkg = parsePackageMetadata(packageData);
 
-  const versionsPayload = args.versionsJsonFile
-    ? await readJsonFromFile(args.versionsJsonFile)
-    : JSON.parse(await runCommand('npm', ['view', pkg.name, 'versions', '--json']));
+  let versionsPayload: unknown;
+  if (args.versionsJsonFile) {
+    versionsPayload = await readJsonFromFile(args.versionsJsonFile);
+  } else {
+    try {
+      versionsPayload = JSON.parse(await runCommand('npm', ['view', pkg.name, 'versions', '--json']));
+    } catch (error: unknown) {
+      // First-time publish returns 404 because the package does not exist yet.
+      if (isNpmPackageNotFoundError(error)) {
+        versionsPayload = [];
+      } else {
+        throw error;
+      }
+    }
+  }
   const publishedVersions = parseVersions(versionsPayload);
 
   if (publishedVersions.includes(pkg.version)) {
