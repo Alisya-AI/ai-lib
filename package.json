@@ -19,6 +19,7 @@
   ],
   "scripts": {
     "release:build": "bash scripts/build-release-artifacts.sh",
+    "release:npm:preflight": "bun run release:build && bun tools/npm-release-preflight.ts",
     "local:install": "bash scripts/install-local.sh",
     "security:audit": "bun audit --audit-level=high",
     "format:check": "prettier --check \"**/*.{ts,js,json,md,yml,yaml}\" --ignore-unknown",
