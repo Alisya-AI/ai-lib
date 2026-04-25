@@ -16,7 +16,7 @@
 ### npm
 
 ```bash
-npm install -g @ailib/cli
+npm install -g @alisya.ai/ailib
 ```
 
 ### Homebrew

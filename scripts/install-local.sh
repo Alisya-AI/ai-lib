@@ -21,7 +21,7 @@ bun install --frozen-lockfile
 echo "Building TypeScript tooling outputs..."
 bun run tools:build
 
-echo "Installing @ailib/cli globally from local repository..."
+echo "Installing @alisya.ai/ailib globally from local repository..."
 npm install -g .
 
 echo "Validating installed CLI..."

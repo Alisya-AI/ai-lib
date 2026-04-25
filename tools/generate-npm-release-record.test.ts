@@ -18,13 +18,13 @@ test('generate-npm-release-record creates markdown with evidence and release not
   const publishFile = path.join(dir, 'npm-publish-report.json');
   const outputFile = path.join(dir, 'npm-release-record.md');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '1.2.3' }), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '1.2.3' }), 'utf8');
   await fs.writeFile(
     preflightFile,
     JSON.stringify({
-      packageName: '@ailib/cli',
+      packageName: '@alisya.ai/ailib',
       version: '1.2.3',
-      tarball: 'ailib-cli-1.2.3.tgz',
+      tarball: 'alisya.ai-ailib-1.2.3.tgz',
       checkedAt: '2026-01-01T00:00:00.000Z'
     }),
     'utf8'
@@ -32,7 +32,7 @@ test('generate-npm-release-record creates markdown with evidence and release not
   await fs.writeFile(
     publishFile,
     JSON.stringify({
-      packageName: '@ailib/cli',
+      packageName: '@alisya.ai/ailib',
       version: '1.2.3',
       checkedAt: '2026-01-01T01:00:00.000Z'
     }),
@@ -56,8 +56,8 @@ test('generate-npm-release-record creates markdown with evidence and release not
   assert.match(result.stdout, /npm release record written/);
 
   const markdown = await fs.readFile(outputFile, 'utf8');
-  assert.match(markdown, /@ailib\/cli@1\.2\.3/);
-  assert.match(markdown, /ailib-cli-1\.2\.3\.tgz/);
+  assert.match(markdown, /@alisya\.ai\/ailib@1\.2\.3/);
+  assert.match(markdown, /alisya.ai-ailib-1\.2\.3\.tgz/);
   assert.match(markdown, /https:\/\/github\.com\/Alisya-AI\/ai-lib\/releases\/tag\/v1\.2\.3/);
 });
 
@@ -68,13 +68,13 @@ test('generate-npm-release-record fails when release-notes-url is missing', asyn
   const publishFile = path.join(dir, 'npm-publish-report.json');
   const outputFile = path.join(dir, 'npm-release-record.md');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '1.2.3' }), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '1.2.3' }), 'utf8');
   await fs.writeFile(
     preflightFile,
-    JSON.stringify({ packageName: '@ailib/cli', version: '1.2.3', tarball: 'ailib-cli-1.2.3.tgz' }),
+    JSON.stringify({ packageName: '@alisya.ai/ailib', version: '1.2.3', tarball: 'alisya.ai-ailib-1.2.3.tgz' }),
     'utf8'
   );
-  await fs.writeFile(publishFile, JSON.stringify({ packageName: '@ailib/cli', version: '1.2.3' }), 'utf8');
+  await fs.writeFile(publishFile, JSON.stringify({ packageName: '@alisya.ai/ailib', version: '1.2.3' }), 'utf8');
 
   const result = spawnSync(
     'bun',

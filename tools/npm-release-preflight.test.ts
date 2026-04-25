@@ -11,20 +11,20 @@ async function tempDir() {
   return await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-npm-preflight-'));
 }
 
-test('npm-release-preflight succeeds with fixture payloads', async () => {
+test('npm-release-preflight succeeds for first-time publish fixture payloads', async () => {
   const dir = await tempDir();
   const packageFile = path.join(dir, 'package.json');
   const versionsFile = path.join(dir, 'versions.json');
   const packFile = path.join(dir, 'pack.json');
   const reportFile = path.join(dir, 'report.json');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '9.9.9' }), 'utf8');
-  await fs.writeFile(versionsFile, JSON.stringify(['1.0.0', '1.0.1']), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '9.9.9' }), 'utf8');
+  await fs.writeFile(versionsFile, JSON.stringify([]), 'utf8');
   await fs.writeFile(
     packFile,
     JSON.stringify([
       {
-        filename: 'ailib-cli-9.9.9.tgz',
+        filename: 'alisya.ai-ailib-9.9.9.tgz',
         files: [{ path: 'bin/ailib.js' }, { path: 'src/cli.ts' }, { path: 'registry.json' }]
       }
     ]),
@@ -47,9 +47,9 @@ test('npm-release-preflight succeeds with fixture payloads', async () => {
   assert.match(result.stdout, /npm release preflight passed/);
 
   const report = JSON.parse(await fs.readFile(reportFile, 'utf8')) as Record<string, unknown>;
-  assert.equal(report.packageName, '@ailib/cli');
+  assert.equal(report.packageName, '@alisya.ai/ailib');
   assert.equal(report.version, '9.9.9');
-  assert.equal(report.tarball, 'ailib-cli-9.9.9.tgz');
+  assert.equal(report.tarball, 'alisya.ai-ailib-9.9.9.tgz');
 });
 
 test('npm-release-preflight fails when target version is already published', async () => {
@@ -58,13 +58,13 @@ test('npm-release-preflight fails when target version is already published', asy
   const versionsFile = path.join(dir, 'versions.json');
   const packFile = path.join(dir, 'pack.json');
 
-  await fs.writeFile(packageFile, JSON.stringify({ name: '@ailib/cli', version: '1.0.0' }), 'utf8');
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '1.0.0' }), 'utf8');
   await fs.writeFile(versionsFile, JSON.stringify(['0.9.0', '1.0.0']), 'utf8');
   await fs.writeFile(
     packFile,
     JSON.stringify([
       {
-        filename: 'ailib-cli-1.0.0.tgz',
+        filename: 'alisya.ai-ailib-1.0.0.tgz',
         files: [{ path: 'bin/ailib.js' }, { path: 'src/cli.ts' }, { path: 'registry.json' }]
       }
     ]),

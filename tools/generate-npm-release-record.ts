@@ -188,7 +188,7 @@ function buildRecordMarkdown({
     '',
     '- `bun run release:npm:preflight`',
     '- `bun run release:npm:publish`',
-    '- `npm view @ailib/cli version --json`',
+    '- `npm view @alisya.ai/ailib version --json`',
     '- `npx --yes ailib --help`',
     ''
   ].join('\n');

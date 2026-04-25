@@ -1,10 +1,10 @@
-# npm publishing for `@ailib/cli`
+# npm publishing for `@alisya.ai/ailib`
 
 This document defines the publish + verification flow for npm releases.
 
 ## Prerequisites
 
-- npm account with publish access to `@ailib/cli`
+- npm account with publish access to `@alisya.ai/ailib`
 - npm auth already configured (`npm whoami`)
 - repository on a clean release commit
 - for GitHub Actions publishing: repository secret `NPM_TOKEN` with npm automation token
@@ -35,8 +35,8 @@ The workflow performs:
 
 1. npm authentication check (`npm whoami`)
 2. `npm publish --access public`
-3. version resolution check (`npm view @ailib/cli version --json`)
-4. clean-directory install verification (`npm install @ailib/cli@<version>`)
+3. version resolution check (`npm view @alisya.ai/ailib version --json`)
+4. clean-directory install verification (`npm install @alisya.ai/ailib@<version>`)
 5. CLI smoke test (`npx ailib --help`)
 
 ## 3) Optional dry-run publish verification
@@ -90,7 +90,7 @@ The workflow runs:
 Set `NPM_TOKEN` in repository secrets:
 
 - npm type: Automation token (recommended for CI publish)
-- scope: minimal publish permissions for `@ailib/cli`
+- scope: minimal publish permissions for `@alisya.ai/ailib`
 
 ### Optional hardening: npm trusted publishing
 
