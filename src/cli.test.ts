@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
 
 import { run } from './cli.ts';
 
@@ -54,4 +56,17 @@ test('run prints package version for version aliases', async () => {
     await run(['version'], { cwd: process.cwd(), packageRoot: process.cwd() });
   });
   assert.equal(commandOutput, expected);
+});
+
+test('run throws when package.json is missing version', async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-cli-version-'));
+  try {
+    await fs.writeFile(path.join(root, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+    await assert.rejects(
+      run(['--version'], { cwd: root, packageRoot: root }),
+      /Invalid package\.json: missing version/
+    );
+  } finally {
+    await fs.rm(root, { recursive: true, force: true });
+  }
 });

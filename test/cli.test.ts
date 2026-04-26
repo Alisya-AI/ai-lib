@@ -205,6 +205,38 @@ test('skills list and explain include reliability skills', async () => {
   assert.match(explainMigration, /path: skills\/migration-planning\.md/);
 });
 
+test('skills list and explain include Jira delivery skill metadata', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- jira-delivery-practices - Jira delivery practices/);
+
+  const explainJira = await captureStdout(async () => {
+    await run(['skills', 'explain', 'jira-delivery-practices'], { packageRoot });
+  });
+  assert.match(explainJira, /skill: jira-delivery-practices/);
+  assert.match(explainJira, /path: skills\/jira-delivery-practices\.md/);
+  assert.match(explainJira, /description: Apply Jira workflow best practices/);
+  assert.match(explainJira, /compatible.languages: .*typescript/);
+  assert.match(explainJira, /compatible.targets: .*claude-code/);
+});
+
+test('skills list and explain include Notion delivery skill metadata', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- notion-delivery-practices - Notion delivery practices/);
+
+  const explainNotion = await captureStdout(async () => {
+    await run(['skills', 'explain', 'notion-delivery-practices'], { packageRoot });
+  });
+  assert.match(explainNotion, /skill: notion-delivery-practices/);
+  assert.match(explainNotion, /path: skills\/notion-delivery-practices\.md/);
+  assert.match(explainNotion, /description: Apply Notion documentation best practices/);
+  assert.match(explainNotion, /compatible.languages: .*typescript/);
+  assert.match(explainNotion, /compatible.targets: .*claude-code/);
+});
+
 test('skills list and explain include task-driven GH flow metadata', async () => {
   const listOutput = await captureStdout(async () => {
     await run(['skills', 'list'], { packageRoot });

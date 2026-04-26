@@ -196,6 +196,24 @@
         "targets": ["cursor", "claude-code", "copilot", "openai", "gemini", "windsurf", "jetbrains"]
       }
     },
+    "jira-delivery-practices": {
+      "display": "Jira delivery practices",
+      "description": "Apply Jira workflow best practices to keep software delivery planning, execution, and release traceability aligned.",
+      "path": "skills/jira-delivery-practices.md",
+      "compatible": {
+        "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
+        "targets": ["cursor", "claude-code", "copilot", "openai", "gemini", "windsurf", "jetbrains"]
+      }
+    },
+    "notion-delivery-practices": {
+      "display": "Notion delivery practices",
+      "description": "Apply Notion documentation best practices to keep software development context, decisions, and delivery playbooks current.",
+      "path": "skills/notion-delivery-practices.md",
+      "compatible": {
+        "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
+        "targets": ["cursor", "claude-code", "copilot", "openai", "gemini", "windsurf", "jetbrains"]
+      }
+    },
     "task-driven-gh-flow": {
       "display": "Task-driven GH flow",
       "description": "Execute roadmap work through GitHub tasks with strict traceability. Use when implementing planned backlog items, creating small PRs, linking PRs to issues, updating GitHub Projects after merge, and splitting tasks into sub-issues when a single PR is not enough.",
