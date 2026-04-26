@@ -5,6 +5,7 @@ import { executeCommand } from './cli/dispatch.ts';
 import { parseFlags } from './cli/flags.ts';
 import { printHelp } from './cli/help.ts';
 import { createCanonicalSlotResolver } from './cli/slot-resolver.ts';
+import { readJson } from './cli/utils.ts';
 import { createWorkspaceUpdateRunner } from './cli/workspace-update-runner.ts';
 import type { CommandContext, RunOptions } from './cli/types.ts';
 
@@ -21,6 +22,11 @@ const APPLY_WORKSPACE_UPDATE = createWorkspaceUpdateRunner({
 export async function run(argv: string[], options: RunOptions = {}) {
   const cwd = options.cwd ?? process.cwd();
   const packageRoot = options.packageRoot ?? path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
+  const packageJson = await readJson<{ version?: string }>(path.join(packageRoot, 'package.json'));
+  const cliVersion = packageJson.version;
+  if (typeof cliVersion !== 'string' || !cliVersion.trim()) {
+    throw new Error(`Invalid package.json: missing version in ${path.join(packageRoot, 'package.json')}`);
+  }
 
   const [command, ...rest] = argv;
   const flags = parseFlags(rest);
@@ -37,6 +43,9 @@ export async function run(argv: string[], options: RunOptions = {}) {
       applyWorkspaceUpdate: async ({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict }) =>
         APPLY_WORKSPACE_UPDATE({ packageRoot: rootPackage, rootDir, workspaceOverride, forceOnConflict })
     }),
-    printHelp
+    printHelp,
+    printVersion: () => {
+      process.stdout.write(`${cliVersion}\n`);
+    }
   });
 }

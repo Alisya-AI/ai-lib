@@ -2,6 +2,14 @@
   "name": "@alisya.ai/ailib",
   "version": "1.0.6",
   "description": "Universal AI context-injection engine CLI",
+  "homepage": "https://github.com/Alisya-AI/ai-lib#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Alisya-AI/ai-lib.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Alisya-AI/ai-lib/issues"
+  },
   "type": "module",
   "main": "dist/runtime/cli.js",
   "exports": {

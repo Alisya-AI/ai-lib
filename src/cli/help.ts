@@ -7,12 +7,14 @@ export function printHelp() {
       '  ailib remove <module> [--workspace=<path>]\n' +
       '  ailib doctor [--workspace=<path>]\n' +
       '  ailib uninstall [--all]\n' +
+      '  ailib version\n' +
       '  ailib slots list\n' +
       '  ailib modules list [--language=<lang>]\n' +
       '  ailib modules explain <module> [--language=<lang>]\n' +
       '  ailib skills list\n' +
       '  ailib skills explain <skill-id>\n' +
       '  ailib skills init <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]\n' +
-      '  ailib skills validate [--workspace=<path>] [--path=<path>]\n'
+      '  ailib skills validate [--workspace=<path>] [--path=<path>]\n' +
+      '  aliases: --help/-h, --version/-v\n'
   );
 }

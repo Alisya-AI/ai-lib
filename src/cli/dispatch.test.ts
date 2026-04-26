@@ -23,7 +23,8 @@ test('executeCommand prints help when command is empty', async () => {
     handlers,
     printHelp: () => {
       printHelpCalls += 1;
-    }
+    },
+    printVersion: () => {}
   });
 
   assert.equal(printHelpCalls, 1);
@@ -39,7 +40,8 @@ test('executeCommand prints help for help aliases', async () => {
     handlers,
     printHelp: () => {
       printHelpCalls += 1;
-    }
+    },
+    printVersion: () => {}
   });
 
   await executeCommand({
@@ -48,7 +50,8 @@ test('executeCommand prints help for help aliases', async () => {
     handlers,
     printHelp: () => {
       printHelpCalls += 1;
-    }
+    },
+    printVersion: () => {}
   });
 
   assert.equal(printHelpCalls, 2);
@@ -68,7 +71,8 @@ test('executeCommand dispatches to registered handler', async () => {
     command: 'update',
     context: createContext(['service-a']),
     handlers,
-    printHelp: () => {}
+    printHelp: () => {},
+    printVersion: () => {}
   });
 
   assert.deepEqual(calls, ['/tmp/workspace', '/tmp/package', 'service-a']);
@@ -80,8 +84,46 @@ test('executeCommand rejects unknown commands', async () => {
       command: 'unknown',
       context: createContext([]),
       handlers: {},
-      printHelp: () => {}
+      printHelp: () => {},
+      printVersion: () => {}
     }),
     /Unknown command: unknown/
   );
+});
+
+test('executeCommand prints version for version aliases', async () => {
+  let printVersionCalls = 0;
+  const handlers: CommandHandlers = {};
+
+  await executeCommand({
+    command: '--version',
+    context: createContext([]),
+    handlers,
+    printHelp: () => {},
+    printVersion: () => {
+      printVersionCalls += 1;
+    }
+  });
+
+  await executeCommand({
+    command: '-v',
+    context: createContext([]),
+    handlers,
+    printHelp: () => {},
+    printVersion: () => {
+      printVersionCalls += 1;
+    }
+  });
+
+  await executeCommand({
+    command: 'version',
+    context: createContext([]),
+    handlers,
+    printHelp: () => {},
+    printVersion: () => {
+      printVersionCalls += 1;
+    }
+  });
+
+  assert.equal(printVersionCalls, 3);
 });

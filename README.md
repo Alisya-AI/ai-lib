@@ -60,7 +60,13 @@ ailib update
 ailib doctor
 ```
 
-4. Evolve your stack over time:
+4. Check installed CLI version:
+
+```bash
+ailib --version
+```
+
+5. Evolve your stack over time:
 
 ```bash
 ailib add prettier
