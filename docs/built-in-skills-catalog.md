@@ -56,6 +56,12 @@ All built-in skills currently declare compatibility with:
 - Dependency notes: no required skills.
 - Recommended usage: use when cycle time, handoff friction, or rollout sequencing is slowing delivery.
 
+### `task-driven-gh-flow`
+
+- Purpose: Execute roadmap work through GitHub tasks with strict traceability across issue hierarchy, project status, and PR linkage.
+- Dependency notes: no required skills.
+- Recommended usage: use for backlog implementation where each task should map cleanly to one PR and post-merge sync is mandatory.
+
 ### `release-readiness`
 
 - Purpose: Validate a change is safe to release with checklist-driven checks, rollback preparation, and post-merge verification.
