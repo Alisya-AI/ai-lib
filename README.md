@@ -21,13 +21,13 @@ npm install -g @alisya.ai/ailib
 
 ### Homebrew
 
-Current in-repo formula (HEAD):
+Current in-repo formula (stable):
 
 ```bash
-brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
+brew install --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
 ```
 
-Planned stable user flow via tap:
+Recommended user flow via tap:
 
 ```bash
 brew tap Alisya-AI/ailib
