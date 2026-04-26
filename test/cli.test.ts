@@ -205,6 +205,22 @@ test('skills list and explain include reliability skills', async () => {
   assert.match(explainMigration, /path: skills\/migration-planning\.md/);
 });
 
+test('skills list and explain include task-driven GH flow metadata', async () => {
+  const listOutput = await captureStdout(async () => {
+    await run(['skills', 'list'], { packageRoot });
+  });
+  assert.match(listOutput, /- task-driven-gh-flow - Task-driven GH flow/);
+
+  const explainTaskDriven = await captureStdout(async () => {
+    await run(['skills', 'explain', 'task-driven-gh-flow'], { packageRoot });
+  });
+  assert.match(explainTaskDriven, /skill: task-driven-gh-flow/);
+  assert.match(explainTaskDriven, /path: skills\/task-driven-gh-flow\.md/);
+  assert.match(explainTaskDriven, /description: Execute roadmap work through GitHub tasks with strict traceability/);
+  assert.match(explainTaskDriven, /compatible.languages: .*typescript/);
+  assert.match(explainTaskDriven, /compatible.targets: .*claude-code/);
+});
+
 test('skills list and explain include tdd workflow skill metadata', async () => {
   const listOutput = await captureStdout(async () => {
     await run(['skills', 'list'], { packageRoot });
