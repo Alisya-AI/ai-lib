@@ -96,3 +96,44 @@ test('npm-release-preflight fails when target version is already published', asy
   assert.equal(result.status, 1);
   assert.match(result.stderr, /already published/);
 });
+
+test('npm-release-preflight fails when npm pack payload includes TypeScript files', async () => {
+  const dir = await tempDir();
+  const packageFile = path.join(dir, 'package.json');
+  const versionsFile = path.join(dir, 'versions.json');
+  const packFile = path.join(dir, 'pack.json');
+
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '2.0.0' }), 'utf8');
+  await fs.writeFile(versionsFile, JSON.stringify([]), 'utf8');
+  await fs.writeFile(
+    packFile,
+    JSON.stringify([
+      {
+        filename: 'alisya.ai-ailib-2.0.0.tgz',
+        files: [
+          { path: 'bin/ailib.js' },
+          { path: 'dist/runtime/cli.js' },
+          { path: 'docs/homebrew-publishing.md' },
+          { path: 'registry.json' },
+          { path: 'tools/npm-release-publish.ts' }
+        ]
+      }
+    ]),
+    'utf8'
+  );
+
+  const result = spawnSync(
+    'bun',
+    [
+      'tools/npm-release-preflight.ts',
+      `--package-file=${packageFile}`,
+      `--versions-json-file=${versionsFile}`,
+      `--pack-json-file=${packFile}`,
+      `--report-file=${path.join(dir, 'report.json')}`
+    ],
+    { cwd: packageRoot, encoding: 'utf8' }
+  );
+
+  assert.equal(result.status, 1);
+  assert.match(result.stderr, /must not include TypeScript sources/);
+});

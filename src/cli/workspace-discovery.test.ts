@@ -124,6 +124,34 @@ test('listWorkspaceDirs supports double-star workspace patterns', async () => {
   assert.equal(dirs.includes(path.resolve(nestedApp)), true);
 });
 
+test('listWorkspaceDirs treats regex-like characters in workspace patterns as literals', async () => {
+  const root = await makeRoot();
+  await writeConfig(root, {
+    language: 'typescript',
+    modules: ['eslint'],
+    targets: ['claude-code'],
+    workspaces: ['apps/foo.+']
+  });
+
+  const literalMatch = path.join(root, 'apps', 'foo.+');
+  const wildcardMiss = path.join(root, 'apps', 'foobar');
+  await writeConfig(literalMatch, { language: 'typescript', modules: ['biome'], targets: ['claude-code'] });
+  await writeConfig(wildcardMiss, { language: 'typescript', modules: ['eslint'], targets: ['claude-code'] });
+
+  const dirs = await listWorkspaceDirs({
+    rootDir: root,
+    rootConfig: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['claude-code'],
+      workspaces: ['apps/foo.+']
+    }
+  });
+
+  assert.equal(dirs.includes(path.resolve(literalMatch)), true);
+  assert.equal(dirs.includes(path.resolve(wildcardMiss)), false);
+});
+
 test('listWorkspaceDirs supports slash and basename gitignore rules', async () => {
   const root = await makeRoot();
   await writeConfig(root, {

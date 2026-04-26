@@ -37,6 +37,8 @@ permissions:
 jobs:
   publish:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
     steps:
       - name: Resolve publish context
         id: context
@@ -52,21 +54,21 @@ jobs:
           fi
 
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6.0.2
         with:
           fetch-depth: 0
           persist-credentials: true
           ref: ${{ steps.context.outputs.publish_ref }}
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@v2.2.0
         with:
           bun-version: latest
 
       - name: Setup Node for npm publishing
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6.4.0
         with:
-          node-version: 20
+          node-version: 24
           registry-url: https://registry.npmjs.org
 
       - name: Validate npm token secret
@@ -134,7 +136,7 @@ jobs:
         run: bun run release:npm:record -- --release-notes-url="${{ steps.context.outputs.release_notes_url }}"
 
       - name: Upload release evidence artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.1
         with:
           name: npm-release-evidence
           path: dist/release/
