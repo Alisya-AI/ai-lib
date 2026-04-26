@@ -63,10 +63,11 @@ class Ailib < Formula
 
   def install
     system "npm", "install", "--omit=dev", *std_npm_args
+    bin.write_exec_script libexec/"bin/ailib"
   end
 
   test do
-    system bin/"ailib", "--help"
+    assert_match "ailib commands:", shell_output("#{bin}/ailib --help")
   end
 end
 ```
@@ -87,6 +88,35 @@ end
    shasum -a 256 /tmp/ailib-X.Y.Z.tgz
    ```
 5. Commit and push to `Alisya-AI/homebrew-ailib`.
+
+## Release verification record (v1.0.2)
+
+This section captures the concrete evidence for the first published tap release.
+
+- Tap repo: `Alisya-AI/homebrew-ailib`
+- Release PR: [homebrew-ailib#1](https://github.com/Alisya-AI/homebrew-ailib/pull/1)
+- Merge commit: `18b1a058c11b16d5d5d733bd539eb874c2ed15a7`
+- Formula package target: `@alisya.ai/ailib@1.0.2`
+- Formula tarball URL: `https://registry.npmjs.org/@alisya.ai/ailib/-/ailib-1.0.2.tgz`
+- Formula SHA256: `944c4617fdf801dd5f5d61e9e413579e508193a17320e71b37f60d3cda7da43c`
+
+Verification commands used:
+
+```bash
+brew tap Alisya-AI/ailib
+brew reinstall Alisya-AI/ailib/ailib
+brew test Alisya-AI/ailib/ailib
+ailib --help
+```
+
+Observed verification output:
+
+```text
+ailib commands:
+  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] ...
+  ailib update [--workspace=<path>]
+  ...
+```
 
 ### User install commands
 
