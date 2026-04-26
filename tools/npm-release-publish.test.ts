@@ -3,13 +3,36 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
 
 const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
 async function tempDir() {
   return await fs.mkdtemp(path.join(os.tmpdir(), 'ailib-npm-publish-'));
+}
+
+async function spawnBun(
+  args: string[],
+  options: {
+    cwd: string;
+    env: NodeJS.ProcessEnv;
+  }
+): Promise<{ status: number | null; stdout: string; stderr: string }> {
+  return await new Promise((resolve) => {
+    const child = spawn('bun', args, options);
+    let stdout = '';
+    let stderr = '';
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk.toString();
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk.toString();
+    });
+    child.on('close', (status) => {
+      resolve({ status, stdout, stderr });
+    });
+  });
 }
 
 async function createTarballServer() {
@@ -102,7 +125,7 @@ test('npm-release-publish fails dry-run when resolved version mismatches package
   assert.match(result.stderr, /Published version mismatch/);
 });
 
-test('npm-release-publish retries when npm view returns stale version', { timeout: 15_000 }, async () => {
+test('npm-release-publish retries when npm view returns stale version', { timeout: 30_000 }, async () => {
   const dir = await tempDir();
   const packageFile = path.join(dir, 'package.json');
   const reportFile = path.join(dir, 'report.json');
@@ -168,12 +191,10 @@ echo "ailib commands:"
     await fs.chmod(fakeNpm, 0o755);
     await fs.chmod(fakeNpx, 0o755);
 
-    const result = spawnSync(
-      'bun',
+    const result = await spawnBun(
       ['tools/npm-release-publish.ts', `--package-file=${packageFile}`, `--report-file=${reportFile}`],
       {
         cwd: packageRoot,
-        encoding: 'utf8',
         env: {
           ...process.env,
           TARBALL_URL: tarballServer.tarballUrl,
