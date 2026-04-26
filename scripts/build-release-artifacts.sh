@@ -40,6 +40,9 @@ fi
 
 echo "Building TypeScript tooling outputs..."
 bun run tools:build
+mkdir -p "${ROOT_DIR}/dist/runtime"
+echo "Building bundled CLI runtime output..."
+bun build "${ROOT_DIR}/src/cli.ts" --target bun --outfile "${ROOT_DIR}/dist/runtime/cli.js"
 
 mkdir -p "${DIST_DIR}"
 rm -f "${DIST_DIR}"/*.tgz "${DIST_DIR}"/release-checksums.txt "${DIST_DIR}"/homebrew-formula-snippet.txt

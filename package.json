@@ -3,12 +3,18 @@
   "version": "1.0.3",
   "description": "Universal AI context-injection engine CLI",
   "type": "module",
+  "main": "dist/runtime/cli.js",
+  "exports": {
+    ".": "./dist/runtime/cli.js",
+    "./package.json": "./package.json"
+  },
   "bin": {
     "ailib": "bin/ailib.js"
   },
   "files": [
     "bin",
-    "src",
+    "dist/runtime",
+    "docs",
     "schema",
     "core",
     "languages",

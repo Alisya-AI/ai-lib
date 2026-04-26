@@ -16,6 +16,15 @@ async function exists(filePath: string) {
   }
 }
 
+async function ensureRuntimeBundle() {
+  const runtimePath = path.join(packageRoot, 'dist', 'runtime', 'cli.js');
+  if (await exists(runtimePath)) {
+    return;
+  }
+  const result = await runBun(['build', 'src/cli.ts', '--target', 'bun', '--outfile', 'dist/runtime/cli.js']);
+  assert.equal(result.code, 0, result.stderr);
+}
+
 function runBun(args: string[], cwd = packageRoot): Promise<{ code: number | null; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
     const child = spawn('bun', args, { cwd });
@@ -49,6 +58,7 @@ test('bin entrypoint reports CLI errors through stderr', async () => {
 });
 
 test('package files list points to existing release paths', async () => {
+  await ensureRuntimeBundle();
   const pkg = JSON.parse(await fs.readFile(path.join(packageRoot, 'package.json'), 'utf8'));
   const fileEntries = pkg.files || [];
   assert.ok(fileEntries.length > 0, 'package.json files array should not be empty');
@@ -59,17 +69,21 @@ test('package files list points to existing release paths', async () => {
 });
 
 test('release-critical entry files are present and executable', async () => {
+  await ensureRuntimeBundle();
   const binPath = path.join(packageRoot, 'bin', 'ailib.js');
-  const cliPath = path.join(packageRoot, 'src', 'cli.ts');
+  const runtimePath = path.join(packageRoot, 'dist', 'runtime', 'cli.js');
   const registryPath = path.join(packageRoot, 'registry.json');
+  const docsPath = path.join(packageRoot, 'docs', 'homebrew-publishing.md');
 
   assert.equal(await exists(binPath), true, 'missing bin/ailib.js');
-  assert.equal(await exists(cliPath), true, 'missing src/cli.ts');
+  assert.equal(await exists(runtimePath), true, 'missing dist/runtime/cli.js');
+  assert.equal(await exists(docsPath), true, 'missing docs/homebrew-publishing.md');
   assert.equal(await exists(registryPath), true, 'missing registry.json');
 
   const bin = await fs.readFile(binPath, 'utf8');
   const binStat = await fs.stat(binPath);
   assert.match(bin, /^#!\/usr\/bin\/env bun$/mu);
-  assert.match(bin, /from '\.\.\/src\/cli\.ts';/mu);
+  assert.match(bin, /'\.\.\/dist\/runtime\/cli\.js'/mu);
+  assert.match(bin, /'\.\.\/src\/cli\.ts'/mu);
   assert.ok((binStat.mode & 0o111) !== 0, 'bin/ailib.js should be executable');
 });
