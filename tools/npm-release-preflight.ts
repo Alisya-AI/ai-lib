@@ -3,7 +3,7 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
-const requiredPackEntries = ['bin/ailib.js', 'src/cli.ts', 'registry.json'];
+const requiredPackEntries = ['bin/ailib.js', 'dist/runtime/cli.js', 'docs/homebrew-publishing.md', 'registry.json'];
 
 type CliArgs = {
   packageFile: string;

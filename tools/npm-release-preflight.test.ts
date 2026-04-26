@@ -25,7 +25,12 @@ test('npm-release-preflight succeeds for first-time publish fixture payloads', a
     JSON.stringify([
       {
         filename: 'alisya.ai-ailib-9.9.9.tgz',
-        files: [{ path: 'bin/ailib.js' }, { path: 'src/cli.ts' }, { path: 'registry.json' }]
+        files: [
+          { path: 'bin/ailib.js' },
+          { path: 'dist/runtime/cli.js' },
+          { path: 'docs/homebrew-publishing.md' },
+          { path: 'registry.json' }
+        ]
       }
     ]),
     'utf8'
@@ -65,7 +70,12 @@ test('npm-release-preflight fails when target version is already published', asy
     JSON.stringify([
       {
         filename: 'alisya.ai-ailib-1.0.0.tgz',
-        files: [{ path: 'bin/ailib.js' }, { path: 'src/cli.ts' }, { path: 'registry.json' }]
+        files: [
+          { path: 'bin/ailib.js' },
+          { path: 'dist/runtime/cli.js' },
+          { path: 'docs/homebrew-publishing.md' },
+          { path: 'registry.json' }
+        ]
       }
     ]),
     'utf8'
