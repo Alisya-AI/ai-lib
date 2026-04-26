@@ -1,6 +1,6 @@
 {
   "name": "@alisya.ai/ailib",
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Universal AI context-injection engine CLI",
   "type": "module",
   "main": "dist/runtime/cli.js",
