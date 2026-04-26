@@ -7,15 +7,21 @@ export async function executeCommand({
   command,
   context,
   handlers,
-  printHelp
+  printHelp,
+  printVersion
 }: {
   command: string | undefined;
   context: CommandContext;
   handlers: CommandHandlers;
   printHelp: () => void;
+  printVersion: () => void;
 }): Promise<void> {
   if (!command || command === '--help' || command === '-h') {
     printHelp();
+    return;
+  }
+  if (command === '--version' || command === '-v' || command === 'version') {
+    printVersion();
     return;
   }
 

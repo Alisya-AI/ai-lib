@@ -12,6 +12,7 @@ Core commands:
 - `ailib remove <module>`
 - `ailib doctor`
 - `ailib uninstall`
+- `ailib version` (or `ailib --version`)
 - `ailib slots list`
 - `ailib modules list`
 - `ailib modules explain <module>`
