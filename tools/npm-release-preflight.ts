@@ -155,6 +155,13 @@ function assertRequiredPackEntries(filePaths: string[]) {
   }
 }
 
+function assertNoTypeScriptEntries(filePaths: string[]) {
+  const tsEntries = filePaths.filter((relPath) => /\.ts$/u.test(relPath));
+  if (tsEntries.length > 0) {
+    throw new Error(`npm pack output must not include TypeScript sources: ${tsEntries.join(', ')}`);
+  }
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const packageData = await readJsonFromFile(args.packageFile);
@@ -186,6 +193,7 @@ async function main() {
     : JSON.parse(await runCommand('npm', ['pack', '--dry-run', '--json']));
   const packSummary = parsePackFiles(packPayload);
   assertRequiredPackEntries(packSummary.filePaths);
+  assertNoTypeScriptEntries(packSummary.filePaths);
 
   const reportPath = resolveInputPath(args.reportFile);
   await fs.mkdir(path.dirname(reportPath), { recursive: true });
@@ -200,7 +208,8 @@ async function main() {
         requiredPackEntries,
         checks: {
           versionUnpublished: true,
-          packContainsRequiredEntries: true
+          packContainsRequiredEntries: true,
+          packExcludesTypeScriptSources: true
         },
         checkedAt: new Date().toISOString()
       },

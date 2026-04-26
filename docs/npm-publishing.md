@@ -22,6 +22,7 @@ This validates:
 - release artifacts are generated under `dist/release/`
 - target package version is not already published
 - npm pack output contains required release files
+- npm pack output excludes `.ts` source files
 
 ## 2) Publish and verify npm install resolution
 
