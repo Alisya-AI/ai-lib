@@ -146,13 +146,34 @@ async function sleep(ms: number): Promise<void> {
   });
 }
 
-async function resolvePublishedVersionWithRetry(packageName: string): Promise<unknown> {
-  const maxAttempts = 10;
-  const delayMs = 3000;
+function resolveRetryConfig(): { maxAttempts: number; delayMs: number } {
+  const maxAttemptsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_MAX_ATTEMPTS ?? '10', 10);
+  const delayMsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_DELAY_MS ?? '3000', 10);
+  return {
+    maxAttempts: Number.isFinite(maxAttemptsValue) && maxAttemptsValue > 0 ? maxAttemptsValue : 10,
+    delayMs: Number.isFinite(delayMsValue) && delayMsValue >= 0 ? delayMsValue : 3000
+  };
+}
+
+async function resolvePublishedVersionWithRetry(packageName: string, expectedVersion: string): Promise<string> {
+  const { maxAttempts, delayMs } = resolveRetryConfig();
+  let lastResolvedVersion: string | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     try {
-      return JSON.parse((await runCommand('npm', ['view', packageName, 'version', '--json'])).stdout);
+      const payload = JSON.parse((await runCommand('npm', ['view', packageName, 'version', '--json'])).stdout);
+      const resolvedVersion = parseVersionPayload(payload);
+      lastResolvedVersion = resolvedVersion;
+      if (resolvedVersion === expectedVersion) {
+        return resolvedVersion;
+      }
+      if (attempt === maxAttempts) {
+        break;
+      }
+      process.stdout.write(
+        `npm view retry ${attempt}/${String(maxAttempts)} for ${packageName}; expected ${expectedVersion}, received ${resolvedVersion}; waiting ${String(delayMs / 1000)}s...\n`
+      );
+      await sleep(delayMs);
     } catch (error: unknown) {
       if (!isNpmPackageNotFoundError(error) || attempt === maxAttempts) {
         throw error;
@@ -164,7 +185,9 @@ async function resolvePublishedVersionWithRetry(packageName: string): Promise<un
     }
   }
 
-  throw new Error(`Unable to resolve published version for ${packageName}`);
+  throw new Error(
+    `Unable to resolve published version for ${packageName}; expected ${expectedVersion}, last received ${lastResolvedVersion ?? 'unknown'}`
+  );
 }
 
 async function verifyInstalledCli(pkg: PackageMetadata): Promise<void> {
@@ -212,10 +235,9 @@ async function main() {
     report.checks.publishCommandExecuted = true;
   }
 
-  const publishedVersionPayload = args.publishedVersionJsonFile
-    ? await readJsonFromFile(args.publishedVersionJsonFile)
-    : await resolvePublishedVersionWithRetry(pkg.name);
-  const publishedVersion = parseVersionPayload(publishedVersionPayload);
+  const publishedVersion = args.publishedVersionJsonFile
+    ? parseVersionPayload(await readJsonFromFile(args.publishedVersionJsonFile))
+    : await resolvePublishedVersionWithRetry(pkg.name, pkg.version);
   if (publishedVersion !== pkg.version) {
     throw new Error(
       `Published version mismatch for ${pkg.name}: expected ${pkg.version}, received ${publishedVersion}`

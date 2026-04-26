@@ -39,6 +39,9 @@ The workflow performs:
 4. clean-directory install verification (`npm install @alisya.ai/ailib@<version>`)
 5. CLI smoke test (`npx ailib --help`)
 
+The publish verification step automatically retries npm version resolution when the registry
+returns transient `404` responses or a stale previous version immediately after publish.
+
 ## 3) Optional dry-run publish verification
 
 To exercise non-publish verification paths without uploading:
