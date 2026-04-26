@@ -97,6 +97,7 @@ The workflow runs:
 4. create/update Homebrew tap formula PR in `Alisya-AI/homebrew-ailib` (when `HOMEBREW_TAP_TOKEN` is configured)
 5. `bun run release:npm:record -- --release-notes-url=<input-or-generated>`
 6. Uploads `dist/release/` as `npm-release-evidence` artifact
+7. on failed `push` runs where npm metadata updated but tarball remains unreachable, performs one automatic recovery bump + redispatch
 
 ### Auto-release path filter
 
@@ -107,6 +108,7 @@ Auto-publish on `main` only runs when changes include release-relevant paths:
 - `scripts/**`, `tools/**`, `bin/**`, `schema/**`
 
 Version-bump commits only touch `package.json`, so they do not re-trigger auto release.
+Recovery commits are redispatched through `workflow_dispatch` automatically by the same workflow.
 
 ### Manual workflow_dispatch
 

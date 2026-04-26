@@ -33,6 +33,7 @@ concurrency:
 
 permissions:
   contents: write
+  actions: write
 
 jobs:
   publish:
@@ -295,3 +296,86 @@ jobs:
         with:
           name: npm-release-evidence
           path: dist/release/
+
+  auto-recover:
+    if: |
+      needs.publish.result == 'failure' &&
+      github.event_name == 'push' &&
+      github.ref_name == 'main' &&
+      !contains(github.event.head_commit.message, 'chore: release recovery')
+    needs: publish
+    runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+          ref: main
+
+      - name: Setup Node for recovery
+        uses: actions/setup-node@v6.4.0
+        with:
+          node-version: 24
+          registry-url: https://registry.npmjs.org
+
+      - name: Attempt automatic recovery release dispatch
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git pull --ff-only origin main
+
+          PACKAGE_NAME="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.name);")"
+          CURRENT_VERSION="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.version);")"
+          LATEST_VERSION="$(npm view "${PACKAGE_NAME}" version --json 2>/dev/null | tr -d '\" \n\r' || true)"
+          if [ -z "${LATEST_VERSION}" ] || [ "${LATEST_VERSION}" = "null" ]; then
+            echo "Skipping recovery: unable to resolve latest npm version."
+            exit 0
+          fi
+          if [ "${LATEST_VERSION}" != "${CURRENT_VERSION}" ]; then
+            echo "Skipping recovery: repo version ${CURRENT_VERSION} does not match npm latest ${LATEST_VERSION}."
+            exit 0
+          fi
+
+          TARBALL_URL="$(npm view "${PACKAGE_NAME}@${CURRENT_VERSION}" dist.tarball --json 2>/dev/null | tr -d '\" \n\r' || true)"
+          if [ -z "${TARBALL_URL}" ] || [ "${TARBALL_URL}" = "null" ]; then
+            echo "Skipping recovery: no tarball URL published for ${PACKAGE_NAME}@${CURRENT_VERSION}."
+            exit 0
+          fi
+
+          TARBALL_STATUS="$(curl -s -o /dev/null -w '%{http_code}' "${TARBALL_URL}" || true)"
+          if [ -n "${TARBALL_STATUS}" ] && [ "${TARBALL_STATUS}" -ge 200 ] && [ "${TARBALL_STATUS}" -lt 400 ]; then
+            echo "Skipping recovery: tarball is reachable (HTTP ${TARBALL_STATUS})."
+            exit 0
+          fi
+
+          NEXT_VERSION="$(CURRENT_VERSION="${CURRENT_VERSION}" node - <<'NODE'
+          const raw = process.env.CURRENT_VERSION || '';
+          const match = raw.match(/^(\d+)\.(\d+)\.(\d+)/u);
+          if (!match) throw new Error(`Invalid semver: ${raw}`);
+          process.stdout.write(`${match[1]}.${match[2]}.${Number(match[3]) + 1}`);
+          NODE
+          )"
+
+          npm pkg set version="${NEXT_VERSION}"
+          git add package.json
+
+          if git diff --cached --quiet; then
+            echo "No recovery version bump required."
+            exit 0
+          fi
+
+          export GIT_AUTHOR_NAME="github-actions[bot]"
+          export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+          export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+          git commit -m "chore: release recovery ${PACKAGE_NAME}@${NEXT_VERSION}"
+          git push origin HEAD:main
+          RECOVERY_SHA="$(git rev-parse HEAD)"
+
+          gh workflow run npm-publish.yml \
+            --ref main \
+            -f release_notes_url="${{ github.server_url }}/${{ github.repository }}/commit/${RECOVERY_SHA}" \
+            -f ref=main
