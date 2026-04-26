@@ -52,10 +52,12 @@ If uncertain, prefer `maintenance` and note why in PR summary.
 
 ```md
 ## Summary
+
 - <change 1>
 - <change 2>
 
 ## Test plan
+
 - [x] Run `<command>`
 - [x] Run `<command>`
 
