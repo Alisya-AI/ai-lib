@@ -21,17 +21,25 @@ npm install -g @alisya.ai/ailib
 
 ### Homebrew
 
-Current in-repo formula (stable):
+Direct install from this repository formula:
 
 ```bash
 brew install --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
 ```
 
-Recommended user flow via tap:
+Recommended install flow via tap:
 
 ```bash
 brew tap Alisya-AI/ailib
-brew install ailib
+brew update
+brew install Alisya-AI/ailib/ailib
+```
+
+If you previously installed from a raw formula URL and are stuck on an older version, migrate to the tap formula:
+
+```bash
+brew uninstall ailib
+brew install Alisya-AI/ailib/ailib
 ```
 
 ### Local install from repository

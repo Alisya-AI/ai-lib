@@ -40,7 +40,7 @@ For a quicker local run that skips full checks:
 bun run release:build -- --skip-check
 ```
 
-Use a tap repo so users can run `brew install ailib` after one-time tap setup.
+Use a tap repo so users can install a stable named formula after one-time tap setup.
 
 ### One-time setup
 
@@ -48,6 +48,7 @@ Use a tap repo so users can run `brew install ailib` after one-time tap setup.
 2. Add `Formula/ailib.rb`.
 3. Add repository secret `HOMEBREW_TAP_TOKEN` in `Alisya-AI/ai-lib` with write access to `Alisya-AI/homebrew-ailib` (fine-grained PAT scoped to the tap repo is recommended).
 4. Start from the formula in this repository.
+5. Ensure `main` in `Alisya-AI/homebrew-ailib` accepts pushes from the token identity used by `HOMEBREW_TAP_TOKEN`.
 
 Stable formula shape:
 
@@ -79,9 +80,9 @@ On each successful npm publish workflow run:
 
 1. The release pipeline resolves the published tarball URL + SHA256 for `@alisya.ai/ailib@X.Y.Z`.
 2. It updates `Formula/ailib.rb` in this repository and pushes the change to `main` when needed.
-3. It clones `Alisya-AI/homebrew-ailib`, updates tap `Formula/ailib.rb`, and opens a PR automatically.
+3. It clones `Alisya-AI/homebrew-ailib`, updates tap `Formula/ailib.rb`, commits the change, and pushes directly to `main`.
 
-If `HOMEBREW_TAP_TOKEN` is missing, tap sync is skipped with a workflow warning.
+If `HOMEBREW_TAP_TOKEN` is missing, the release workflow fails so tap sync cannot drift silently.
 
 ### Optional verification
 
@@ -100,8 +101,7 @@ Legacy manual flow (fallback only):
    bun run release:build
    ```
 2. Read `dist/release/homebrew-formula-snippet.txt` and copy values into tap `Formula/ailib.rb`.
-3. Commit and push to `Alisya-AI/homebrew-ailib`.
-4. Open a PR in `Alisya-AI/homebrew-ailib`.
+3. Commit and push `Formula/ailib.rb` to `main` in `Alisya-AI/homebrew-ailib`.
 
 Previous checksum verification command:
 
@@ -143,7 +143,8 @@ ailib commands:
 
 ```bash
 brew tap Alisya-AI/ailib
-brew install ailib
+brew update
+brew install Alisya-AI/ailib/ailib
 ```
 
 Equivalent explicit form:
