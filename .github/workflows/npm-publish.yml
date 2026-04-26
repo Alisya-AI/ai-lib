@@ -135,6 +135,158 @@ jobs:
           AILIB_NPM_TARBALL_DELAY_MS: '3000'
         run: bun run release:npm:publish
 
+      - name: Resolve Homebrew formula release inputs
+        id: homebrew
+        run: |
+          PACKAGE_NAME="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.name);")"
+          PACKAGE_VERSION="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.version);")"
+          PACKAGE_BASENAME="$(node -e "const fs=require('fs');const p=JSON.parse(fs.readFileSync('package.json','utf8'));process.stdout.write(p.name.split('/').pop());")"
+          TARBALL_URL="$(npm view "${PACKAGE_NAME}@${PACKAGE_VERSION}" dist.tarball --json 2>/dev/null | tr -d '\" \n\r' || true)"
+          if [ -z "${TARBALL_URL}" ] || [ "${TARBALL_URL}" = "null" ]; then
+            TARBALL_URL="https://registry.npmjs.org/${PACKAGE_NAME}/-/$(printf '%s' "${PACKAGE_BASENAME}")-${PACKAGE_VERSION}.tgz"
+          fi
+
+          TARBALL_PATH="${RUNNER_TEMP}/${PACKAGE_BASENAME}-${PACKAGE_VERSION}.tgz"
+          for attempt in $(seq 1 20); do
+            if curl -fsSL "${TARBALL_URL}" -o "${TARBALL_PATH}"; then
+              break
+            fi
+            if [ "${attempt}" -eq 20 ]; then
+              echo "Unable to download npm tarball from ${TARBALL_URL}"
+              exit 1
+            fi
+            sleep 3
+          done
+          TARBALL_SHA="$(shasum -a 256 "${TARBALL_PATH}" | awk '{print $1}')"
+
+          echo "package_name=${PACKAGE_NAME}" >> "$GITHUB_OUTPUT"
+          echo "package_version=${PACKAGE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "tarball_url=${TARBALL_URL}" >> "$GITHUB_OUTPUT"
+          echo "tarball_sha=${TARBALL_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Sync in-repo Homebrew formula
+        env:
+          PACKAGE_VERSION: ${{ steps.homebrew.outputs.package_version }}
+          TARBALL_URL: ${{ steps.homebrew.outputs.tarball_url }}
+          TARBALL_SHA: ${{ steps.homebrew.outputs.tarball_sha }}
+        run: |
+          cat > Formula/ailib.rb <<EOF
+          class Ailib < Formula
+            desc "Universal AI context-injection engine CLI"
+            homepage "https://github.com/Alisya-AI/ai-lib"
+            url "${TARBALL_URL}"
+            sha256 "${TARBALL_SHA}"
+            version "${PACKAGE_VERSION}"
+            head "https://github.com/Alisya-AI/ai-lib.git", branch: "main"
+            license "Apache-2.0"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", "--omit=dev", *std_npm_args
+              bin.write_exec_script libexec/"bin/ailib"
+            end
+
+            test do
+              assert_match "ailib commands:", shell_output("#{bin}/ailib --help")
+            end
+          end
+          EOF
+
+          git add Formula/ailib.rb
+          if git diff --cached --quiet; then
+            echo "In-repo Formula/ailib.rb already up to date"
+          else
+            export GIT_AUTHOR_NAME="github-actions[bot]"
+            export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+            export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+            export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+            git commit -m "chore: sync homebrew formula ${PACKAGE_VERSION}"
+            git push origin HEAD:main
+          fi
+
+      - name: Resolve Homebrew tap sync context
+        id: tap_context
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [ -z "${HOMEBREW_TAP_TOKEN}" ]; then
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Skipping Homebrew tap sync because HOMEBREW_TAP_TOKEN is not configured."
+          else
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Sync Homebrew tap formula (create PR)
+        if: steps.tap_context.outputs.enabled == 'true'
+        env:
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          PACKAGE_VERSION: ${{ steps.homebrew.outputs.package_version }}
+          TARBALL_URL: ${{ steps.homebrew.outputs.tarball_url }}
+          TARBALL_SHA: ${{ steps.homebrew.outputs.tarball_sha }}
+        run: |
+          TAP_REPO="Alisya-AI/homebrew-ailib"
+          TAP_DIR="${RUNNER_TEMP}/homebrew-tap"
+          BRANCH_NAME="chore/ailib-${PACKAGE_VERSION}-${GITHUB_RUN_ID}"
+
+          rm -rf "${TAP_DIR}"
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${TAP_REPO}.git" "${TAP_DIR}"
+          cd "${TAP_DIR}"
+          git checkout -b "${BRANCH_NAME}"
+
+          cat > Formula/ailib.rb <<EOF
+          class Ailib < Formula
+            desc "Universal AI context-injection engine CLI"
+            homepage "https://github.com/Alisya-AI/ai-lib"
+            url "${TARBALL_URL}"
+            sha256 "${TARBALL_SHA}"
+            version "${PACKAGE_VERSION}"
+            head "https://github.com/Alisya-AI/ai-lib.git", branch: "main"
+            license "Apache-2.0"
+
+            depends_on "node"
+
+            def install
+              system "npm", "install", "--omit=dev", *std_npm_args
+              bin.write_exec_script libexec/"bin/ailib"
+            end
+
+            test do
+              assert_match "ailib commands:", shell_output("#{bin}/ailib --help")
+            end
+          end
+          EOF
+
+          if git diff --quiet -- Formula/ailib.rb; then
+            echo "Homebrew tap formula already up to date"
+            exit 0
+          fi
+
+          git add Formula/ailib.rb
+          export GIT_AUTHOR_NAME="github-actions[bot]"
+          export GIT_AUTHOR_EMAIL="41898282+github-actions[bot]@users.noreply.github.com"
+          export GIT_COMMITTER_NAME="${GIT_AUTHOR_NAME}"
+          export GIT_COMMITTER_EMAIL="${GIT_AUTHOR_EMAIL}"
+          git commit -m "chore: update ailib formula to ${PACKAGE_VERSION}"
+          git push -u origin "${BRANCH_NAME}"
+
+          export GH_TOKEN="${HOMEBREW_TAP_TOKEN}"
+          gh pr create \
+            --repo "${TAP_REPO}" \
+            --base main \
+            --head "${BRANCH_NAME}" \
+            --title "chore: update ailib formula to ${PACKAGE_VERSION}" \
+            --body "$(cat <<EOF
+          ## Summary
+          - update Homebrew formula to @alisya.ai/ailib@${PACKAGE_VERSION}
+          - set tarball url and sha256 to published npm artifact
+          - keep install/test blocks aligned with ai-lib formula
+
+          ## Verification
+          - Source release workflow: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}
+          EOF
+          )"
+
       - name: Generate npm release record
         run: bun run release:npm:record -- --release-notes-url="${{ steps.context.outputs.release_notes_url }}"
 

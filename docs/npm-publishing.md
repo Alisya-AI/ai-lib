@@ -93,8 +93,10 @@ The workflow runs:
 
 1. (auto mode) bump patch version and push release commit to `main`
 2. `bun run release:npm:publish`
-3. `bun run release:npm:record -- --release-notes-url=<input-or-generated>`
-4. Uploads `dist/release/` as `npm-release-evidence` artifact
+3. sync in-repo `Formula/ailib.rb` to the published npm tarball URL + SHA256
+4. create/update Homebrew tap formula PR in `Alisya-AI/homebrew-ailib` (when `HOMEBREW_TAP_TOKEN` is configured)
+5. `bun run release:npm:record -- --release-notes-url=<input-or-generated>`
+6. Uploads `dist/release/` as `npm-release-evidence` artifact
 
 ### Auto-release path filter
 
@@ -121,6 +123,11 @@ Set `NPM_TOKEN` in repository secrets:
 
 - npm type: Automation token (recommended for CI publish)
 - scope: minimal publish permissions for `@alisya.ai/ailib`
+
+Set `HOMEBREW_TAP_TOKEN` in repository secrets to enable tap PR automation:
+
+- token type: fine-grained PAT (recommended)
+- repository access: `Alisya-AI/homebrew-ailib` (contents + pull requests write)
 
 ### Optional hardening: npm trusted publishing
 
