@@ -50,19 +50,40 @@ NPM_TARBALL="$(printf '%s' "${PACK_JSON}" | node -e "let input='';process.stdin.
 NPM_TARBALL_PATH="${DIST_DIR}/${NPM_TARBALL}"
 
 VERSION="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('package.json','utf8')).version)")"
+PACKAGE_NAME="$(node -e "process.stdout.write(JSON.parse(require('fs').readFileSync('package.json','utf8')).name)")"
+PACKAGE_BASENAME="$(node -e "const p=JSON.parse(require('fs').readFileSync('package.json','utf8')).name;process.stdout.write(p.split('/').pop())")"
 GIT_SHA="$(git rev-parse --short HEAD)"
 SOURCE_TARBALL="ailib-v${VERSION}-${GIT_SHA}-source.tar.gz"
 SOURCE_TARBALL_PATH="${DIST_DIR}/${SOURCE_TARBALL}"
+NPM_REGISTRY_TARBALL_URL="https://registry.npmjs.org/${PACKAGE_NAME}/-/${PACKAGE_BASENAME}-${VERSION}.tgz"
 
 echo "Packing source artifact for formula workflows..."
 git archive --format=tar.gz --output="${SOURCE_TARBALL_PATH}" HEAD
 
 NPM_SHA="$(shasum -a 256 "${NPM_TARBALL_PATH}" | awk '{print $1}')"
 SOURCE_SHA="$(shasum -a 256 "${SOURCE_TARBALL_PATH}" | awk '{print $1}')"
+NPM_REGISTRY_SHA=""
+NPM_REGISTRY_TARBALL_PATH="${DIST_DIR}/npm-registry-${PACKAGE_BASENAME}-${VERSION}.tgz"
+
+if command -v curl >/dev/null 2>&1 && curl -fsSL "${NPM_REGISTRY_TARBALL_URL}" -o "${NPM_REGISTRY_TARBALL_PATH}"; then
+  NPM_REGISTRY_SHA="$(shasum -a 256 "${NPM_REGISTRY_TARBALL_PATH}" | awk '{print $1}')"
+  rm -f "${NPM_REGISTRY_TARBALL_PATH}"
+else
+  rm -f "${NPM_REGISTRY_TARBALL_PATH}"
+  echo "Published npm tarball not yet available for ${PACKAGE_NAME}@${VERSION}; using local npm pack checksum in formula snippet."
+fi
+
+FORMULA_SHA="${NPM_SHA}"
+if [[ -n "${NPM_REGISTRY_SHA}" ]]; then
+  FORMULA_SHA="${NPM_REGISTRY_SHA}"
+fi
 
 {
   echo "npm_tarball=${NPM_TARBALL}"
-  echo "npm_sha256=${NPM_SHA}"
+  echo "npm_tarball_url=${NPM_REGISTRY_TARBALL_URL}"
+  echo "npm_sha256_local=${NPM_SHA}"
+  echo "npm_sha256_published=${NPM_REGISTRY_SHA}"
+  echo "npm_sha256=${FORMULA_SHA}"
   echo "source_tarball=${SOURCE_TARBALL}"
   echo "source_sha256=${SOURCE_SHA}"
   echo "version=${VERSION}"
@@ -70,9 +91,9 @@ SOURCE_SHA="$(shasum -a 256 "${SOURCE_TARBALL_PATH}" | awk '{print $1}')"
 } > "${DIST_DIR}/release-checksums.txt"
 
 {
-  echo "# Update this once the release tag exists"
-  echo "url \"https://github.com/Alisya-AI/ai-lib/archive/refs/tags/v${VERSION}.tar.gz\""
-  echo "sha256 \"${SOURCE_SHA}\""
+  echo "url \"${NPM_REGISTRY_TARBALL_URL}\""
+  echo "sha256 \"${FORMULA_SHA}\""
+  echo "version \"${VERSION}\""
 } > "${DIST_DIR}/homebrew-formula-snippet.txt"
 
 echo "Release artifacts generated:"

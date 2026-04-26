@@ -4,11 +4,11 @@ This document explains exactly how to publish and update `ailib` for Homebrew us
 
 ## Current state
 
-- In this repo, `Formula/ailib.rb` is a HEAD formula.
+- In this repo, `Formula/ailib.rb` is a stable formula pinned to a published npm tarball (`url` + `sha256`).
 - Users can install directly from this repo:
 
 ```bash
-brew install --HEAD --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
+brew install --formula https://raw.githubusercontent.com/Alisya-AI/ai-lib/main/Formula/ailib.rb
 ```
 
 ## Recommended distribution: dedicated tap
@@ -25,7 +25,7 @@ Outputs are written to `dist/release/`:
 
 - npm package tarball (`*.tgz`)
 - source tarball (`ailib-v<version>-<sha>-source.tar.gz`)
-- checksum manifest (`release-checksums.txt`)
+- checksum manifest (`release-checksums.txt`) with local + published npm checksum fields
 - formula snippet helper (`homebrew-formula-snippet.txt`)
 
 To run npm release readiness checks (artifact + unpublished-version validation):
@@ -46,7 +46,7 @@ Use a tap repo so users can run `brew install ailib` after one-time tap setup.
 
 1. Create tap repository: `Alisya-AI/homebrew-ailib`.
 2. Add `Formula/ailib.rb`.
-3. Start from the formula in this repository, then make it a stable formula (`url` + `sha256`).
+3. Start from the formula in this repository and update `url`, `sha256`, and `version` each release.
 
 Stable formula shape:
 
@@ -54,8 +54,9 @@ Stable formula shape:
 class Ailib < Formula
   desc "Universal AI context-injection engine CLI"
   homepage "https://github.com/Alisya-AI/ai-lib"
-  url "https://github.com/Alisya-AI/ai-lib/archive/refs/tags/vX.Y.Z.tar.gz"
+  url "https://registry.npmjs.org/@alisya.ai/ailib/-/ailib-X.Y.Z.tgz"
   sha256 "<REPLACE_WITH_SHA256>"
+  version "X.Y.Z"
   license "Apache-2.0"
 
   depends_on "node"
@@ -72,14 +73,20 @@ end
 
 ### Release workflow (every version)
 
-1. Tag and push a release in `Alisya-AI/ai-lib` (example: `v1.0.1`).
-2. Compute tarball SHA256:
+1. Publish npm version `X.Y.Z` for `@alisya.ai/ailib`.
+2. Generate release artifacts:
    ```bash
-   curl -L -o /tmp/ailib-v1.0.1.tar.gz https://github.com/Alisya-AI/ai-lib/archive/refs/tags/v1.0.1.tar.gz
-   shasum -a 256 /tmp/ailib-v1.0.1.tar.gz
+   bun run release:build
    ```
-3. Update tap formula `url` and `sha256`.
-4. Commit and push to `Alisya-AI/homebrew-ailib`.
+3. Read `dist/release/homebrew-formula-snippet.txt` and copy values into tap `Formula/ailib.rb`.
+   - If npm already has `@alisya.ai/ailib@X.Y.Z`, the snippet uses published tarball SHA256.
+   - If not yet published, it falls back to local `npm pack` SHA256 (rerun after publish).
+4. (optional verification) Compute npm tarball SHA256 directly:
+   ```bash
+   curl -L -o /tmp/ailib-X.Y.Z.tgz https://registry.npmjs.org/@alisya.ai/ailib/-/ailib-X.Y.Z.tgz
+   shasum -a 256 /tmp/ailib-X.Y.Z.tgz
+   ```
+5. Commit and push to `Alisya-AI/homebrew-ailib`.
 
 ### User install commands
 
