@@ -16,14 +16,15 @@ compatible_targets: [cursor, claude-code, copilot, openai, gemini, windsurf, jet
 ## Workflow
 
 1. Read the active task plus its parent Story/Epic context and acceptance criteria.
-2. Confirm the task is single-PR sized; if not, split into child tasks before coding.
-3. Branch from latest `main` with a scoped name that references phase/task context.
-4. Implement only task-required changes and validate with targeted checks plus full checks.
-5. Commit one logical change using concise commit title and bullet details.
-6. Open one PR per task with summary bullets, test checklist, assignee/label, and `Refs #<task>`.
-7. Immediately sync task issue body (`## Mapped PRs`) and add progress comment.
-8. After merge, close task, update parent checklist/mapped PRs, and move project fields to next state.
-9. Repeat the loop for the next task only after post-merge sync is complete.
+2. When creating or updating issues, always set `Issue Type` and `Team`; for every Story/Task, link the parent immediately (`Story -> Epic`, `Task -> Story`).
+3. Confirm the task is single-PR sized; if not, split into child tasks before coding.
+4. Branch from latest `main` with a scoped name that references phase/task context.
+5. Implement only task-required changes and validate with targeted checks plus full checks.
+6. Commit one logical change using concise commit title and bullet details.
+7. Open one PR per task with summary bullets, test checklist, assignee/label, and `Refs #<task>`.
+8. Immediately sync task issue body (`## Mapped PRs`) and add progress comment.
+9. After merge, close task, update parent checklist/mapped PRs, and move project fields to next state.
+10. Repeat the loop for the next task only after post-merge sync is complete.
 
 ## Non-Negotiable Rules
 
@@ -33,14 +34,15 @@ compatible_targets: [cursor, claude-code, copilot, openai, gemini, windsurf, jet
 4. Keep PRs small, scoped, and mergeable.
 5. After merge, sync issue + project state before starting the next task.
 6. For roadmap planning, always model hierarchy as `Epic -> Story -> Task` using native issue parent/sub-issue links.
-7. Set real GitHub Issue Types (`Epic`, `Story`, `Task`) on every created item; never rely only on title prefixes.
+7. Set real GitHub `Issue Type` (`Epic`, `Story`, `Task`) on every created item; never rely only on title prefixes.
 8. Keep `Phase XX` in Epic titles only. Story and Task titles must be clean, without `[Phase XX][Story]` or `[Phase XX][Task]` prefixes.
-9. Add all created items to the target GitHub Project and set required fields (at minimum `Status` and `Team` when configured).
-10. Every task issue must show its PR in the GitHub issue `Development` field (not only in comments/body links).
+9. Add all created items to the target GitHub Project and always set `Status` and `Team` fields.
+10. Every Story must be linked to its parent Epic, and every Task must be linked to its parent Story at creation time.
+11. Every task issue must show its PR in the GitHub issue `Development` field (not only in comments/body links).
 
 ## Default PR Metadata
 
-- Assignee: `silvamarcel`
+- Assignee: set to the task owner/requester for that workstream (do not hardcode usernames)
 - Label selection:
   - `maintenance` for refactor/chore/infra/docs/process updates
   - `feature` for new functionality

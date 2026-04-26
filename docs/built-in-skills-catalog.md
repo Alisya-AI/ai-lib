@@ -56,6 +56,18 @@ All built-in skills currently declare compatibility with:
 - Dependency notes: no required skills.
 - Recommended usage: use when cycle time, handoff friction, or rollout sequencing is slowing delivery.
 
+### `jira-delivery-practices`
+
+- Purpose: Apply Jira workflow best practices to keep software delivery planning, execution, and release traceability aligned.
+- Dependency notes: no required skills.
+- Recommended usage: use when teams need stronger ticket hygiene, strict flow states, and clear requirement-to-PR traceability.
+
+### `notion-delivery-practices`
+
+- Purpose: Apply Notion documentation best practices to keep software development context, decisions, and delivery playbooks current.
+- Dependency notes: no required skills.
+- Recommended usage: use when teams need reliable design notes, release playbooks, and cross-linking between docs, tickets, and PRs.
+
 ### `task-driven-gh-flow`
 
 - Purpose: Execute roadmap work through GitHub tasks with strict traceability across issue hierarchy, project status, and PR linkage.
