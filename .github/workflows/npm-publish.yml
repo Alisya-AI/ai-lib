@@ -130,9 +130,10 @@ jobs:
       - name: Publish and verify npm release
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          # npm metadata can update before tarball CDN propagation; extend verification window.
-          AILIB_NPM_TARBALL_MAX_ATTEMPTS: '80'
-          AILIB_NPM_TARBALL_DELAY_MS: '3000'
+          # npm metadata can update before tarball CDN propagation.
+          # Use a wider wait window (20 minutes) to avoid false failures from delayed artifact availability.
+          AILIB_NPM_TARBALL_MAX_ATTEMPTS: '240'
+          AILIB_NPM_TARBALL_DELAY_MS: '5000'
         run: bun run release:npm:publish
 
       - name: Resolve Homebrew formula release inputs

@@ -44,6 +44,13 @@ The workflow performs:
 The publish verification step automatically retries npm version resolution when the registry
 returns transient `404` responses or a stale previous version immediately after publish.
 
+For tarball reachability, CI uses an extended propagation window to reduce false failures:
+
+- `AILIB_NPM_TARBALL_MAX_ATTEMPTS=240`
+- `AILIB_NPM_TARBALL_DELAY_MS=5000`
+
+This gives ~20 minutes of tarball-availability retries before the workflow marks the release as failed.
+
 ## 3) Optional dry-run publish verification
 
 To exercise non-publish verification paths without uploading:
