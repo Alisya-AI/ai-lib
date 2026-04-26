@@ -25,6 +25,7 @@ type PublishReport = {
     npmAuthVerified: boolean;
     publishCommandExecuted: boolean;
     npmVersionResolved: boolean;
+    publishedTarballReachable: boolean;
     installVerificationPassed: boolean;
   };
   checkedAt: string;
@@ -131,6 +132,13 @@ function parseVersionPayload(data: unknown): string {
   throw new Error('Invalid npm version payload: expected string or non-empty string array');
 }
 
+function parseTarballUrlPayload(data: unknown): string {
+  if (typeof data !== 'string' || !/^https?:\/\/\S+/u.test(data)) {
+    throw new Error('Invalid npm tarball payload: expected tarball URL string');
+  }
+  return data;
+}
+
 function isNpmPackageNotFoundError(error: unknown): boolean {
   if (!(error instanceof Error)) return false;
   return (
@@ -146,17 +154,27 @@ async function sleep(ms: number): Promise<void> {
   });
 }
 
-function resolveRetryConfig(): { maxAttempts: number; delayMs: number } {
-  const maxAttemptsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_MAX_ATTEMPTS ?? '10', 10);
-  const delayMsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_DELAY_MS ?? '3000', 10);
+function resolveRetryConfig(): {
+  viewMaxAttempts: number;
+  viewDelayMs: number;
+  tarballMaxAttempts: number;
+  tarballDelayMs: number;
+} {
+  const viewMaxAttemptsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_MAX_ATTEMPTS ?? '10', 10);
+  const viewDelayMsValue = Number.parseInt(process.env.AILIB_NPM_VIEW_DELAY_MS ?? '3000', 10);
+  const tarballMaxAttemptsValue = Number.parseInt(process.env.AILIB_NPM_TARBALL_MAX_ATTEMPTS ?? '20', 10);
+  const tarballDelayMsValue = Number.parseInt(process.env.AILIB_NPM_TARBALL_DELAY_MS ?? '3000', 10);
   return {
-    maxAttempts: Number.isFinite(maxAttemptsValue) && maxAttemptsValue > 0 ? maxAttemptsValue : 10,
-    delayMs: Number.isFinite(delayMsValue) && delayMsValue >= 0 ? delayMsValue : 3000
+    viewMaxAttempts: Number.isFinite(viewMaxAttemptsValue) && viewMaxAttemptsValue > 0 ? viewMaxAttemptsValue : 10,
+    viewDelayMs: Number.isFinite(viewDelayMsValue) && viewDelayMsValue >= 0 ? viewDelayMsValue : 3000,
+    tarballMaxAttempts:
+      Number.isFinite(tarballMaxAttemptsValue) && tarballMaxAttemptsValue > 0 ? tarballMaxAttemptsValue : 20,
+    tarballDelayMs: Number.isFinite(tarballDelayMsValue) && tarballDelayMsValue >= 0 ? tarballDelayMsValue : 3000
   };
 }
 
 async function resolvePublishedVersionWithRetry(packageName: string, expectedVersion: string): Promise<string> {
-  const { maxAttempts, delayMs } = resolveRetryConfig();
+  const { viewMaxAttempts: maxAttempts, viewDelayMs: delayMs } = resolveRetryConfig();
   let lastResolvedVersion: string | undefined;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
@@ -187,6 +205,71 @@ async function resolvePublishedVersionWithRetry(packageName: string, expectedVer
 
   throw new Error(
     `Unable to resolve published version for ${packageName}; expected ${expectedVersion}, last received ${lastResolvedVersion ?? 'unknown'}`
+  );
+}
+
+async function resolvePublishedTarballUrlWithRetry(packageName: string, expectedVersion: string): Promise<string> {
+  const { tarballMaxAttempts: maxAttempts, tarballDelayMs: delayMs } = resolveRetryConfig();
+  let lastFailure: string | undefined;
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const payload = JSON.parse(
+        (await runCommand('npm', ['view', `${packageName}@${expectedVersion}`, 'dist.tarball', '--json'])).stdout
+      );
+      return parseTarballUrlPayload(payload);
+    } catch (error: unknown) {
+      const reason = error instanceof Error ? error.message : String(error);
+      lastFailure = reason;
+      if (attempt === maxAttempts) {
+        break;
+      }
+      process.stdout.write(
+        `npm view tarball retry ${attempt}/${String(maxAttempts)} for ${packageName}@${expectedVersion}; reason: ${reason}; waiting ${String(delayMs / 1000)}s...\n`
+      );
+      await sleep(delayMs);
+    }
+  }
+  throw new Error(
+    `Unable to resolve tarball URL for ${packageName}@${expectedVersion}; last failure: ${lastFailure ?? 'unknown'}`
+  );
+}
+
+async function fetchUrlStatus(url: string): Promise<number> {
+  const head = await fetch(url, { method: 'HEAD', redirect: 'follow' });
+  if (head.status === 405 || head.status === 501) {
+    const get = await fetch(url, { method: 'GET', redirect: 'follow' });
+    return get.status;
+  }
+  return head.status;
+}
+
+async function assertPublishedTarballReachableWithRetry(
+  tarballUrl: string,
+  packageName: string,
+  expectedVersion: string
+) {
+  const { tarballMaxAttempts: maxAttempts, tarballDelayMs: delayMs } = resolveRetryConfig();
+  let lastStatusOrError = 'unknown';
+  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    try {
+      const status = await fetchUrlStatus(tarballUrl);
+      if (status >= 200 && status < 400) {
+        return;
+      }
+      lastStatusOrError = `HTTP ${String(status)}`;
+    } catch (error: unknown) {
+      lastStatusOrError = error instanceof Error ? error.message : String(error);
+    }
+    if (attempt === maxAttempts) {
+      break;
+    }
+    process.stdout.write(
+      `tarball reachability retry ${attempt}/${String(maxAttempts)} for ${packageName}@${expectedVersion}; last result: ${lastStatusOrError}; waiting ${String(delayMs / 1000)}s...\n`
+    );
+    await sleep(delayMs);
+  }
+  throw new Error(
+    `Published tarball not reachable for ${packageName}@${expectedVersion}: ${lastStatusOrError} (${tarballUrl})`
   );
 }
 
@@ -222,6 +305,7 @@ async function main() {
       npmAuthVerified: false,
       publishCommandExecuted: false,
       npmVersionResolved: false,
+      publishedTarballReachable: false,
       installVerificationPassed: false
     },
     checkedAt: new Date().toISOString()
@@ -246,6 +330,10 @@ async function main() {
   report.checks.npmVersionResolved = true;
 
   if (!args.dryRun) {
+    const tarballUrl = await resolvePublishedTarballUrlWithRetry(pkg.name, pkg.version);
+    await assertPublishedTarballReachableWithRetry(tarballUrl, pkg.name, pkg.version);
+    report.checks.publishedTarballReachable = true;
+
     await verifyInstalledCli(pkg);
     report.checks.installVerificationPassed = true;
   }

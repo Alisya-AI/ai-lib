@@ -36,8 +36,9 @@ The workflow performs:
 1. npm authentication check (`npm whoami`)
 2. `npm publish --access public`
 3. version resolution check (`npm view @alisya.ai/ailib version --json`)
-4. clean-directory install verification (`npm install @alisya.ai/ailib@<version>`)
-5. CLI smoke test (`npx ailib --help`)
+4. published tarball reachability check (`npm view @alisya.ai/ailib@<version> dist.tarball --json` + HTTP probe)
+5. clean-directory install verification (`npm install @alisya.ai/ailib@<version>`)
+6. CLI smoke test (`npx ailib --help`)
 
 The publish verification step automatically retries npm version resolution when the registry
 returns transient `404` responses or a stale previous version immediately after publish.

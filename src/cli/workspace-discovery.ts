@@ -129,29 +129,41 @@ async function loadGitignoreMatchers(rootDir: string) {
 }
 
 function globMatch(relPath: string, pattern: string) {
-  const regex = globToRegex(pattern);
-  return regex.test(toPosix(relPath));
-}
+  const normalizedPattern = toPosix(pattern);
+  const normalizedPath = toPosix(relPath);
+  const memo = new Map<string, boolean>();
 
-function globToRegex(pattern: string) {
-  const normalized = toPosix(pattern);
-  let out = '^';
-  for (let i = 0; i < normalized.length; i += 1) {
-    const c = normalized[i];
-    if (c === '*') {
-      if (normalized[i + 1] === '*') {
-        out += '.*';
-        i += 1;
+  function matches(pathIdx: number, patternIdx: number): boolean {
+    const key = `${pathIdx}:${patternIdx}`;
+    const cached = memo.get(key);
+    if (cached !== undefined) return cached;
+
+    let result = false;
+    if (patternIdx === normalizedPattern.length) {
+      result = pathIdx === normalizedPath.length;
+    } else if (normalizedPattern[patternIdx] === '*') {
+      if (normalizedPattern[patternIdx + 1] === '*') {
+        // Double-star matches any character sequence, including path separators.
+        result =
+          matches(pathIdx, patternIdx + 2) || (pathIdx < normalizedPath.length && matches(pathIdx + 1, patternIdx));
       } else {
-        out += '[^/]*';
+        // Single-star matches zero or more non-separator characters.
+        result =
+          matches(pathIdx, patternIdx + 1) ||
+          (pathIdx < normalizedPath.length && normalizedPath[pathIdx] !== '/' && matches(pathIdx + 1, patternIdx));
       }
-      continue;
+    } else {
+      result =
+        pathIdx < normalizedPath.length &&
+        normalizedPath[pathIdx] === normalizedPattern[patternIdx] &&
+        matches(pathIdx + 1, patternIdx + 1);
     }
-    if ('\\^$+?.()|{}[]'.includes(c)) out += `\\${c}`;
-    else out += c;
+
+    memo.set(key, result);
+    return result;
   }
-  out += '$';
-  return new RegExp(out);
+
+  return matches(0, 0);
 }
 
 function resolveWorkspacePath(rootDir: string, value: string) {
