@@ -11,9 +11,10 @@ class Ailib < Formula
 
   def install
     system "npm", "install", "--omit=dev", *std_npm_args
+    bin.write_exec_script libexec/"bin/ailib"
   end
 
   test do
-    system bin/"ailib", "--help"
+    assert_match "ailib commands:", shell_output("#{bin}/ailib --help")
   end
 end
