@@ -71,19 +71,44 @@ Keep these artifacts linked in the release task/PR for traceability.
 
 ## 6) GitHub Actions release workflow
 
-This repository includes a manual publish workflow:
+This repository supports both automatic and manual publishing:
+
+- Automatic trigger: push to `main` when README or code paths change
+- Manual trigger: `workflow_dispatch`
 
 - Workflow: `.github/workflows/npm-publish.yml`
-- Trigger: `workflow_dispatch`
+- Trigger:
+  - `push` on `main` for release-relevant paths
+  - `workflow_dispatch` for operators
 - Inputs:
   - `release_notes_url` (required)
   - `ref` (optional, default `main`)
 
 The workflow runs:
 
-1. `bun run release:npm:publish`
-2. `bun run release:npm:record -- --release-notes-url=<input>`
-3. Uploads `dist/release/` as `npm-release-evidence` artifact
+1. (auto mode) bump patch version and push release commit to `main`
+2. `bun run release:npm:publish`
+3. `bun run release:npm:record -- --release-notes-url=<input-or-generated>`
+4. Uploads `dist/release/` as `npm-release-evidence` artifact
+
+### Auto-release path filter
+
+Auto-publish on `main` only runs when changes include release-relevant paths:
+
+- `README.md`
+- `src/**`, `core/**`, `languages/**`, `targets/**`, `registry/**`
+- `scripts/**`, `tools/**`, `bin/**`, `schema/**`
+
+Version-bump commits only touch `package.json`, so they do not re-trigger auto release.
+
+### Manual workflow_dispatch
+
+For manual runs, provide:
+
+- `release_notes_url`
+- optional `ref`
+
+Manual mode does not auto-bump version; publish should target the version already set in `package.json`.
 
 ### Secret configuration
 
@@ -96,3 +121,10 @@ Set `NPM_TOKEN` in repository secrets:
 
 You can migrate from `NPM_TOKEN` to npm Trusted Publishing (OIDC) later.
 That removes long-lived token storage and uses GitHub-issued identity.
+
+### Legacy flow reference
+
+The direct manual command sequence remains valid for local release operators:
+
+1. `bun run release:npm:publish`
+2. `bun run release:npm:record -- --release-notes-url=<input>`
