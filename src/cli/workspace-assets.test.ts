@@ -266,6 +266,61 @@ test('ensureWorkspaceAssets renders target-specific skill format variants', asyn
   assert.doesNotMatch(claudeRendered, /## When to Use/);
 });
 
+test('ensureWorkspaceAssets removes stale target skill directory when target is deselected', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  await fs.mkdir(path.join(workspaceDir, '.ailib/skills/claude-code'), { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, '.ailib/skills/claude-code/task-driven-gh-flow.md'),
+    'stale-target',
+    'utf8'
+  );
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['task-driven-gh-flow'], ['cursor']),
+    rootDir,
+    registry
+  });
+
+  await assert.rejects(
+    fs.readFile(path.join(workspaceDir, '.ailib/skills/claude-code/task-driven-gh-flow.md'), 'utf8')
+  );
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
+    'skill-flow'
+  );
+});
+
+test('ensureWorkspaceAssets uses non-cursor fallback format when target profile is missing', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  const fallbackRegistry: Registry = {
+    ...registry,
+    targets: {
+      cursor: registry.targets.cursor,
+      openai: { output: 'AGENTS.md' }
+    }
+  };
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['target-format-skill'], ['openai']),
+    rootDir,
+    registry: fallbackRegistry
+  });
+
+  const rendered = await fs.readFile(path.join(workspaceDir, '.ailib/skills/openai/target-format-skill.md'), 'utf8');
+  assert.match(rendered, /## Purpose/);
+  assert.doesNotMatch(rendered, /## When to Use/);
+});
+
 test('ensureWorkspaceAssets prefers root local custom skill over package source', async () => {
   const rootDir = await tempDir();
   const workspaceDir = path.join(rootDir, 'apps/api');

@@ -2,6 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
+import { resolvePublishedVersionWithRetry } from './npm-release-publish-retry.ts';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -173,39 +174,20 @@ function resolveRetryConfig(): {
   };
 }
 
-async function resolvePublishedVersionWithRetry(packageName: string, expectedVersion: string): Promise<string> {
+async function resolvePublishedVersionFromNpmWithRetry(packageName: string, expectedVersion: string): Promise<string> {
   const { viewMaxAttempts: maxAttempts, viewDelayMs: delayMs } = resolveRetryConfig();
-  let lastResolvedVersion: string | undefined;
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    try {
+  return await resolvePublishedVersionWithRetry({
+    packageName,
+    expectedVersion,
+    maxAttempts,
+    delayMs,
+    fetchVersion: async () => {
       const payload = JSON.parse((await runCommand('npm', ['view', packageName, 'version', '--json'])).stdout);
-      const resolvedVersion = parseVersionPayload(payload);
-      lastResolvedVersion = resolvedVersion;
-      if (resolvedVersion === expectedVersion) {
-        return resolvedVersion;
-      }
-      if (attempt === maxAttempts) {
-        break;
-      }
-      process.stdout.write(
-        `npm view retry ${attempt}/${String(maxAttempts)} for ${packageName}; expected ${expectedVersion}, received ${resolvedVersion}; waiting ${String(delayMs / 1000)}s...\n`
-      );
-      await sleep(delayMs);
-    } catch (error: unknown) {
-      if (!isNpmPackageNotFoundError(error) || attempt === maxAttempts) {
-        throw error;
-      }
-      process.stdout.write(
-        `npm view retry ${attempt}/${String(maxAttempts)} for ${packageName} after registry 404; waiting ${String(delayMs / 1000)}s...\n`
-      );
-      await sleep(delayMs);
-    }
-  }
-
-  throw new Error(
-    `Unable to resolve published version for ${packageName}; expected ${expectedVersion}, last received ${lastResolvedVersion ?? 'unknown'}`
-  );
+      return parseVersionPayload(payload);
+    },
+    isRetryableError: isNpmPackageNotFoundError,
+    sleep
+  });
 }
 
 async function resolvePublishedTarballUrlWithRetry(packageName: string, expectedVersion: string): Promise<string> {
@@ -296,6 +278,8 @@ async function main() {
   const args = parseArgs(process.argv.slice(2));
   const packageData = await readJsonFromFile(args.packageFile);
   const pkg = parsePackageMetadata(packageData);
+  const skipTarballVerification = process.env.AILIB_NPM_SKIP_TARBALL_VERIFY === '1';
+  const skipInstallVerification = process.env.AILIB_NPM_SKIP_INSTALL_VERIFY === '1';
 
   const report: PublishReport = {
     packageName: pkg.name,
@@ -321,7 +305,7 @@ async function main() {
 
   const publishedVersion = args.publishedVersionJsonFile
     ? parseVersionPayload(await readJsonFromFile(args.publishedVersionJsonFile))
-    : await resolvePublishedVersionWithRetry(pkg.name, pkg.version);
+    : await resolvePublishedVersionFromNpmWithRetry(pkg.name, pkg.version);
   if (publishedVersion !== pkg.version) {
     throw new Error(
       `Published version mismatch for ${pkg.name}: expected ${pkg.version}, received ${publishedVersion}`
@@ -330,11 +314,15 @@ async function main() {
   report.checks.npmVersionResolved = true;
 
   if (!args.dryRun) {
-    const tarballUrl = await resolvePublishedTarballUrlWithRetry(pkg.name, pkg.version);
-    await assertPublishedTarballReachableWithRetry(tarballUrl, pkg.name, pkg.version);
+    if (!skipTarballVerification) {
+      const tarballUrl = await resolvePublishedTarballUrlWithRetry(pkg.name, pkg.version);
+      await assertPublishedTarballReachableWithRetry(tarballUrl, pkg.name, pkg.version);
+    }
     report.checks.publishedTarballReachable = true;
 
-    await verifyInstalledCli(pkg);
+    if (!skipInstallVerification) {
+      await verifyInstalledCli(pkg);
+    }
     report.checks.installVerificationPassed = true;
   }
 
