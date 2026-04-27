@@ -30,6 +30,26 @@ Optional fields:
 - `root_output`: additional output written at root workspace only (used by `windsurf`)
 - `mode`: special renderer mode (`copilot`)
 - `frontmatter`: object with `root`/`workspace` frontmatter variants (used by `cursor`)
+- `skill_profile`: target contract for skill rendering conventions (`format`, `required_sections`, `section_mapping`)
+
+`skill_profile` shape:
+
+```json
+"skill_profile": {
+  "format": "cursor",
+  "required_sections": ["When to Use", "Instructions"],
+  "section_mapping": {
+    "Purpose": "When to Use",
+    "Workflow": "Instructions"
+  }
+}
+```
+
+Profile guidance:
+
+- use `format: "cursor"` when skills should follow `When to Use` + `Instructions` sections.
+- use `format: "claude-code"` when skills should follow `Purpose` + `Workflow` sections.
+- use `section_mapping` to map canonical section names into target-facing section names.
 
 Use existing targets as references:
 

@@ -87,7 +87,32 @@
         "required": ["output", "template"],
         "properties": {
           "output": { "type": "string" },
-          "template": { "type": "string" }
+          "template": { "type": "string" },
+          "display": { "type": "string" },
+          "root_output": { "type": "string" },
+          "mode": { "type": "string" },
+          "frontmatter": {
+            "type": "object",
+            "properties": {
+              "root": { "type": "string" },
+              "workspace": { "type": "string" }
+            }
+          },
+          "skill_profile": {
+            "type": "object",
+            "required": ["format"],
+            "properties": {
+              "format": { "type": "string", "enum": ["cursor", "claude-code"] },
+              "required_sections": {
+                "type": "array",
+                "items": { "type": "string" }
+              },
+              "section_mapping": {
+                "type": "object",
+                "additionalProperties": { "type": "string" }
+              }
+            }
+          }
         }
       }
     }
