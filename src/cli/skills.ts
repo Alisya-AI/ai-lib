@@ -2,9 +2,10 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { ensure } from './assertions.ts';
 import { resolveContext, resolveDefaultWorkspaceForMutation } from './context-resolution.ts';
+import { parseFrontmatter } from './file-helpers.ts';
 import { getStringFlag } from './flags.ts';
 import { skillsCatalogCommand } from './introspection.ts';
-import { renderSkillTemplate } from './skill-template.ts';
+import { renderSkillTemplate, type SkillTemplateFormat } from './skill-template.ts';
 import { skillsValidateCommand } from './skills-validate.ts';
 import type { CliFlags } from './types.ts';
 
@@ -38,7 +39,7 @@ export async function skillsCommand({
     return;
   }
   throw new Error(
-    'Usage: ailib skills list | ailib skills explain <skill-id> | ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force] | ailib skills remove <skill-id> [--workspace=<path>] [--path=<path>] | ailib skills validate [--workspace=<path>] [--path=<path>]'
+    'Usage: ailib skills list | ailib skills explain <skill-id> | ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--format=cursor|claude-code] [--force] | ailib skills remove <skill-id> [--workspace=<path>] [--path=<path>] | ailib skills validate [--workspace=<path>] [--path=<path>]'
   );
 }
 
@@ -54,7 +55,7 @@ export async function skillsAddCommand({
   const skillId = flags._[1];
   ensure(
     skillId,
-    'Usage: ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]'
+    'Usage: ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--format=cursor|claude-code] [--force]'
   );
   ensure(SKILL_ID_RE.test(skillId), `Invalid skill id: ${skillId}`);
 
@@ -63,12 +64,16 @@ export async function skillsAddCommand({
   const targetWorkspace = resolveDefaultWorkspaceForMutation(context, workspaceFlag);
   const pathFlag = getStringFlag(flags, 'path');
   const description = getStringFlag(flags, 'description');
+  const format = resolveSkillTemplateFormat({
+    formatFlag: getStringFlag(flags, 'format'),
+    pathFlag
+  });
   const force = flags.force === true;
 
   const target = resolveSkillFilePath({ targetWorkspace, skillId, pathFlag });
   assertPathUnderWorkspace({ targetWorkspace, target });
 
-  const builtInSkillContent = await resolveBuiltInSkillContent({ packageRoot, skillId, description });
+  const builtInSkillContent = await resolveBuiltInSkillContent({ packageRoot, skillId, description, format });
 
   await fs.mkdir(path.dirname(target), { recursive: true });
 
@@ -92,7 +97,7 @@ export async function skillsAddCommand({
     }
   }
 
-  const scaffoldContent = builtInSkillContent ?? renderSkillTemplate({ skillId, description });
+  const scaffoldContent = builtInSkillContent ?? renderSkillTemplate({ skillId, description, format });
   await fs.writeFile(target, scaffoldContent, 'utf8');
   process.stdout.write(`skill scaffolded: ${skillId} -> ${target}\n`);
 }
@@ -158,19 +163,21 @@ function assertPathUnderWorkspace({ targetWorkspace, target }: { targetWorkspace
 async function resolveBuiltInSkillContent({
   packageRoot,
   skillId,
-  description
+  description,
+  format
 }: {
   packageRoot?: string;
   skillId: string;
   description: string | undefined;
+  format: SkillTemplateFormat;
 }): Promise<string | null> {
   if (!packageRoot) return null;
 
   const builtInPath = path.join(packageRoot, 'skills', `${skillId}.md`);
   try {
     const source = await fs.readFile(builtInPath, 'utf8');
-    if (!description) return source;
-    return applyDescriptionOverride(source, description);
+    const maybeDescribed = description ? applyDescriptionOverride(source, description) : source;
+    return formatBuiltInSkillForTarget({ source: maybeDescribed, skillId, format });
   } catch (error) {
     if (error instanceof Error && 'code' in error && error.code === 'ENOENT') return null;
     throw error;
@@ -195,4 +202,78 @@ function applyDescriptionOverride(markdown: string, description: string): string
   if (descriptionLine >= 0) lines[descriptionLine] = `description: ${description}`;
   else lines.splice(frontmatterEnd, 0, `description: ${description}`);
   return lines.join('\n');
+}
+
+function resolveSkillTemplateFormat({
+  formatFlag,
+  pathFlag
+}: {
+  formatFlag: string | undefined;
+  pathFlag: string | undefined;
+}): SkillTemplateFormat {
+  if (formatFlag) {
+    if (formatFlag === 'cursor' || formatFlag === 'claude-code') return formatFlag;
+    throw new Error(`Invalid skills format: ${formatFlag}. Expected cursor or claude-code.`);
+  }
+  if (!pathFlag) return 'cursor';
+
+  const normalized = pathFlag.replaceAll('\\', '/').toLowerCase();
+  if (normalized.includes('/.claude/') || normalized.startsWith('.claude/')) return 'claude-code';
+  return 'cursor';
+}
+
+function formatBuiltInSkillForTarget({
+  source,
+  skillId,
+  format
+}: {
+  source: string;
+  skillId: string;
+  format: SkillTemplateFormat;
+}): string {
+  if (format === 'claude-code') return source;
+
+  const frontmatter = parseFrontmatter(source) || {};
+  const name = typeof frontmatter.name === 'string' && frontmatter.name.trim() ? frontmatter.name : skillId;
+  const description =
+    typeof frontmatter.description === 'string' && frontmatter.description.trim()
+      ? frontmatter.description
+      : DEFAULT_BUILTIN_DESCRIPTION;
+  const body = extractBodyWithoutFrontmatter(source);
+  const withCursorSections = body
+    .replace(/^##\s+Purpose\s*$/m, '## When to Use')
+    .replace(/^##\s+Workflow\s*$/m, '## Instructions');
+  const withInstructionLead = ensureInstructionLeadParagraph(withCursorSections);
+
+  return ['---', `name: ${name}`, `description: ${description}`, '---', '', withInstructionLead].join('\n');
+}
+
+const DEFAULT_BUILTIN_DESCRIPTION = 'Skill guidance for AI agent execution.';
+
+function extractBodyWithoutFrontmatter(source: string): string {
+  const lines = source.split('\n');
+  if (lines[0] !== '---') return source;
+  for (let i = 1; i < lines.length; i += 1) {
+    if (lines[i] === '---') {
+      return lines
+        .slice(i + 1)
+        .join('\n')
+        .trimStart();
+    }
+  }
+  return source;
+}
+
+function ensureInstructionLeadParagraph(content: string): string {
+  const trimmed = content.trimStart();
+  const headingMatch = trimmed.match(/^(#\s+.+)$/m);
+  if (!headingMatch) return content;
+  if (trimmed.includes('Detailed instructions for the agent.')) return content;
+
+  const heading = headingMatch[1];
+  const index = content.indexOf(heading);
+  if (index < 0) return content;
+  const before = content.slice(0, index + heading.length);
+  const after = content.slice(index + heading.length).trimStart();
+  return `${before}\n\nDetailed instructions for the agent.\n\n${after}`;
 }

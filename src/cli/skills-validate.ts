@@ -6,7 +6,10 @@ import { getStringFlag } from './flags.ts';
 import { parseFrontmatter } from './file-helpers.ts';
 import type { CliFlags } from './types.ts';
 
-const REQUIRED_SECTIONS = ['Purpose', 'Workflow'] as const;
+const REQUIRED_SECTION_GROUPS = [
+  ['Purpose', 'Workflow'],
+  ['When to Use', 'Instructions']
+] as const;
 const COMPATIBILITY_KEYS = [
   'compatible_languages',
   'compatible_modules',
@@ -59,10 +62,16 @@ export function validateSkillFile({ file, content }: { file: string; content: st
     issues.push(`${file}: frontmatter 'description' must be a non-empty string`);
   }
 
-  for (const heading of REQUIRED_SECTIONS) {
-    if (!new RegExp(`^## ${heading}\\s*$`, 'm').test(content)) {
-      issues.push(`${file}: missing required section '## ${heading}'`);
-    }
+  const hasRequiredSectionGroup = REQUIRED_SECTION_GROUPS.some(([first, second]) => {
+    return (
+      new RegExp(`^## ${escapeHeading(first)}\\s*$`, 'm').test(content) &&
+      new RegExp(`^## ${escapeHeading(second)}\\s*$`, 'm').test(content)
+    );
+  });
+  if (!hasRequiredSectionGroup) {
+    issues.push(
+      `${file}: missing required sections ('## Purpose' + '## Workflow') or ('## When to Use' + '## Instructions')`
+    );
   }
 
   for (const key of COMPATIBILITY_KEYS) {
@@ -78,6 +87,10 @@ export function validateSkillFile({ file, content }: { file: string; content: st
   }
 
   return issues;
+}
+
+function escapeHeading(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
 async function collectSkillFiles(targetPath: string): Promise<string[]> {

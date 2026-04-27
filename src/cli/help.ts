@@ -13,7 +13,7 @@ export function printHelp() {
       '  ailib modules explain <module> [--language=<lang>]\n' +
       '  ailib skills list\n' +
       '  ailib skills explain <skill-id>\n' +
-      '  ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--force]\n' +
+      '  ailib skills add <skill-id> [--workspace=<path>] [--path=<path>] [--description=<text>] [--format=cursor|claude-code] [--force]\n' +
       '  ailib skills remove <skill-id> [--workspace=<path>] [--path=<path>]\n' +
       '  ailib skills init <skill-id> (alias of skills add)\n' +
       '  ailib skills validate [--workspace=<path>] [--path=<path>]\n' +

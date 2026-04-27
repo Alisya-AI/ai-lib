@@ -30,7 +30,11 @@ test('skillsCommand copies built-in skill content when id matches', async () => 
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'utf8');
   assert.match(content, /name: task-driven-gh-flow/);
   assert.match(content, /description: Execute roadmap work through GitHub tasks with strict traceability/);
+  assert.match(content, /## When to Use/);
+  assert.match(content, /## Instructions/);
   assert.match(content, /## Non-Negotiable Rules/);
+  assert.doesNotMatch(content, /## Purpose/);
+  assert.doesNotMatch(content, /## Workflow/);
   assert.doesNotMatch(content, /TODO: describe this skill/);
 });
 
@@ -50,6 +54,8 @@ test('skillsCommand supports description override for built-in skill content', a
 
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'utf8');
   assert.match(content, /description: My localized task-driven guidance/);
+  assert.match(content, /## When to Use/);
+  assert.match(content, /## Instructions/);
   assert.match(content, /## Non-Negotiable Rules/);
 });
 
@@ -91,6 +97,8 @@ test('skillsCommand scaffolds using custom path and description', async () => {
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/custom-release/SKILL.md'), 'utf8');
   assert.match(content, /name: release-manager/);
   assert.match(content, /description: Release workflow automation/);
+  assert.match(content, /## When to Use/);
+  assert.match(content, /## Instructions/);
 });
 
 test('skillsCommand rejects invalid skill id and existing files without force', async () => {
@@ -111,6 +119,38 @@ test('skillsCommand rejects invalid skill id and existing files without force', 
   });
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/code-review/SKILL.md'), 'utf8');
   assert.match(content, /description: Overwritten content/);
+});
+
+test('skillsCommand supports claude-code format profile', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+
+  await skillsCommand({
+    cwd,
+    flags: {
+      _: ['add', 'claude-planner'],
+      path: '.claude/skills/claude-planner',
+      format: 'claude-code'
+    }
+  });
+
+  const content = await fs.readFile(path.join(cwd, '.claude/skills/claude-planner/SKILL.md'), 'utf8');
+  assert.match(content, /## Purpose/);
+  assert.match(content, /## Workflow/);
+  assert.doesNotMatch(content, /## When to Use/);
+});
+
+test('skillsCommand rejects unsupported format profile', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+
+  await assert.rejects(
+    skillsCommand({
+      cwd,
+      flags: { _: ['add', 'invalid-format'], format: 'copilot' }
+    }),
+    /Invalid skills format: copilot/
+  );
 });
 
 test('skillsCommand supports --workspace targeting and blocks path escapes', async () => {

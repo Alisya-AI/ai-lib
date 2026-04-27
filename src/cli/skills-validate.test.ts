@@ -32,6 +32,28 @@ test('validateSkillFile accepts valid skill markdown', () => {
   assert.deepEqual(issues, []);
 });
 
+test('validateSkillFile accepts cursor-style section layout', () => {
+  const issues = validateSkillFile({
+    file: '/tmp/SKILL.md',
+    content: [
+      '---',
+      'name: delivery-flow-refinement',
+      'description: Improve delivery flow quality',
+      '---',
+      '',
+      '# delivery-flow-refinement',
+      '',
+      '## When to Use',
+      '- Use this skill when a workflow stalls.',
+      '',
+      '## Instructions',
+      '- Identify bottlenecks and prioritize constraints.',
+      ''
+    ].join('\n')
+  });
+  assert.deepEqual(issues, []);
+});
+
 test('validateSkillFile returns actionable errors for malformed content', () => {
   const issues = validateSkillFile({
     file: '/tmp/SKILL.md',
@@ -39,8 +61,7 @@ test('validateSkillFile returns actionable errors for malformed content', () => 
   });
   assert.match(issues.join('\n'), /frontmatter 'name' must be a non-empty string/);
   assert.match(issues.join('\n'), /frontmatter 'description' must be a non-empty string/);
-  assert.match(issues.join('\n'), /missing required section '## Purpose'/);
-  assert.match(issues.join('\n'), /missing required section '## Workflow'/);
+  assert.match(issues.join('\n'), /missing required sections/);
   assert.match(issues.join('\n'), /frontmatter 'compatible_targets' must be a list like \[a,b\]/);
 });
 
