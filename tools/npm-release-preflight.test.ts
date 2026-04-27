@@ -29,6 +29,7 @@ test('npm-release-preflight succeeds for first-time publish fixture payloads', a
           { path: 'bin/ailib.js' },
           { path: 'dist/runtime/cli.js' },
           { path: 'docs/homebrew-publishing.md' },
+          { path: 'skills/task-driven-gh-flow.md' },
           { path: 'registry.json' }
         ]
       }
@@ -74,6 +75,7 @@ test('npm-release-preflight fails when target version is already published', asy
           { path: 'bin/ailib.js' },
           { path: 'dist/runtime/cli.js' },
           { path: 'docs/homebrew-publishing.md' },
+          { path: 'skills/task-driven-gh-flow.md' },
           { path: 'registry.json' }
         ]
       }
@@ -114,6 +116,7 @@ test('npm-release-preflight fails when npm pack payload includes TypeScript file
           { path: 'bin/ailib.js' },
           { path: 'dist/runtime/cli.js' },
           { path: 'docs/homebrew-publishing.md' },
+          { path: 'skills/task-driven-gh-flow.md' },
           { path: 'registry.json' },
           { path: 'tools/npm-release-publish.ts' }
         ]
