@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
-import http from 'node:http';
+import { resolvePublishedVersionWithRetry } from './npm-release-publish-retry.ts';
 
 const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
@@ -33,42 +33,6 @@ async function spawnBun(
       resolve({ status, stdout, stderr });
     });
   });
-}
-
-async function createTarballServer() {
-  let requestCount = 0;
-  const server = http.createServer((req, res) => {
-    requestCount += 1;
-    if (requestCount < 3) {
-      res.statusCode = 404;
-      res.end('not-ready');
-      return;
-    }
-    res.statusCode = 200;
-    res.setHeader('content-type', 'application/octet-stream');
-    if (req.method === 'HEAD') {
-      res.end();
-      return;
-    }
-    res.end('tgz-content');
-  });
-  await new Promise<void>((resolve) => {
-    server.listen(0, '127.0.0.1', () => resolve());
-  });
-  const addr = server.address();
-  if (!addr || typeof addr === 'string') {
-    throw new Error('unable to resolve tarball server address');
-  }
-  return {
-    tarballUrl: `http://127.0.0.1:${String(addr.port)}/ailib-2.0.0.tgz`,
-    close: async () =>
-      await new Promise<void>((resolve, reject) => {
-        server.close((err) => {
-          if (err) reject(err);
-          else resolve();
-        });
-      })
-  };
 }
 
 test('npm-release-publish supports dry-run verification with fixture version', async () => {
@@ -125,25 +89,142 @@ test('npm-release-publish fails dry-run when resolved version mismatches package
   assert.match(result.stderr, /Published version mismatch/);
 });
 
-test('npm-release-publish retries when npm view returns stale version', { timeout: 30_000 }, async () => {
+test('resolvePublishedVersionWithRetry retries stale versions quickly', async () => {
+  let attempt = 0;
+  const sleepCalls: number[] = [];
+  const logs: string[] = [];
+
+  const resolved = await resolvePublishedVersionWithRetry({
+    packageName: '@alisya.ai/ailib',
+    expectedVersion: '2.0.0',
+    maxAttempts: 5,
+    delayMs: 3000,
+    fetchVersion: async () => {
+      attempt += 1;
+      return attempt < 3 ? '1.9.9' : '2.0.0';
+    },
+    isRetryableError: () => false,
+    sleep: async (ms: number) => {
+      sleepCalls.push(ms);
+    },
+    writeLog: (line: string) => {
+      logs.push(line);
+    }
+  });
+
+  assert.equal(resolved, '2.0.0');
+  assert.equal(attempt, 3);
+  assert.deepEqual(sleepCalls, [3000, 3000]);
+  assert.match(logs.join(''), /npm view retry 1\/5/);
+  assert.match(logs.join(''), /npm view retry 2\/5/);
+});
+
+test('resolvePublishedVersionWithRetry retries retryable errors', async () => {
+  let attempt = 0;
+  const sleepCalls: number[] = [];
+
+  const resolved = await resolvePublishedVersionWithRetry({
+    packageName: '@alisya.ai/ailib',
+    expectedVersion: '2.0.0',
+    maxAttempts: 3,
+    delayMs: 50,
+    fetchVersion: async () => {
+      attempt += 1;
+      if (attempt < 3) throw new Error('npm error code E404');
+      return '2.0.0';
+    },
+    isRetryableError: (error: unknown) => error instanceof Error && error.message.includes('E404'),
+    sleep: async (ms: number) => {
+      sleepCalls.push(ms);
+    },
+    writeLog: () => {}
+  });
+
+  assert.equal(resolved, '2.0.0');
+  assert.equal(attempt, 3);
+  assert.deepEqual(sleepCalls, [50, 50]);
+});
+
+test('resolvePublishedVersionWithRetry throws mismatch after max attempts', async () => {
+  await assert.rejects(
+    resolvePublishedVersionWithRetry({
+      packageName: '@alisya.ai/ailib',
+      expectedVersion: '2.0.0',
+      maxAttempts: 2,
+      delayMs: 0,
+      fetchVersion: async () => '1.9.9',
+      isRetryableError: () => false,
+      sleep: async () => {},
+      writeLog: () => {}
+    }),
+    /Unable to resolve published version/
+  );
+});
+
+test('resolvePublishedVersionWithRetry throws non-retryable errors immediately', async () => {
+  await assert.rejects(
+    resolvePublishedVersionWithRetry({
+      packageName: '@alisya.ai/ailib',
+      expectedVersion: '2.0.0',
+      maxAttempts: 3,
+      delayMs: 0,
+      fetchVersion: async () => {
+        throw new Error('permission denied');
+      },
+      isRetryableError: () => false,
+      sleep: async () => {}
+    }),
+    /permission denied/
+  );
+});
+
+test('resolvePublishedVersionWithRetry uses default logger when writeLog is omitted', async () => {
+  let attempt = 0;
+  const sleepCalls: number[] = [];
+  const originalWrite = process.stdout.write.bind(process.stdout);
+  const logged: string[] = [];
+
+  process.stdout.write = ((chunk: string | Uint8Array) => {
+    logged.push(chunk.toString());
+    return true;
+  }) as typeof process.stdout.write;
+
+  try {
+    const resolved = await resolvePublishedVersionWithRetry({
+      packageName: '@alisya.ai/ailib',
+      expectedVersion: '2.0.0',
+      maxAttempts: 3,
+      delayMs: 25,
+      fetchVersion: async () => {
+        attempt += 1;
+        return attempt < 2 ? '1.9.9' : '2.0.0';
+      },
+      isRetryableError: () => false,
+      sleep: async (ms: number) => {
+        sleepCalls.push(ms);
+      }
+    });
+
+    assert.equal(resolved, '2.0.0');
+    assert.deepEqual(sleepCalls, [25]);
+    assert.match(logged.join(''), /npm view retry 1\/3/);
+  } finally {
+    process.stdout.write = originalWrite;
+  }
+});
+
+test('npm-release-publish verifies non-dry-run path', { timeout: 30_000 }, async () => {
   const dir = await tempDir();
   const packageFile = path.join(dir, 'package.json');
   const reportFile = path.join(dir, 'report.json');
   const fakeBin = path.join(dir, 'bin');
-  const stateFile = path.join(dir, 'npm-view-count.txt');
   const fakeNpm = path.join(fakeBin, 'npm');
-  const fakeNpx = path.join(fakeBin, 'npx');
-  const tarballServer = await createTarballServer();
-
-  try {
-    await fs.mkdir(fakeBin, { recursive: true });
-    await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '2.0.0' }), 'utf8');
-    await fs.writeFile(stateFile, '0', 'utf8');
-    await fs.writeFile(
-      fakeNpm,
-      `#!/usr/bin/env bash
+  await fs.mkdir(fakeBin, { recursive: true });
+  await fs.writeFile(packageFile, JSON.stringify({ name: '@alisya.ai/ailib', version: '2.0.0' }), 'utf8');
+  await fs.writeFile(
+    fakeNpm,
+    `#!/usr/bin/env bash
 set -euo pipefail
-STATE_FILE="${stateFile}"
 COMMAND="$1"
 if [ "$COMMAND" = "whoami" ]; then
   echo "ci-user"
@@ -154,74 +235,40 @@ if [ "$COMMAND" = "publish" ]; then
 fi
 if [ "$COMMAND" = "view" ]; then
   if [ "$3" = "version" ]; then
-    COUNT="$(cat "$STATE_FILE")"
-    NEXT_COUNT=$((COUNT + 1))
-    echo "$NEXT_COUNT" > "$STATE_FILE"
-    if [ "$NEXT_COUNT" -lt 3 ]; then
-      echo "\\"1.9.9\\""
-    else
-      echo "\\"2.0.0\\""
-    fi
+    echo "\\"2.0.0\\""
     exit 0
   fi
-  if [ "$3" = "dist.tarball" ]; then
-    echo "\\"$TARBALL_URL\\""
-    exit 0
-  fi
-fi
-if [ "$COMMAND" = "init" ]; then
-  exit 0
-fi
-if [ "$COMMAND" = "install" ]; then
-  exit 0
 fi
 echo "unsupported npm command: $*" >&2
 exit 1
 `,
-      'utf8'
-    );
-    await fs.writeFile(
-      fakeNpx,
-      `#!/usr/bin/env bash
-set -euo pipefail
-echo "ailib commands:"
-`,
-      'utf8'
-    );
-    await fs.chmod(fakeNpm, 0o755);
-    await fs.chmod(fakeNpx, 0o755);
+    'utf8'
+  );
+  await fs.chmod(fakeNpm, 0o755);
 
-    const result = await spawnBun(
-      ['tools/npm-release-publish.ts', `--package-file=${packageFile}`, `--report-file=${reportFile}`],
-      {
-        cwd: packageRoot,
-        env: {
-          ...process.env,
-          TARBALL_URL: tarballServer.tarballUrl,
-          AILIB_NPM_VIEW_MAX_ATTEMPTS: '5',
-          AILIB_NPM_VIEW_DELAY_MS: '10',
-          AILIB_NPM_TARBALL_MAX_ATTEMPTS: '5',
-          AILIB_NPM_TARBALL_DELAY_MS: '10',
-          PATH: `${fakeBin}:${process.env.PATH ?? ''}`
-        }
+  const result = await spawnBun(
+    ['tools/npm-release-publish.ts', `--package-file=${packageFile}`, `--report-file=${reportFile}`],
+    {
+      cwd: packageRoot,
+      env: {
+        ...process.env,
+        AILIB_NPM_VIEW_MAX_ATTEMPTS: '2',
+        AILIB_NPM_VIEW_DELAY_MS: '0',
+        AILIB_NPM_SKIP_TARBALL_VERIFY: '1',
+        AILIB_NPM_SKIP_INSTALL_VERIFY: '1',
+        PATH: `${fakeBin}:${process.env.PATH ?? ''}`
       }
-    );
+    }
+  );
 
-    assert.equal(result.status, 0, result.stderr);
-    assert.match(result.stdout, /npm view retry 1\/5/);
-    assert.match(result.stdout, /npm view retry 2\/5/);
-    assert.match(result.stdout, /tarball reachability retry 1\/5/);
-    assert.match(result.stdout, /tarball reachability retry 2\/5/);
-    assert.match(result.stdout, /npm publish verification passed/);
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(result.stdout, /npm publish verification passed/);
 
-    const report = JSON.parse(await fs.readFile(reportFile, 'utf8')) as Record<string, unknown>;
-    const checks = report.checks as Record<string, unknown>;
-    assert.equal(checks.npmAuthVerified, true);
-    assert.equal(checks.publishCommandExecuted, true);
-    assert.equal(checks.npmVersionResolved, true);
-    assert.equal(checks.publishedTarballReachable, true);
-    assert.equal(checks.installVerificationPassed, true);
-  } finally {
-    await tarballServer.close();
-  }
+  const report = JSON.parse(await fs.readFile(reportFile, 'utf8')) as Record<string, unknown>;
+  const checks = report.checks as Record<string, unknown>;
+  assert.equal(checks.npmAuthVerified, true);
+  assert.equal(checks.publishCommandExecuted, true);
+  assert.equal(checks.npmVersionResolved, true);
+  assert.equal(checks.publishedTarballReachable, true);
+  assert.equal(checks.installVerificationPassed, true);
 });

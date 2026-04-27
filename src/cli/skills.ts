@@ -130,9 +130,8 @@ export async function skillsRemoveCommand({ cwd, flags }: { cwd: string; flags: 
   try {
     await fs.rm(target);
   } catch (error) {
-    if (error instanceof Error && 'code' in error && error.code === 'ENOENT') {
+    if (error instanceof Error && 'code' in error && error.code === 'ENOENT')
       throw new Error(`Skill file does not exist: ${target}`);
-    }
     throw error;
   }
 

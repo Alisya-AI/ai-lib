@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { skillsCommand } from './skills.ts';
+import { skillsCommand, skillsInitCommand, skillsRemoveCommand } from './skills.ts';
 
 async function tempDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), 'ailib-skills-command-'));
@@ -203,4 +203,73 @@ test('skillsCommand supports init alias and remove command', async () => {
     }),
     /Skill file does not exist:/
   );
+});
+
+test('skillsInitCommand delegates to add behavior', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+
+  await skillsInitCommand({
+    cwd,
+    flags: { _: ['init', 'delegate-init'], description: 'Delegated init' }
+  });
+
+  const skillPath = path.join(cwd, '.cursor/skills/delegate-init/SKILL.md');
+  assert.match(await fs.readFile(skillPath, 'utf8'), /description: Delegated init/);
+});
+
+test('skillsRemoveCommand reports missing file path explicitly', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+
+  await assert.rejects(
+    skillsRemoveCommand({
+      cwd,
+      flags: { _: ['remove', 'missing-skill-direct'] }
+    }),
+    /Skill file does not exist: .*missing-skill-direct\/SKILL\.md/
+  );
+});
+
+test('skillsCommand rethrows non-ENOENT built-in read failures', async () => {
+  const cwd = await tempDir();
+  const packageRoot = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  await fs.mkdir(path.join(packageRoot, 'skills', 'dir-as-skill.md'), { recursive: true });
+
+  await assert.rejects(
+    skillsCommand({
+      cwd,
+      packageRoot,
+      flags: { _: ['add', 'dir-as-skill'] }
+    }),
+    /(EISDIR|illegal operation on a directory)/
+  );
+});
+
+test('skillsCommand preserves source when built-in frontmatter fence is malformed', async () => {
+  const cwd = await tempDir();
+  const packageRoot = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  await fs.mkdir(path.join(packageRoot, 'skills'), { recursive: true });
+  await fs.writeFile(
+    path.join(packageRoot, 'skills', 'broken-frontmatter.md'),
+    [
+      '---',
+      'name: broken-frontmatter',
+      'description: malformed frontmatter without closing fence',
+      '# broken-frontmatter'
+    ].join('\n'),
+    'utf8'
+  );
+
+  await skillsCommand({
+    cwd,
+    packageRoot,
+    flags: { _: ['add', 'broken-frontmatter'] }
+  });
+
+  const content = await fs.readFile(path.join(cwd, '.cursor/skills/broken-frontmatter/SKILL.md'), 'utf8');
+  assert.match(content, /^---\nname: broken-frontmatter/m);
+  assert.doesNotMatch(content, /## When to Use/);
 });
