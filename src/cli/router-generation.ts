@@ -55,7 +55,7 @@ async function writeStandardTargetRouters({
         ? targetDef.frontmatter.root
         : targetDef.frontmatter.workspace
       : '';
-    const rendered = `${frontmatter || ''}${renderRouterDoc({ label, workspaceDir, rootDir, state })}`;
+    const rendered = `${frontmatter || ''}${renderRouterDoc({ label, workspaceDir, rootDir, state, targetId })}`;
     await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.output), rendered, onConflict });
     if (atRoot && targetDef.root_output) {
       await writeManagedFile({ outPath: path.join(workspaceDir, targetDef.root_output), rendered, onConflict });
@@ -79,7 +79,7 @@ async function writeCopilotRouters({
   const sections = scopedStates
     .map(([dir, state]) => {
       const label = workspaceLabelFor(rootDir, dir);
-      return `## Workspace: ${label}\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir: dir, rootDir, state }).trim()}\n`;
+      return `## Workspace: ${label}\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir: dir, rootDir, state, targetId: 'copilot' }).trim()}\n`;
     })
     .join('\n');
 
@@ -116,7 +116,7 @@ async function writeCopilotWorkspaceInstruction({
   const rel = workspaceLabelFor(rootDir, workspaceDir);
   const applyTo = rel === '.' ? '**' : `${toPosix(rel)}/**`;
   const fileName = rel === '.' ? 'root.instructions.md' : `${sanitizeForFilename(rel)}.instructions.md`;
-  const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir, rootDir, state })}`;
+  const content = `---\napplyTo: "${applyTo}"\n---\n\n${renderRouterDoc({ label: copilotLabel, workspaceDir, rootDir, state, targetId: 'copilot' })}`;
   await writeManagedFile({
     outPath: path.join(rootDir, '.github/instructions', fileName),
     rendered: content,
@@ -128,12 +128,14 @@ export function renderRouterDoc({
   label,
   workspaceDir,
   rootDir,
-  state
+  state,
+  targetId = 'cursor'
 }: {
   label: string;
   workspaceDir: string;
   rootDir: string;
   state: WorkspaceState;
+  targetId?: string;
 }) {
   const relToRoot = relativePathForPointers(workspaceDir, rootDir);
   const behaviorRef =
@@ -149,10 +151,10 @@ export function renderRouterDoc({
   const localModuleLines = state.localModules.map((mod) => `- @.ailib/modules/${mod}.md`);
   const moduleLines = [...inheritedModuleLines, ...localModuleLines];
   const inheritedSkillLines = state.inheritedSkills.map((skill) => {
-    const skillPath = `@${toPosix(path.join(relToRoot, '.ailib/skills', `${skill}.md`))}`;
+    const skillPath = `@${toPosix(path.join(relToRoot, '.ailib/skills', targetId, `${skill}.md`))}`;
     return `- ${skillPath}`;
   });
-  const localSkillLines = state.localSkills.map((skill) => `- @.ailib/skills/${skill}.md`);
+  const localSkillLines = state.localSkills.map((skill) => `- @.ailib/skills/${targetId}/${skill}.md`);
   const skillLines = [...inheritedSkillLines, ...localSkillLines];
   const docsBlock =
     path.resolve(workspaceDir) === path.resolve(rootDir)

@@ -71,7 +71,7 @@ test('renderRouterDoc renders root and service docs with correct references', ()
   assert.match(rootDoc, /Act as the AI Agent defined in @\.ailib\/behavior\.md/);
   assert.match(rootDoc, /- @\.ailib\/modules\/pytest\.md/);
   assert.match(rootDoc, /# SKILLS/);
-  assert.match(rootDoc, /- @\.ailib\/skills\/task-driven-gh-flow\.md/);
+  assert.match(rootDoc, /- @\.ailib\/skills\/cursor\/task-driven-gh-flow\.md/);
 
   const serviceDoc = renderRouterDoc({
     label: 'Cursor',
@@ -81,8 +81,8 @@ test('renderRouterDoc renders root and service docs with correct references', ()
   });
   assert.match(serviceDoc, /@\.\.\/\.\.\/\.ailib\/behavior\.md/);
   assert.match(serviceDoc, /consult @\.\.\/\.\.\/docs\//);
-  assert.match(serviceDoc, /- @\.\.\/\.\.\/\.ailib\/skills\/task-driven-gh-flow\.md/);
-  assert.match(serviceDoc, /- @\.ailib\/skills\/local-skill\.md/);
+  assert.match(serviceDoc, /- @\.\.\/\.\.\/\.ailib\/skills\/cursor\/task-driven-gh-flow\.md/);
+  assert.match(serviceDoc, /- @\.ailib\/skills\/cursor\/local-skill\.md/);
 });
 
 test('renderRouterDoc snapshot includes skill pointer layout', () => {
@@ -107,7 +107,7 @@ test('renderRouterDoc snapshot includes skill pointer layout', () => {
     '- @.ailib/modules/pytest.md',
     '',
     '# SKILLS',
-    '- @.ailib/skills/task-driven-gh-flow.md',
+    '- @.ailib/skills/cursor/task-driven-gh-flow.md',
     '',
     '# PROJECT-SPECIFIC CONTEXT',
     'Prioritize project context in @./docs/.',
@@ -135,8 +135,8 @@ test('renderRouterDoc snapshot includes skill pointer layout', () => {
     '- @.ailib/modules/pytest.md',
     '',
     '# SKILLS',
-    '- @../../.ailib/skills/task-driven-gh-flow.md',
-    '- @.ailib/skills/local-skill.md',
+    '- @../../.ailib/skills/cursor/task-driven-gh-flow.md',
+    '- @.ailib/skills/cursor/local-skill.md',
     '',
     '# PROJECT-SPECIFIC CONTEXT',
     'Prioritize service-local business logic in @./docs/.',

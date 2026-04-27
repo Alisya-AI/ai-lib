@@ -18,7 +18,18 @@ const registry: Registry = {
     }
   },
   targets: {
-    cursor: { output: '.cursor/rules/ailib.mdc' }
+    cursor: {
+      output: '.cursor/rules/ailib.mdc',
+      skill_profile: {
+        format: 'cursor'
+      }
+    },
+    'claude-code': {
+      output: 'CLAUDE.md',
+      skill_profile: {
+        format: 'claude-code'
+      }
+    }
   },
   skills: {
     'architecture-decision-flow': {
@@ -40,11 +51,15 @@ const registry: Registry = {
     'missing-packaged-skill': {
       display: 'Missing packaged skill',
       path: 'skills/missing-packaged-skill.md'
+    },
+    'target-format-skill': {
+      display: 'Target format skill',
+      path: 'skills/target-format-skill.md'
     }
   }
 };
 
-function state(localModules: string[], localSkills: string[] = []): WorkspaceState {
+function state(localModules: string[], localSkills: string[] = [], targets: string[] = ['cursor']): WorkspaceState {
   return {
     effective: {
       $schema: 'https://ailib.dev/schema/config.schema.json',
@@ -52,7 +67,7 @@ function state(localModules: string[], localSkills: string[] = []): WorkspaceSta
       on_conflict: 'merge',
       language: 'typescript',
       modules: localModules,
-      targets: ['cursor'],
+      targets,
       skills: localSkills,
       docs_path: 'docs/',
       inheritedModules: [],
@@ -80,6 +95,25 @@ async function seedPackage(packageRoot: string) {
   await fs.writeFile(path.join(packageRoot, 'languages/typescript/core.md'), 'lang-core', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'languages/typescript/modules/eslint.md'), 'eslint', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'skills/architecture-decision-flow.md'), 'architecture-flow', 'utf8');
+  await fs.writeFile(
+    path.join(packageRoot, 'skills/target-format-skill.md'),
+    [
+      '---',
+      'name: target-format-skill',
+      'description: Target format validation skill',
+      '---',
+      '',
+      '# target-format-skill',
+      '',
+      '## Purpose',
+      '- Describe purpose',
+      '',
+      '## Workflow',
+      '- Describe workflow',
+      ''
+    ].join('\n'),
+    'utf8'
+  );
   await fs.mkdir(path.join(packageRoot, '.cursor/skills/task-driven-gh-flow'), { recursive: true });
   await fs.writeFile(path.join(packageRoot, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'skill-flow', 'utf8');
 }
@@ -144,6 +178,10 @@ test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
     await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
     'skill-flow'
   );
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
+    'skill-flow'
+  );
   await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/legacy-skill.md'), 'utf8'));
   assert.equal(await fs.readFile(path.join(workspaceDir, '.ailib/skills/custom.md'), 'utf8'), 'custom-skill');
 });
@@ -194,6 +232,38 @@ test('ensureWorkspaceAssets prefers local custom skill over package source', asy
     await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
     'workspace-local-skill'
   );
+});
+
+test('ensureWorkspaceAssets renders target-specific skill format variants', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['target-format-skill'], ['cursor', 'claude-code']),
+    rootDir,
+    registry
+  });
+
+  const legacy = await fs.readFile(path.join(workspaceDir, '.ailib/skills/target-format-skill.md'), 'utf8');
+  const cursorRendered = await fs.readFile(
+    path.join(workspaceDir, '.ailib/skills/cursor/target-format-skill.md'),
+    'utf8'
+  );
+  const claudeRendered = await fs.readFile(
+    path.join(workspaceDir, '.ailib/skills/claude-code/target-format-skill.md'),
+    'utf8'
+  );
+
+  assert.match(legacy, /## Purpose/);
+  assert.match(cursorRendered, /## When to Use/);
+  assert.match(cursorRendered, /## Instructions/);
+  assert.match(cursorRendered, /Detailed instructions for the agent\./);
+  assert.match(claudeRendered, /## Purpose/);
+  assert.doesNotMatch(claudeRendered, /## When to Use/);
 });
 
 test('ensureWorkspaceAssets prefers root local custom skill over package source', async () => {
