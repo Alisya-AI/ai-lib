@@ -12,22 +12,67 @@ async function tempDir() {
 test('skillsCommand rejects unsupported subcommands', async () => {
   await assert.rejects(
     skillsCommand({ cwd: process.cwd(), flags: { _: ['unknown'] } }),
-    /Usage: ailib skills list.*ailib skills validate/s
+    /Usage: ailib skills list.*ailib skills remove.*ailib skills validate/s
   );
 });
 
-test('skillsCommand scaffolds default skill path', async () => {
+test('skillsCommand copies built-in skill content when id matches', async () => {
   const cwd = await tempDir();
   await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
 
   await skillsCommand({
     cwd,
-    flags: { _: ['init', 'task-driven-gh-flow'] }
+    packageRoot,
+    flags: { _: ['add', 'task-driven-gh-flow'] }
   });
 
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'utf8');
   assert.match(content, /name: task-driven-gh-flow/);
-  assert.match(content, /description: TODO: describe this skill/);
+  assert.match(content, /description: Execute roadmap work through GitHub tasks with strict traceability/);
+  assert.match(content, /## Non-Negotiable Rules/);
+  assert.doesNotMatch(content, /TODO: describe this skill/);
+});
+
+test('skillsCommand supports description override for built-in skill content', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+
+  await skillsCommand({
+    cwd,
+    packageRoot,
+    flags: {
+      _: ['add', 'task-driven-gh-flow'],
+      description: 'My localized task-driven guidance'
+    }
+  });
+
+  const content = await fs.readFile(path.join(cwd, '.cursor/skills/task-driven-gh-flow/SKILL.md'), 'utf8');
+  assert.match(content, /description: My localized task-driven guidance/);
+  assert.match(content, /## Non-Negotiable Rules/);
+});
+
+test('skillsCommand does not overwrite existing local skill file for built-in id', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+  const packageRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..', '..');
+  const target = path.join(cwd, '.cursor/skills/task-driven-gh-flow/SKILL.md');
+
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, 'custom local skill content\n', 'utf8');
+
+  await assert.rejects(
+    skillsCommand({
+      cwd,
+      packageRoot,
+      flags: { _: ['add', 'task-driven-gh-flow'], force: true }
+    }),
+    /Built-in seeding will not overwrite existing local skill files/
+  );
+
+  const content = await fs.readFile(target, 'utf8');
+  assert.equal(content, 'custom local skill content\n');
 });
 
 test('skillsCommand scaffolds using custom path and description', async () => {
@@ -37,7 +82,7 @@ test('skillsCommand scaffolds using custom path and description', async () => {
   await skillsCommand({
     cwd,
     flags: {
-      _: ['init', 'release-manager'],
+      _: ['add', 'release-manager'],
       path: '.cursor/skills/custom-release',
       description: 'Release workflow automation'
     }
@@ -54,15 +99,15 @@ test('skillsCommand rejects invalid skill id and existing files without force', 
 
   await assert.rejects(skillsCommand({ cwd, flags: { _: ['init', 'BadId'] } }), /Invalid skill id: BadId/);
 
-  await skillsCommand({ cwd, flags: { _: ['init', 'code-review'] } });
+  await skillsCommand({ cwd, flags: { _: ['add', 'code-review'] } });
   await assert.rejects(
-    skillsCommand({ cwd, flags: { _: ['init', 'code-review'] } }),
+    skillsCommand({ cwd, flags: { _: ['add', 'code-review'] } }),
     /Skill file already exists: .*Re-run with --force to overwrite/
   );
 
   await skillsCommand({
     cwd,
-    flags: { _: ['init', 'code-review'], force: true, description: 'Overwritten content' }
+    flags: { _: ['add', 'code-review'], force: true, description: 'Overwritten content' }
   });
   const content = await fs.readFile(path.join(cwd, '.cursor/skills/code-review/SKILL.md'), 'utf8');
   assert.match(content, /description: Overwritten content/);
@@ -77,7 +122,7 @@ test('skillsCommand supports --workspace targeting and blocks path escapes', asy
 
   await skillsCommand({
     cwd: root,
-    flags: { _: ['init', 'triage'], workspace: 'apps/web' }
+    flags: { _: ['add', 'triage'], workspace: 'apps/web' }
   });
 
   const scaffoldPath = path.join(workspace, '.cursor/skills/triage/SKILL.md');
@@ -87,8 +132,35 @@ test('skillsCommand supports --workspace targeting and blocks path escapes', asy
   await assert.rejects(
     skillsCommand({
       cwd: root,
-      flags: { _: ['init', 'escape-test'], workspace: 'apps/web', path: '../outside' }
+      flags: { _: ['add', 'escape-test'], workspace: 'apps/web', path: '../outside' }
     }),
     /Skill path must be within workspace/
+  );
+});
+
+test('skillsCommand supports init alias and remove command', async () => {
+  const cwd = await tempDir();
+  await fs.writeFile(path.join(cwd, 'package.json'), '{"name":"tmp"}\n', 'utf8');
+
+  await skillsCommand({
+    cwd,
+    flags: { _: ['init', 'cleanup-me'], description: 'Temp skill' }
+  });
+
+  const skillPath = path.join(cwd, '.cursor/skills/cleanup-me/SKILL.md');
+  assert.match(await fs.readFile(skillPath, 'utf8'), /description: Temp skill/);
+
+  await skillsCommand({
+    cwd,
+    flags: { _: ['remove', 'cleanup-me'] }
+  });
+
+  await assert.rejects(fs.access(skillPath), /ENOENT/);
+  await assert.rejects(
+    skillsCommand({
+      cwd,
+      flags: { _: ['remove', 'cleanup-me'] }
+    }),
+    /Skill file does not exist:/
   );
 });

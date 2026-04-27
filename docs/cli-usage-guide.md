@@ -18,7 +18,8 @@ Core commands:
 - `ailib modules explain <module>`
 - `ailib skills list`
 - `ailib skills explain <skill-id>`
-- `ailib skills init <skill-id>`
+- `ailib skills add <skill-id>` (supports `skills init` alias)
+- `ailib skills remove <skill-id>`
 - `ailib skills validate`
 
 ## Single-repo flow
@@ -454,10 +455,19 @@ ailib update
 Create a new skill file:
 
 ```bash
-ailib skills init release-manager --workspace=apps/web --description="Release orchestration workflow"
+ailib skills add release-manager --workspace=apps/web --description="Release orchestration workflow"
 ```
 
-This writes a scaffold to `.cursor/skills/release-manager/SKILL.md` in the target workspace (or a custom path when `--path` is provided).
+This writes a scaffold to `.cursor/skills/release-manager/SKILL.md` in the target workspace (or a custom path when `--path` is provided).  
+When the `skill-id` matches a built-in skill (for example `solid-principles-application`), `skills add` seeds the file with the built-in skill content instead of an empty TODO scaffold.
+If the target file already exists, built-in seeding will not overwrite that local skill file.
+`skills init` remains available as a compatibility alias for `skills add`.
+
+Remove a local skill scaffold:
+
+```bash
+ailib skills remove release-manager --workspace=apps/web
+```
 
 ### 4) Validate authored skills
 
