@@ -111,7 +111,7 @@ ailib skills explain release-readiness
 Author and validate custom skills in a workspace:
 
 ```bash
-ailib skills init release-manager --workspace=apps/web --description="Release orchestration workflow"
+ailib skills add release-manager --workspace=apps/web --description="Release orchestration workflow"
 ailib skills validate --workspace=apps/web
 ```
 

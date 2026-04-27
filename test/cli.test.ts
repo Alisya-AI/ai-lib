@@ -444,7 +444,7 @@ test('add and remove enforce module argument', async () => {
   await assert.rejects(run(['remove'], { cwd: root, packageRoot }), /Usage: ailib remove <module>/);
 });
 
-test('skills init scaffolds skill file in target workspace', async () => {
+test('skills add scaffolds skill file in target workspace', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
     cwd: root,
@@ -456,7 +456,7 @@ test('skills init scaffolds skill file in target workspace', async () => {
   });
 
   await run(
-    ['skills', 'init', 'release-manager', '--workspace=apps/web', '--description=Release orchestration workflow'],
+    ['skills', 'add', 'release-manager', '--workspace=apps/web', '--description=Release orchestration workflow'],
     {
       cwd: root,
       packageRoot
@@ -470,6 +470,65 @@ test('skills init scaffolds skill file in target workspace', async () => {
   assert.match(content, /description: Release orchestration workflow/);
 });
 
+test('skills add seeds built-in skill details when id matches catalog', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+  await run(['init', '--language=typescript', '--modules=biome', '--targets=claude-code'], {
+    cwd: path.join(root, 'apps', 'web'),
+    packageRoot
+  });
+
+  await run(['skills', 'add', 'solid-principles-application', '--workspace=apps/web'], {
+    cwd: root,
+    packageRoot
+  });
+
+  const skillPath = path.join(root, 'apps', 'web', '.cursor', 'skills', 'solid-principles-application', 'SKILL.md');
+  assert.equal(await exists(skillPath), true);
+  const content = await fs.readFile(skillPath, 'utf8');
+  assert.match(content, /name: solid-principles-application/);
+  assert.match(content, /description: Apply SRP, OCP, LSP, ISP, and DIP/);
+  assert.match(content, /Apply SRP by splitting modules/);
+  assert.doesNotMatch(content, /TODO: add concrete implementation steps/);
+});
+
+test('skills init remains an alias of skills add', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+
+  await run(['skills', 'init', 'release-manager', '--description=Alias path'], { cwd: root, packageRoot });
+
+  const skillPath = path.join(root, '.cursor', 'skills', 'release-manager', 'SKILL.md');
+  assert.equal(await exists(skillPath), true);
+  assert.match(await fs.readFile(skillPath, 'utf8'), /description: Alias path/);
+});
+
+test('skills remove deletes local skill files', async () => {
+  const root = await makeMonorepo();
+  await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
+    cwd: root,
+    packageRoot
+  });
+
+  await run(['skills', 'add', 'release-manager', '--description=To remove'], { cwd: root, packageRoot });
+  const skillPath = path.join(root, '.cursor', 'skills', 'release-manager', 'SKILL.md');
+  assert.equal(await exists(skillPath), true);
+
+  await run(['skills', 'remove', 'release-manager'], { cwd: root, packageRoot });
+  assert.equal(await exists(skillPath), false);
+
+  await assert.rejects(
+    run(['skills', 'remove', 'release-manager'], { cwd: root, packageRoot }),
+    /Skill file does not exist:/
+  );
+});
+
 test('skills validate reports workspace skill quality issues', async () => {
   const root = await makeMonorepo();
   await run(['init', '--language=typescript', '--modules=eslint', '--targets=claude-code', '--on-conflict=overwrite'], {
@@ -480,7 +539,7 @@ test('skills validate reports workspace skill quality issues', async () => {
     cwd: path.join(root, 'apps', 'web'),
     packageRoot
   });
-  await run(['skills', 'init', 'release-manager', '--workspace=apps/web'], { cwd: root, packageRoot });
+  await run(['skills', 'add', 'release-manager', '--workspace=apps/web'], { cwd: root, packageRoot });
 
   await run(['skills', 'validate', '--workspace=apps/web'], { cwd: root, packageRoot });
 
