@@ -190,6 +190,7 @@
     "architecture-decision-flow": {
       "display": "Architecture decision flow",
       "description": "Drive architecture decisions end-to-end using RFC and DACI, from problem framing to rollout review.",
+      "skill_type": "architecture",
       "path": "skills/architecture-decision-flow.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -199,6 +200,7 @@
     "clean-code-refactoring": {
       "display": "Clean code refactoring",
       "description": "Plan and execute safe refactors with clear boundaries, SOLID checks, and behavior-preserving verification.",
+      "skill_type": "code-quality",
       "path": "skills/clean-code-refactoring.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -208,6 +210,7 @@
     "code-review-rigor": {
       "display": "Code review rigor",
       "description": "Run bug-risk-first code reviews that prioritize behavioral regressions, test gaps, and unsafe assumptions.",
+      "skill_type": "code-quality",
       "path": "skills/code-review-rigor.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -217,6 +220,7 @@
     "rfc-authoring": {
       "display": "RFC authoring",
       "description": "Write concise RFCs with context, options, tradeoffs, recommendation, and rollout planning.",
+      "skill_type": "architecture",
       "path": "skills/rfc-authoring.md",
       "requires": ["architecture-decision-flow"],
       "compatible": {
@@ -227,6 +231,7 @@
     "daci-facilitation": {
       "display": "DACI facilitation",
       "description": "Establish DACI ownership and run efficient decision reviews with clear accountability.",
+      "skill_type": "architecture",
       "path": "skills/daci-facilitation.md",
       "requires": ["architecture-decision-flow"],
       "compatible": {
@@ -237,6 +242,7 @@
     "design-review-checklist": {
       "display": "Design review checklist",
       "description": "Run consistent technical design reviews for correctness, operability, security, and maintainability.",
+      "skill_type": "architecture",
       "path": "skills/design-review-checklist.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -246,6 +252,7 @@
     "delivery-flow-refinement": {
       "display": "Delivery flow refinement",
       "description": "Improve software delivery flow by reducing bottlenecks across planning, implementation, review, and release.",
+      "skill_type": "delivery",
       "path": "skills/delivery-flow-refinement.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -255,6 +262,7 @@
     "jira-delivery-practices": {
       "display": "Jira delivery practices",
       "description": "Apply Jira workflow best practices to keep software delivery planning, execution, and release traceability aligned.",
+      "skill_type": "delivery",
       "path": "skills/jira-delivery-practices.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -264,6 +272,7 @@
     "notion-delivery-practices": {
       "display": "Notion delivery practices",
       "description": "Apply Notion documentation best practices to keep software development context, decisions, and delivery playbooks current.",
+      "skill_type": "delivery",
       "path": "skills/notion-delivery-practices.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -273,6 +282,7 @@
     "task-driven-gh-flow": {
       "display": "Task-driven GH flow",
       "description": "Execute roadmap work through GitHub tasks with strict traceability. Use when implementing planned backlog items, creating small PRs, linking PRs to issues, updating GitHub Projects after merge, and splitting tasks into sub-issues when a single PR is not enough.",
+      "skill_type": "delivery",
       "path": "skills/task-driven-gh-flow.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -282,6 +292,7 @@
     "release-readiness": {
       "display": "Release readiness",
       "description": "Validate a change is safe to release with checklist-driven checks, rollback preparation, and post-merge verification.",
+      "skill_type": "reliability",
       "path": "skills/release-readiness.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -291,6 +302,7 @@
     "observability-design": {
       "display": "Observability design",
       "description": "Design observability across logs, metrics, traces, alerts, and dashboards to detect and diagnose production issues quickly.",
+      "skill_type": "reliability",
       "path": "skills/observability-design.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -300,6 +312,7 @@
     "incident-review": {
       "display": "Incident review",
       "description": "Run a structured incident review with timeline reconstruction, contributing-factor analysis, action planning, and clear ownership.",
+      "skill_type": "reliability",
       "path": "skills/incident-review.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -309,6 +322,7 @@
     "migration-planning": {
       "display": "Migration planning",
       "description": "Plan data and API migrations with phased rollouts, compatibility safeguards, and tested fallback paths.",
+      "skill_type": "reliability",
       "path": "skills/migration-planning.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -318,6 +332,7 @@
     "solid-principles-application": {
       "display": "SOLID principles application",
       "description": "Apply SRP, OCP, LSP, ISP, and DIP with practical design checks during implementation and refactoring.",
+      "skill_type": "code-quality",
       "path": "skills/solid-principles-application.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],
@@ -327,6 +342,7 @@
     "tdd-cycle-workflow": {
       "display": "TDD cycle workflow",
       "description": "Drive implementation with red-green-refactor loops and seam-first testability for safe, incremental delivery.",
+      "skill_type": "code-quality",
       "path": "skills/tdd-cycle-workflow.md",
       "compatible": {
         "languages": ["typescript", "python", "go", "java", "rust", "javascript"],

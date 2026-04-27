@@ -1,7 +1,14 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import type { CliFlags, CommandContext, RunOptions, TargetDefinition, WorkspaceConfig } from './types.ts';
+import type {
+  CliFlags,
+  CommandContext,
+  RunOptions,
+  SkillDefinition,
+  TargetDefinition,
+  WorkspaceConfig
+} from './types.ts';
 
 test('types module supports expected shape usage', () => {
   const runOptions: RunOptions = { cwd: '/tmp/project', packageRoot: '/tmp/pkg' };
@@ -11,6 +18,11 @@ test('types module supports expected shape usage', () => {
     modules: ['eslint'],
     targets: ['claude-code'],
     skills: ['task-driven-gh-flow']
+  };
+  const skill: SkillDefinition = {
+    display: 'Task-driven GH flow',
+    path: 'skills/task-driven-gh-flow.md',
+    skill_type: 'delivery'
   };
   const target: TargetDefinition = {
     output: 'CLAUDE.md',
@@ -30,5 +42,6 @@ test('types module supports expected shape usage', () => {
   assert.equal(context.flags._[0], 'init');
   assert.equal(config.modules?.[0], 'eslint');
   assert.equal(config.skills?.[0], 'task-driven-gh-flow');
+  assert.equal(skill.skill_type, 'delivery');
   assert.equal(target.skill_profile?.format, 'claude-code');
 });

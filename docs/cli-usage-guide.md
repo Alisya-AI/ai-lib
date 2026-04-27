@@ -30,6 +30,25 @@ Core commands:
 ailib init --language=typescript --modules=eslint,vitest --targets=claude-code,cursor,copilot
 ```
 
+You can also run plain interactive setup:
+
+```bash
+ailib init
+```
+
+The guided flow asks for:
+
+- targets (multi-select)
+- default language
+- modules (multi-select)
+- skills grouped by `skill_type` (multi-select)
+
+To preselect skills directly in non-interactive mode, use `--skills`:
+
+```bash
+ailib init --language=typescript --modules=eslint --targets=claude-code,cursor --skills=task-driven-gh-flow,release-readiness
+```
+
 Expected result:
 
 - `ailib.config.json` created at repo root
@@ -113,6 +132,8 @@ ailib init --language=typescript --modules=eslint,vitest --targets=claude-code,c
 ```
 
 This creates a root config and enables workspace discovery.
+
+With plain `ailib init`, the guided flow can optionally configure per-workspace language overrides for detected workspace directories. It writes workspace `ailib.config.json` files only for workspaces where you choose a language different from the root default.
 
 ### 2) Initialize service workspace with inheritance
 

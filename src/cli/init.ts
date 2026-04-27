@@ -3,10 +3,13 @@ import path from 'node:path';
 import { ensure } from './assertions.ts';
 import { detectProjectRoot, findNearestMonorepoRoot } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
+import { resolveGuidedInitSelections } from './init-guided.ts';
 import { validateModuleSelection } from './module-validation.ts';
+import { validateSkillSelection } from './skill-validation.ts';
 import { bindRegistryCanonicalSlot } from './slot-resolver.ts';
-import { readJson, splitCsv, toPosix, uniqueList } from './utils.ts';
+import { exists, readJson, splitCsv, toPosix, uniqueList } from './utils.ts';
 import type { CliFlags, Registry, WorkspaceConfig } from './types.ts';
+import type { InitPromptIO } from './init-guided.ts';
 
 export async function initCommand({
   cwd,
@@ -14,7 +17,8 @@ export async function initCommand({
   flags,
   configFile,
   canonicalSlot,
-  applyWorkspaceUpdate
+  applyWorkspaceUpdate,
+  promptIO
 }: {
   cwd: string;
   packageRoot: string;
@@ -27,17 +31,59 @@ export async function initCommand({
     workspaceOverride?: string;
     forceOnConflict?: string;
   }) => Promise<void>;
+  promptIO?: InitPromptIO;
 }) {
   const registry = await readJson<Registry>(path.join(packageRoot, 'registry.json'));
   const nearestRoot = await findNearestMonorepoRoot(path.resolve(cwd));
   const inServiceContext = Boolean(nearestRoot && path.resolve(cwd) !== nearestRoot);
+  const projectRoot = inServiceContext ? path.resolve(cwd) : await detectProjectRoot(cwd);
 
-  const language = getStringFlag(flags, 'language') || Object.keys(registry.languages)[0];
-  ensure(registry.languages[language], `Unsupported language: ${language}`);
-
-  const modules = uniqueList(splitCsv(flags.modules));
+  const requestedLanguage = getStringFlag(flags, 'language');
+  const requestedModules = uniqueList(splitCsv(flags.modules));
   const requestedTargets = splitCsv(flags.targets);
-  const targets = uniqueList(requestedTargets.length ? requestedTargets : Object.keys(registry.targets));
+  const requestedSkills = uniqueList(splitCsv(flags.skills));
+  const hasSelectionFlags =
+    requestedLanguage !== undefined ||
+    flags.modules !== undefined ||
+    flags.targets !== undefined ||
+    flags.skills !== undefined;
+  const defaultLanguage = requestedLanguage || Object.keys(registry.languages)[0];
+  ensure(registry.languages[defaultLanguage], `Unsupported language: ${defaultLanguage}`);
+
+  let language = defaultLanguage;
+  let modules = requestedModules;
+  let targets = uniqueList(requestedTargets.length ? requestedTargets : Object.keys(registry.targets));
+  let skills = requestedSkills;
+  let workspaceLanguageOverrides: Record<string, string> = {};
+
+  if (!hasSelectionFlags) {
+    const defaultWorkspacePatterns = flags.bare === true ? [] : splitCsv(flags.workspaces);
+    const workspacePatterns =
+      flags.bare === true ? [] : defaultWorkspacePatterns.length ? defaultWorkspacePatterns : ['apps/*', 'services/*'];
+    const guided = await resolveGuidedInitSelections({
+      registry,
+      rootDir: projectRoot,
+      configFile,
+      bare: flags.bare === true,
+      workspacePatterns,
+      defaults: {
+        language: defaultLanguage,
+        modules: requestedModules,
+        targets,
+        skills
+      },
+      promptIO
+    });
+    language = guided.language;
+    modules = guided.modules;
+    targets = guided.targets;
+    skills = guided.skills;
+    workspaceLanguageOverrides = guided.workspaceLanguageOverrides;
+  }
+
+  for (const target of targets) {
+    ensure(registry.targets[target], `Unsupported target: ${target}`);
+  }
   const onConflict = getStringFlag(flags, 'on-conflict') || 'merge';
   const canonicalSlotForRegistry = bindRegistryCanonicalSlot(registry, canonicalSlot);
 
@@ -47,10 +93,16 @@ export async function initCommand({
     modules,
     canonicalSlot: canonicalSlotForRegistry
   });
+  validateSkillSelection({
+    registry,
+    skills,
+    language,
+    modules,
+    targets
+  });
 
   if (inServiceContext && flags['no-inherit'] !== true) {
     ensure(nearestRoot, 'Could not resolve monorepo root for service initialization');
-    const projectRoot = path.resolve(cwd);
     const rel = toPosix(path.relative(projectRoot, path.join(nearestRoot, configFile)));
     const config: WorkspaceConfig = {
       $schema: 'https://ailib.dev/schema/config.schema.json',
@@ -60,6 +112,7 @@ export async function initCommand({
       docs_path: './docs/'
     };
     if (targets.length) config.targets = targets;
+    if (skills.length) config.skills = skills;
 
     await fs.writeFile(path.join(projectRoot, configFile), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
     await applyWorkspaceUpdate({
@@ -72,13 +125,13 @@ export async function initCommand({
     return;
   }
 
-  const projectRoot = await detectProjectRoot(cwd);
   const config: WorkspaceConfig = {
     $schema: 'https://ailib.dev/schema/config.schema.json',
     registry_ref: registry.version,
     language,
     modules,
     targets,
+    skills,
     docs_path: 'docs/',
     on_conflict: onConflict
   };
@@ -89,6 +142,44 @@ export async function initCommand({
   }
 
   await fs.writeFile(path.join(projectRoot, configFile), `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  await upsertWorkspaceLanguageOverrides({
+    rootDir: projectRoot,
+    configFile,
+    defaultLanguage: language,
+    workspaceLanguageOverrides
+  });
   await applyWorkspaceUpdate({ packageRoot, rootDir: projectRoot, forceOnConflict: onConflict });
   process.stdout.write('ailib initialized\n');
+}
+
+async function upsertWorkspaceLanguageOverrides({
+  rootDir,
+  configFile,
+  defaultLanguage,
+  workspaceLanguageOverrides
+}: {
+  rootDir: string;
+  configFile: string;
+  defaultLanguage: string;
+  workspaceLanguageOverrides: Record<string, string>;
+}) {
+  for (const [workspaceRel, language] of Object.entries(workspaceLanguageOverrides)) {
+    if (language === defaultLanguage) continue;
+    const workspaceDir = path.resolve(rootDir, workspaceRel);
+    await fs.mkdir(workspaceDir, { recursive: true });
+    const configPath = path.join(workspaceDir, configFile);
+    const extendsPath = toPosix(path.relative(workspaceDir, path.join(rootDir, configFile)));
+
+    let config: WorkspaceConfig;
+    if (await exists(configPath)) {
+      config = (await readJson<WorkspaceConfig>(configPath)) || {};
+    } else {
+      config = { $schema: 'https://ailib.dev/schema/config.schema.json', docs_path: './docs/' };
+    }
+    config.extends = config.extends || extendsPath;
+    config.language = language;
+    if (!config.docs_path && !config.workspaces) config.docs_path = './docs/';
+
+    await fs.writeFile(configPath, `${JSON.stringify(config, null, 2)}\n`, 'utf8');
+  }
 }

@@ -1,7 +1,7 @@
 export function printHelp() {
   process.stdout.write(
     'ailib commands:\n' +
-      '  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort]\n' +
+      '  ailib init [--language=<lang>] [--targets=a,b] [--modules=m1,m2] [--skills=s1,s2] [--workspaces=a/*,b/*] [--bare] [--no-inherit] [--on-conflict=overwrite|merge|skip|abort] (plain `ailib init` starts guided setup)\n' +
       '  ailib update [--workspace=<path>]\n' +
       '  ailib add <module> [--workspace=<path>]\n' +
       '  ailib remove <module> [--workspace=<path>]\n' +

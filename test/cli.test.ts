@@ -344,6 +344,40 @@ test('init supports generic target outputs including openai and gemini', async (
   assert.equal(await exists(path.join(cwd, 'GEMINI.md')), true);
 });
 
+test('plain init without selection flags falls back to defaults in non-interactive mode', async () => {
+  const cwd = await makeProject();
+  await run(['init', '--bare'], { cwd, packageRoot });
+
+  const config = JSON.parse(await fs.readFile(path.join(cwd, 'ailib.config.json'), 'utf8')) as {
+    language?: string;
+    targets?: string[];
+  };
+  assert.equal(typeof config.language, 'string');
+  assert.ok((config.language || '').length > 0);
+  assert.ok(Array.isArray(config.targets));
+  assert.ok((config.targets || []).includes('cursor'));
+});
+
+test('init persists selected skills via --skills flag', async () => {
+  const cwd = await makeProject();
+  await run(
+    [
+      'init',
+      '--language=typescript',
+      '--modules=eslint',
+      '--targets=claude-code',
+      '--skills=task-driven-gh-flow',
+      '--bare'
+    ],
+    { cwd, packageRoot }
+  );
+
+  const config = JSON.parse(await fs.readFile(path.join(cwd, 'ailib.config.json'), 'utf8')) as {
+    skills?: string[];
+  };
+  assert.deepEqual(config.skills, ['task-driven-gh-flow']);
+});
+
 test('monorepo update inherits root and supports service override modules', async () => {
   const root = await makeMonorepo();
   await run(
