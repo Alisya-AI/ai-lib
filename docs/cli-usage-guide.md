@@ -459,9 +459,16 @@ ailib skills add release-manager --workspace=apps/web --description="Release orc
 ```
 
 This writes a scaffold to `.cursor/skills/release-manager/SKILL.md` in the target workspace (or a custom path when `--path` is provided).  
-When the `skill-id` matches a built-in skill (for example `solid-principles-application`), `skills add` seeds the file with the built-in skill content instead of an empty TODO scaffold.
+By default, scaffolds use the Cursor-style skill format (`## When to Use` + `## Instructions`).
+When the `skill-id` matches a built-in skill (for example `solid-principles-application`), `skills add` seeds the file with built-in content and maps it to the selected format.
 If the target file already exists, built-in seeding will not overwrite that local skill file.
 `skills init` remains available as a compatibility alias for `skills add`.
+
+Use Claude-oriented scaffold layout when needed:
+
+```bash
+ailib skills add release-manager --path=.claude/skills/release-manager/SKILL.md --format=claude-code
+```
 
 Remove a local skill scaffold:
 
