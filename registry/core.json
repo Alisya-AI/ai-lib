@@ -91,12 +91,28 @@
     "claude-code": {
       "display": "Claude Code",
       "output": "CLAUDE.md",
-      "template": "targets/claude-code.md.tmpl"
+      "template": "targets/claude-code.md.tmpl",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     },
     "cursor": {
       "display": "Cursor",
       "output": ".cursor/rules/ailib.mdc",
       "template": "targets/cursor.mdc.tmpl",
+      "skill_profile": {
+        "format": "cursor",
+        "required_sections": ["When to Use", "Instructions"],
+        "section_mapping": {
+          "Purpose": "When to Use",
+          "Workflow": "Instructions"
+        }
+      },
       "frontmatter": {
         "root": "---\ndescription: ailib context router\nalwaysApply: true\n---\n\n",
         "workspace": "---\ndescription: ailib context router\nglobs:\n  - \"./**\"\nalwaysApply: false\n---\n\n"
@@ -106,28 +122,68 @@
       "display": "Windsurf",
       "output": ".windsurf/rules/ailib.md",
       "template": "targets/windsurf.md.tmpl",
-      "root_output": ".windsurfrules"
+      "root_output": ".windsurfrules",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     },
     "copilot": {
       "display": "GitHub Copilot",
       "output": ".github/copilot-instructions.md",
       "template": "targets/copilot.md.tmpl",
-      "mode": "copilot"
+      "mode": "copilot",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     },
     "jetbrains": {
       "display": "JetBrains AI Assistant",
       "output": ".junie/guidelines.md",
-      "template": "targets/jetbrains.md.tmpl"
+      "template": "targets/jetbrains.md.tmpl",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     },
     "openai": {
       "display": "OpenAI Codex",
       "output": "AGENTS.md",
-      "template": "targets/openai.md.tmpl"
+      "template": "targets/openai.md.tmpl",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     },
     "gemini": {
       "display": "Gemini CLI",
       "output": "GEMINI.md",
-      "template": "targets/gemini.md.tmpl"
+      "template": "targets/gemini.md.tmpl",
+      "skill_profile": {
+        "format": "claude-code",
+        "required_sections": ["Purpose", "Workflow"],
+        "section_mapping": {
+          "Purpose": "Purpose",
+          "Workflow": "Workflow"
+        }
+      }
     }
   },
   "skills": {

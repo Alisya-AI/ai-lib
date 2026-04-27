@@ -17,13 +17,21 @@ export interface LanguageDefinition {
 
 export interface TargetDefinition {
   output: string;
+  template?: string;
   root_output?: string;
   mode?: string;
   display?: string;
+  skill_profile?: TargetSkillProfile;
   frontmatter?: {
     root?: string;
     workspace?: string;
   };
+}
+
+export interface TargetSkillProfile {
+  format: 'cursor' | 'claude-code';
+  required_sections?: string[];
+  section_mapping?: Record<string, string>;
 }
 
 export interface SkillCompatibility {
