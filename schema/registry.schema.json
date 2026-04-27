@@ -65,6 +65,7 @@
         "properties": {
           "display": { "type": "string" },
           "description": { "type": "string" },
+          "skill_type": { "type": "string" },
           "path": { "type": "string" },
           "requires": { "type": "array", "items": { "type": "string" } },
           "conflicts_with": { "type": "array", "items": { "type": "string" } },

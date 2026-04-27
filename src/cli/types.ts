@@ -45,6 +45,7 @@ export interface SkillDefinition {
   display: string;
   path: string;
   description?: string;
+  skill_type?: string;
   requires?: string[];
   conflicts_with?: string[];
   compatible?: SkillCompatibility;
