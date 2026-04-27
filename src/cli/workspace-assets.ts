@@ -3,7 +3,7 @@ import path from 'node:path';
 import { copySourceFile } from './file-helpers.ts';
 import { isUnderLocalCustomSkillsRoot, localCustomSkillPath } from './skill-paths.ts';
 import { exists, rmIfExists } from './utils.ts';
-import type { Registry, WorkspaceState } from './types.ts';
+import type { Registry, TargetDefinition, WorkspaceState } from './types.ts';
 
 export async function ensureWorkspaceAssets({
   workspaceDir,
@@ -70,41 +70,28 @@ export async function ensureWorkspaceAssets({
 
   const localSkills = state.localSkills;
   const localSkillSet = new Set(localSkills);
+  const selectedTargetIds = (state.effective.targets || []).filter((targetId) => Boolean(registry.targets[targetId]));
+  const selectedTargetSet = new Set(selectedTargetIds);
   const registrySkills = registry.skills || {};
   for (const skillId of localSkills) {
     const skillDef = registrySkills[skillId];
     ensure(skillDef, `Missing skill definition: ${skillId}`);
 
-    const target = path.join(outRoot, 'skills', `${skillId}.md`);
-    const workspaceLocalSource = path.join(workspaceDir, localCustomSkillPath(skillId));
-    if (await exists(workspaceLocalSource)) {
-      await copyFileFromSource(workspaceLocalSource, target);
-      continue;
+    const source = await resolveSkillSourceContent({
+      skillId,
+      skillPath: skillDef.path,
+      packageRoot,
+      workspaceDir,
+      rootDir,
+      outRoot
+    });
+    await writeFileFromContent(path.join(outRoot, 'skills', `${skillId}.md`), source);
+    for (const targetId of selectedTargetIds) {
+      const targetDef = registry.targets[targetId];
+      const targetFormat = resolveTargetSkillFormat({ targetId, targetDef });
+      const rendered = renderSkillMarkdownForTarget({ source, targetFormat });
+      await writeFileFromContent(path.join(outRoot, 'skills', targetId, `${skillId}.md`), rendered);
     }
-
-    const rootLocalSource = path.join(rootDir, localCustomSkillPath(skillId));
-    if (await exists(rootLocalSource)) {
-      await copyFileFromSource(rootLocalSource, target);
-      continue;
-    }
-
-    const sourceRel = skillDef.path;
-    const source = path.join(packageRoot, sourceRel);
-    if (await exists(source)) {
-      await copySourceFile({ packageRoot, sourceRel, target });
-      continue;
-    }
-
-    const existing = path.join(outRoot, 'skills', `${skillId}.md`);
-    if (await exists(existing)) continue;
-
-    if (isUnderLocalCustomSkillsRoot(sourceRel)) {
-      throw new Error(
-        `Missing local custom skill source: ${skillId} (checked ${localCustomSkillPath(skillId)} in workspace and root)`
-      );
-    }
-
-    ensure(false, `Missing skill source: ${sourceRel}`);
   }
 
   const skillDir = path.join(outRoot, 'skills');
@@ -115,13 +102,109 @@ export async function ensureWorkspaceAssets({
       if (!localSkillSet.has(id) && registrySkills[id]) await rmIfExists(path.join(skillDir, entry));
     }
   }
+  for (const targetId of Object.keys(registry.targets || {})) {
+    const targetDir = path.join(skillDir, targetId);
+    if (!(await exists(targetDir))) continue;
+    if (!selectedTargetSet.has(targetId)) {
+      await rmIfExists(targetDir);
+      continue;
+    }
+
+    for (const entry of await fs.readdir(targetDir)) {
+      if (!entry.endsWith('.md')) continue;
+      const id = entry.replace(/\.md$/u, '');
+      if (!localSkillSet.has(id) && registrySkills[id]) await rmIfExists(path.join(targetDir, entry));
+    }
+    const remaining = await fs.readdir(targetDir);
+    if (!remaining.length) await rmIfExists(targetDir);
+  }
 }
 
 function ensure(condition: unknown, message: string): asserts condition {
   if (!condition) throw new Error(message);
 }
 
-async function copyFileFromSource(source: string, target: string) {
+async function writeFileFromContent(target: string, content: string) {
   await fs.mkdir(path.dirname(target), { recursive: true });
-  await fs.copyFile(source, target);
+  await fs.writeFile(target, content, 'utf8');
+}
+
+async function resolveSkillSourceContent({
+  skillId,
+  skillPath,
+  packageRoot,
+  workspaceDir,
+  rootDir,
+  outRoot
+}: {
+  skillId: string;
+  skillPath: string;
+  packageRoot: string;
+  workspaceDir: string;
+  rootDir: string;
+  outRoot: string;
+}) {
+  const workspaceLocalSource = path.join(workspaceDir, localCustomSkillPath(skillId));
+  if (await exists(workspaceLocalSource)) return fs.readFile(workspaceLocalSource, 'utf8');
+
+  const rootLocalSource = path.join(rootDir, localCustomSkillPath(skillId));
+  if (await exists(rootLocalSource)) return fs.readFile(rootLocalSource, 'utf8');
+
+  const packagedSource = path.join(packageRoot, skillPath);
+  if (await exists(packagedSource)) return fs.readFile(packagedSource, 'utf8');
+
+  const existing = path.join(outRoot, 'skills', `${skillId}.md`);
+  if (await exists(existing)) return fs.readFile(existing, 'utf8');
+
+  if (isUnderLocalCustomSkillsRoot(skillPath)) {
+    throw new Error(
+      `Missing local custom skill source: ${skillId} (checked ${localCustomSkillPath(skillId)} in workspace and root)`
+    );
+  }
+  ensure(false, `Missing skill source: ${skillPath}`);
+}
+
+function resolveTargetSkillFormat({
+  targetId,
+  targetDef
+}: {
+  targetId: string;
+  targetDef: TargetDefinition | undefined;
+}): 'cursor' | 'claude-code' {
+  const declared = targetDef?.skill_profile?.format;
+  if (declared === 'cursor' || declared === 'claude-code') return declared;
+  return targetId === 'cursor' ? 'cursor' : 'claude-code';
+}
+
+function renderSkillMarkdownForTarget({
+  source,
+  targetFormat
+}: {
+  source: string;
+  targetFormat: 'cursor' | 'claude-code';
+}) {
+  if (targetFormat === 'cursor') {
+    const mapped = source
+      .replace(/^##\s+Purpose\s*$/gm, '## When to Use')
+      .replace(/^##\s+Workflow\s*$/gm, '## Instructions');
+    return ensureInstructionLeadParagraph(mapped);
+  }
+  const mapped = source
+    .replace(/^##\s+When to Use\s*$/gm, '## Purpose')
+    .replace(/^##\s+Instructions\s*$/gm, '## Workflow');
+  return mapped.replace(/\nDetailed instructions for the agent\.\n+/m, '\n\n');
+}
+
+function ensureInstructionLeadParagraph(content: string): string {
+  if (!/^\s*##\s+Instructions\s*$/m.test(content)) return content;
+  if (content.includes('Detailed instructions for the agent.')) return content;
+  const headingMatch = content.match(/^(#\s+.+)$/m);
+  if (!headingMatch) return content;
+
+  const heading = headingMatch[1];
+  const index = content.indexOf(heading);
+  if (index < 0) return content;
+  const before = content.slice(0, index + heading.length);
+  const after = content.slice(index + heading.length).trimStart();
+  return `${before}\n\nDetailed instructions for the agent.\n\n${after}`;
 }
