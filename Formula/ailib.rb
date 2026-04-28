@@ -1,9 +1,9 @@
 class Ailib < Formula
   desc "Universal AI context-injection engine CLI"
   homepage "https://github.com/Alisya-AI/ai-lib"
-  url "https://registry.npmjs.org/@alisya.ai/ailib/-/ailib-1.0.19.tgz"
-  sha256 "adb7e19bc005587253d1b4d1e1b4a77268b18f0629ddd5e3a70977fd046f274f"
-  version "1.0.19"
+  url "https://registry.npmjs.org/@alisya.ai/ailib/-/ailib-1.0.20.tgz"
+  sha256 "e70dd2fbde18e954506951cb69588041cab33c64226924f6ae047eb21109d7de"
+  version "1.0.20"
   head "https://github.com/Alisya-AI/ai-lib.git", branch: "main"
   license "Apache-2.0"
 
