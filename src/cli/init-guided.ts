@@ -18,6 +18,15 @@ type GroupedChoice = {
 type PromptSession = {
   write: (line: string) => void;
   ask: (question: string) => Promise<string>;
+  selectOne?: (args: { title: string; choices: Choice[]; defaultId?: string }) => Promise<string>;
+  selectMany?: (args: {
+    title: string;
+    groups: GroupedChoice[];
+    defaultIds: string[];
+    allowEmpty: boolean;
+    emptyLabel: string;
+  }) => Promise<string[]>;
+  confirm?: (args: { question: string; defaultValue: boolean }) => Promise<boolean>;
   close?: () => void;
 };
 
@@ -25,6 +34,15 @@ export type InitPromptIO = {
   interactive?: boolean;
   ask?: (question: string) => Promise<string>;
   write?: (line: string) => void;
+  selectOne?: (args: { title: string; choices: Choice[]; defaultId?: string }) => Promise<string>;
+  selectMany?: (args: {
+    title: string;
+    groups: GroupedChoice[];
+    defaultIds: string[];
+    allowEmpty: boolean;
+    emptyLabel: string;
+  }) => Promise<string[]>;
+  confirm?: (args: { question: string; defaultValue: boolean }) => Promise<boolean>;
   close?: () => void;
 };
 
@@ -258,6 +276,9 @@ function createPromptSession(promptIO?: InitPromptIO): PromptSession | null {
   return {
     write,
     ask: promptIO.ask,
+    selectOne: promptIO.selectOne,
+    selectMany: promptIO.selectMany,
+    confirm: promptIO.confirm,
     close: promptIO.close
   };
 }
@@ -277,6 +298,17 @@ async function promptSingleChoice({
     throw new Error(`No available choices for ${title}`);
   }
   const fallback = defaultId && choices.some((choice) => choice.id === defaultId) ? defaultId : choices[0].id;
+  if (session.selectOne) {
+    const selectedId = await session.selectOne({
+      title,
+      choices,
+      defaultId: fallback
+    });
+    if (!choices.some((choice) => choice.id === selectedId)) {
+      throw new Error(`Invalid selection '${selectedId}' for ${title}`);
+    }
+    return selectedId;
+  }
   const indexMap = renderChoices([{ heading: title, choices }], session);
   let selectedId = fallback;
   for (;;) {
@@ -311,6 +343,24 @@ async function promptMultiChoice({
   const availableChoices = groups.flatMap((group) => group.choices);
   const availableSet = new Set(availableChoices.map((choice) => choice.id));
   const defaults = uniqueList(defaultIds.filter((id) => availableSet.has(id)));
+  if (session.selectMany) {
+    const selectedIds = await session.selectMany({
+      title,
+      groups,
+      defaultIds: defaults,
+      allowEmpty,
+      emptyLabel
+    });
+    const deduped = uniqueList(selectedIds);
+    const invalid = deduped.find((id) => !availableSet.has(id));
+    if (invalid) {
+      throw new Error(`Invalid selection '${invalid}' for ${title}`);
+    }
+    if (!allowEmpty && !deduped.length) {
+      throw new Error(`At least one selection is required for ${title}`);
+    }
+    return deduped;
+  }
   const indexMap = renderChoices(groups.length ? groups : [{ heading: title, choices: [] }], session);
   if (!indexMap.length) {
     session.write(`${title}: no compatible options.\n`);
@@ -380,6 +430,9 @@ async function promptYesNo({
   defaultValue: boolean;
   session: PromptSession;
 }) {
+  if (session.confirm) {
+    return await session.confirm({ question, defaultValue });
+  }
   let selected = defaultValue;
   for (;;) {
     const answer = (await session.ask(question)).trim().toLowerCase();
