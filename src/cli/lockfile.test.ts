@@ -28,6 +28,7 @@ function state(language: string, localModules: string[]): WorkspaceState {
       $schema: 'https://ailib.dev/schema/config.schema.json',
       registry_ref: 'test-registry',
       on_conflict: 'merge',
+      target_output_mode: 'native',
       language,
       modules: localModules,
       targets: ['cursor'],

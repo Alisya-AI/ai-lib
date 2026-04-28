@@ -59,7 +59,6 @@ export async function buildWorkspaceState({
     '.ailib/test-standards.md',
     '.ailib/standards.md',
     ...effective.localModules.map((m) => `.ailib/modules/${m}.md`),
-    ...effective.localSkills.map((s) => `.ailib/skills/${s}.md`),
     ...effective.localSkills.flatMap((s) => effective.targets.map((targetId) => `.ailib/skills/${targetId}/${s}.md`))
   ];
   if (path.resolve(workspaceDir) === path.resolve(rootDir)) requiredFiles.unshift('.ailib/behavior.md');

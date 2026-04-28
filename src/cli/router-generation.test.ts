@@ -15,13 +15,15 @@ function state(
   inheritedModules: string[] = [],
   localModules: string[] = [],
   inheritedSkills: string[] = [],
-  localSkills: string[] = []
+  localSkills: string[] = [],
+  targetOutputMode: 'native' | 'compat' | 'strict' = 'native'
 ): WorkspaceState {
   return {
     effective: {
       $schema: 'https://ailib.dev/schema/config.schema.json',
       registry_ref: 'test-registry',
       on_conflict: 'merge',
+      target_output_mode: targetOutputMode,
       language: 'typescript',
       modules: [...inheritedModules, ...localModules],
       targets,
@@ -61,90 +63,37 @@ const registry: Registry = {
 };
 
 test('renderRouterDoc renders root and service docs with correct references', () => {
-  const rootDir = '/repo';
   const rootDoc = renderRouterDoc({
     label: 'Cursor',
-    workspaceDir: rootDir,
-    rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'], [], ['task-driven-gh-flow'])
+    targetId: 'cursor'
   });
-  assert.match(rootDoc, /Act as the AI Agent defined in @\.ailib\/behavior\.md/);
-  assert.match(rootDoc, /- @\.ailib\/modules\/pytest\.md/);
-  assert.match(rootDoc, /# SKILLS/);
-  assert.match(rootDoc, /- @\.ailib\/skills\/cursor\/task-driven-gh-flow\.md/);
-
-  const serviceDoc = renderRouterDoc({
-    label: 'Cursor',
-    workspaceDir: '/repo/apps/api',
-    rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'], ['task-driven-gh-flow'], ['local-skill'])
-  });
-  assert.match(serviceDoc, /@\.\.\/\.\.\/\.ailib\/behavior\.md/);
-  assert.match(serviceDoc, /consult @\.\.\/\.\.\/docs\//);
-  assert.match(serviceDoc, /- @\.\.\/\.\.\/\.ailib\/skills\/cursor\/task-driven-gh-flow\.md/);
-  assert.match(serviceDoc, /- @\.ailib\/skills\/cursor\/local-skill\.md/);
+  assert.match(rootDoc, /ailib:router-metadata/);
+  assert.match(rootDoc, /# ailib Router \(Cursor\)/);
+  assert.match(rootDoc, /- @\.ailib\/context\/common\.md/);
+  assert.match(rootDoc, /- @\.ailib\/context\/modules\.md/);
+  assert.match(rootDoc, /- @\.ailib\/context\/skills\/cursor\.md/);
 });
 
-test('renderRouterDoc snapshot includes skill pointer layout', () => {
-  const rootDir = '/repo';
+test('renderRouterDoc snapshot renders thin wrapper', () => {
   const rootDoc = renderRouterDoc({
     label: 'Cursor',
-    workspaceDir: rootDir,
-    rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'], [], ['task-driven-gh-flow'])
+    targetId: 'cursor'
   });
   const expectedRootDoc = [
+    '<!-- ailib:router-metadata',
+    '- role: native',
+    '- target_output_mode: native',
+    '- primary_target: cursor',
+    '-->',
     '# ailib Router (Cursor)',
     '',
-    '# AILIB SYSTEM PROMPT',
-    'Act as the AI Agent defined in @.ailib/behavior.md.',
-    'Adhere to the coding standards in @.ailib/standards.md.',
-    'Apply development workflow rules in @.ailib/development-standards.md.',
-    'Apply test and coverage rules in @.ailib/test-standards.md.',
-    '',
-    '# MODULES & EXTENSIONS',
-    '- @.ailib/modules/eslint.md',
-    '- @.ailib/modules/pytest.md',
-    '',
-    '# SKILLS',
-    '- @.ailib/skills/cursor/task-driven-gh-flow.md',
-    '',
-    '# PROJECT-SPECIFIC CONTEXT',
-    'Prioritize project context in @./docs/.',
+    'Load the following context files:',
+    '- @.ailib/context/common.md',
+    '- @.ailib/context/modules.md',
+    '- @.ailib/context/skills/cursor.md',
     ''
   ].join('\n');
   assert.equal(rootDoc, expectedRootDoc);
-
-  const serviceDoc = renderRouterDoc({
-    label: 'Cursor',
-    workspaceDir: '/repo/apps/api',
-    rootDir,
-    state: state(['cursor'], ['eslint'], ['pytest'], ['task-driven-gh-flow'], ['local-skill'])
-  });
-  const expectedServiceDoc = [
-    '# ailib Router (Cursor)',
-    '',
-    '# AILIB SYSTEM PROMPT',
-    'Act as the AI Agent defined in @../../.ailib/behavior.md.',
-    'Adhere to the coding standards in @.ailib/standards.md.',
-    'Apply development workflow rules in @.ailib/development-standards.md.',
-    'Apply test and coverage rules in @.ailib/test-standards.md.',
-    '',
-    '# MODULES & EXTENSIONS',
-    '- @../../.ailib/modules/eslint.md',
-    '- @.ailib/modules/pytest.md',
-    '',
-    '# SKILLS',
-    '- @../../.ailib/skills/cursor/task-driven-gh-flow.md',
-    '- @.ailib/skills/cursor/local-skill.md',
-    '',
-    '# PROJECT-SPECIFIC CONTEXT',
-    'Prioritize service-local business logic in @./docs/.',
-    'For cross-service context, consult @../../docs/.',
-    'If guidance conflicts, service-local docs win for service-scoped work.',
-    ''
-  ].join('\n');
-  assert.equal(serviceDoc, expectedServiceDoc);
 });
 
 test('generateWorkspaceRouters writes target outputs and copilot bundle', async () => {
@@ -167,21 +116,84 @@ test('generateWorkspaceRouters writes target outputs and copilot bundle', async 
     allStates,
     registry
   });
+  await generateWorkspaceRouters({
+    workspaceDir: appDir,
+    rootDir,
+    state: appState,
+    onConflict: 'overwrite',
+    allStates,
+    registry
+  });
 
   const cursorOutput = await fs.readFile(path.join(rootDir, '.cursor/rules/ai.md'), 'utf8');
   assert.match(cursorOutput, /^---\nroot: true\n---\n/s);
+  assert.match(cursorOutput, /Load the following context files/);
+  assert.match(cursorOutput, /@\.ailib\/context\/skills\/cursor\.md/);
   const rootOutput = await fs.readFile(path.join(rootDir, '.cursor/rules/root.md'), 'utf8');
-  assert.match(rootOutput, /# ailib Router \(Cursor\)/);
+  assert.match(rootOutput, /@\.ailib\/context\/common\.md/);
+
+  const rootCommonContext = await fs.readFile(path.join(rootDir, '.ailib/context/common.md'), 'utf8');
+  assert.match(rootCommonContext, /# AILIB SYSTEM PROMPT/);
+  const rootModulesContext = await fs.readFile(path.join(rootDir, '.ailib/context/modules.md'), 'utf8');
+  assert.match(rootModulesContext, /@\.ailib\/modules\/eslint\.md/);
+  const appCommonContext = await fs.readFile(path.join(appDir, '.ailib/context/common.md'), 'utf8');
+  assert.match(appCommonContext, /@\.\.\/\.\.\/\.ailib\/behavior\.md/);
 
   const copilotOutput = await fs.readFile(path.join(rootDir, '.github/copilot-instructions.md'), 'utf8');
   assert.match(copilotOutput, /## Workspace: \./);
   assert.match(copilotOutput, /## Workspace: apps\/api/);
+  assert.match(copilotOutput, /@apps\/api\/\.ailib\/context\/common\.md/);
 
   const rootInstructions = await fs.readFile(path.join(rootDir, '.github/instructions/root.instructions.md'), 'utf8');
   assert.match(rootInstructions, /applyTo: "\*\*"/);
+  assert.match(rootInstructions, /@\.ailib\/context\/skills\/copilot\.md/);
   const appInstructions = await fs.readFile(
     path.join(rootDir, '.github/instructions/apps__api.instructions.md'),
     'utf8'
   );
   assert.match(appInstructions, /applyTo: "apps\/api\/\*\*"/);
+  assert.match(appInstructions, /@apps\/api\/\.ailib\/context\/modules\.md/);
+});
+
+test('generateWorkspaceRouters emits compatibility wrappers only in compat mode', async () => {
+  const workspaceDir = await tempDir();
+  const stateCompat = state(['cursor'], [], [], [], [], 'compat');
+  const stateNative = state(['cursor'], [], [], [], [], 'native');
+  const allStates = new Map<string, WorkspaceState>([[workspaceDir, stateCompat]]);
+
+  await generateWorkspaceRouters({
+    workspaceDir,
+    rootDir: workspaceDir,
+    state: stateCompat,
+    onConflict: 'overwrite',
+    allStates,
+    registry
+  });
+  const compatAgents = await fs.readFile(path.join(workspaceDir, 'AGENTS.md'), 'utf8');
+  assert.match(compatAgents, /- role: compatibility/);
+  assert.match(compatAgents, /- primary_target: cursor/);
+  assert.match(compatAgents, /@\.ailib\/context\/skills\/cursor\.md/);
+
+  const nativeDir = await tempDir();
+  await generateWorkspaceRouters({
+    workspaceDir: nativeDir,
+    rootDir: nativeDir,
+    state: stateNative,
+    onConflict: 'overwrite',
+    allStates: new Map<string, WorkspaceState>([[nativeDir, stateNative]]),
+    registry
+  });
+  await assert.rejects(fs.readFile(path.join(nativeDir, 'AGENTS.md'), 'utf8'));
+
+  const strictState = state(['cursor'], [], [], [], [], 'strict');
+  const strictDir = await tempDir();
+  await generateWorkspaceRouters({
+    workspaceDir: strictDir,
+    rootDir: strictDir,
+    state: strictState,
+    onConflict: 'overwrite',
+    allStates: new Map<string, WorkspaceState>([[strictDir, strictState]]),
+    registry
+  });
+  await assert.rejects(fs.readFile(path.join(strictDir, 'AGENTS.md'), 'utf8'));
 });

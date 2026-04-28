@@ -53,6 +53,7 @@ export function normalizeRootConfig(rootConfig: WorkspaceConfig, registry: Regis
     $schema: rootConfig.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: rootConfig.registry_ref || registry.version,
     on_conflict: rootConfig.on_conflict || 'merge',
+    target_output_mode: rootConfig.target_output_mode || 'native',
     language: rootConfig.language,
     modules: rootConfig.modules || [],
     targets: rootConfig.targets || Object.keys(registry.targets),

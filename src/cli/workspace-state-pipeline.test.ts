@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
   buildEffectiveWorkspaceConfig,
+  resolveTargetOutputMode,
   resolveWorkspaceLanguage,
   splitListOwnership,
   splitModuleOwnership
@@ -65,7 +66,20 @@ test('buildEffectiveWorkspaceConfig builds expected shape', () => {
     warnings: ['warn']
   });
   assert.equal(result.docs_path, 'docs/');
+  assert.equal(result.target_output_mode, 'native');
   assert.deepEqual(result.skills, ['task-driven-gh-flow']);
   assert.deepEqual(result.localSkills, ['task-driven-gh-flow']);
   assert.deepEqual(result.warnings, ['warn']);
+});
+
+test('resolveTargetOutputMode defaults and validates values', () => {
+  assert.equal(resolveTargetOutputMode({ workspaceRaw: {}, base: {} }), 'native');
+  assert.equal(
+    resolveTargetOutputMode({ workspaceRaw: { target_output_mode: 'compat' }, base: { target_output_mode: 'native' } }),
+    'compat'
+  );
+  assert.throws(
+    () => resolveTargetOutputMode({ workspaceRaw: { target_output_mode: 'unsupported' as never }, base: {} }),
+    /Unsupported target_output_mode/
+  );
 });

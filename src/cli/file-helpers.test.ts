@@ -23,46 +23,59 @@ test('parseFrontmatter returns null when block missing', () => {
 test('writeManagedFile supports overwrite, skip, merge, and abort modes', async () => {
   const root = await tempDir();
   const target = path.join(root, 'rules.md');
-  const backup = `${target}.bak`;
+  const backup = path.join(root, '.ailib', 'backups', 'rules.md.bak');
 
-  await writeManagedFile({ outPath: target, rendered: 'first', onConflict: 'overwrite' });
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'first', onConflict: 'overwrite' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first\n');
-  assert.equal(await fs.readFile(backup, 'utf8'), 'first\n');
+  await assert.rejects(fs.readFile(backup, 'utf8'));
 
-  await writeManagedFile({ outPath: target, rendered: 'second', onConflict: 'skip' });
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'second', onConflict: 'skip' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first\n');
 
-  await writeManagedFile({ outPath: target, rendered: 'merged-content', onConflict: 'merge' });
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'merged-content', onConflict: 'merge' });
   const merged = await fs.readFile(target, 'utf8');
   assert.match(merged, /<!-- ailib:start -->/);
   assert.match(merged, /merged-content/);
   assert.equal(await fs.readFile(backup, 'utf8'), 'first\n');
 
   await assert.rejects(
-    writeManagedFile({ outPath: target, rendered: 'ignored', onConflict: 'abort' }),
+    writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'ignored', onConflict: 'abort' }),
     /Conflict detected/
   );
 });
 
-test('writeManagedFile creates .bak for first-run nested paths', async () => {
+test('writeManagedFile does not create backup for first-run nested paths', async () => {
   const root = await tempDir();
   const target = path.join(root, 'nested', 'configs', 'rules.md');
-  const backup = `${target}.bak`;
+  const backup = path.join(root, '.ailib', 'backups', 'nested', 'configs', 'rules.md.bak');
 
-  await writeManagedFile({ outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first-run\n');
-  assert.equal(await fs.readFile(backup, 'utf8'), 'first-run\n');
+  await assert.rejects(fs.readFile(backup, 'utf8'));
 });
 
 test('writeManagedFile preserves existing backup on first write', async () => {
   const root = await tempDir();
   const target = path.join(root, 'rules.md');
-  const backup = `${target}.bak`;
+  const backup = path.join(root, '.ailib', 'backups', 'rules.md.bak');
+  await fs.mkdir(path.dirname(backup), { recursive: true });
   await fs.writeFile(backup, 'existing-backup\n', 'utf8');
 
-  await writeManagedFile({ outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'first-run', onConflict: 'overwrite' });
   assert.equal(await fs.readFile(target, 'utf8'), 'first-run\n');
   assert.equal(await fs.readFile(backup, 'utf8'), 'existing-backup\n');
+});
+
+test('writeManagedFile writes backup under .ailib/backups for existing nested files', async () => {
+  const root = await tempDir();
+  const target = path.join(root, 'nested', 'configs', 'rules.md');
+  const backup = path.join(root, '.ailib', 'backups', 'nested', 'configs', 'rules.md.bak');
+  await fs.mkdir(path.dirname(target), { recursive: true });
+  await fs.writeFile(target, 'existing\n', 'utf8');
+
+  await writeManagedFile({ workspaceDir: root, outPath: target, rendered: 'updated', onConflict: 'overwrite' });
+  assert.equal(await fs.readFile(target, 'utf8'), 'updated\n');
+  assert.equal(await fs.readFile(backup, 'utf8'), 'existing\n');
 });
 
 test('copySourceFile copies from package source and validates existence', async () => {

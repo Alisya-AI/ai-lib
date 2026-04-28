@@ -1,6 +1,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { copySourceFile } from './file-helpers.ts';
+import { convertSkillMarkdownFormat } from './skill-format.ts';
 import { isUnderLocalCustomSkillsRoot, localCustomSkillPath } from './skill-paths.ts';
 import { exists, rmIfExists } from './utils.ts';
 import type { Registry, TargetDefinition, WorkspaceState } from './types.ts';
@@ -24,6 +25,14 @@ export async function ensureWorkspaceAssets({
 
   if (path.resolve(workspaceDir) === path.resolve(rootDir)) {
     await copySourceFile({ packageRoot, sourceRel: 'core/behavior.md', target: path.join(outRoot, 'behavior.md') });
+    const architectureSourceRel = 'core/architecture.md';
+    const architectureSource = path.join(packageRoot, architectureSourceRel);
+    const architectureTarget = path.join(outRoot, 'architecture.md');
+    if (await exists(architectureSource)) {
+      await copySourceFile({ packageRoot, sourceRel: architectureSourceRel, target: architectureTarget });
+    } else {
+      await rmIfExists(architectureTarget);
+    }
   }
 
   await copySourceFile({
@@ -89,7 +98,7 @@ export async function ensureWorkspaceAssets({
     for (const targetId of selectedTargetIds) {
       const targetDef = registry.targets[targetId];
       const targetFormat = resolveTargetSkillFormat({ targetId, targetDef });
-      const rendered = renderSkillMarkdownForTarget({ source, targetFormat });
+      const rendered = convertSkillMarkdownFormat({ source, targetFormat });
       await writeFileFromContent(path.join(outRoot, 'skills', targetId, `${skillId}.md`), rendered);
     }
   }
@@ -174,37 +183,4 @@ function resolveTargetSkillFormat({
   const declared = targetDef?.skill_profile?.format;
   if (declared === 'cursor' || declared === 'claude-code') return declared;
   return targetId === 'cursor' ? 'cursor' : 'claude-code';
-}
-
-function renderSkillMarkdownForTarget({
-  source,
-  targetFormat
-}: {
-  source: string;
-  targetFormat: 'cursor' | 'claude-code';
-}) {
-  if (targetFormat === 'cursor') {
-    const mapped = source
-      .replace(/^##\s+Purpose\s*$/gm, '## When to Use')
-      .replace(/^##\s+Workflow\s*$/gm, '## Instructions');
-    return ensureInstructionLeadParagraph(mapped);
-  }
-  const mapped = source
-    .replace(/^##\s+When to Use\s*$/gm, '## Purpose')
-    .replace(/^##\s+Instructions\s*$/gm, '## Workflow');
-  return mapped.replace(/\nDetailed instructions for the agent\.\n+/m, '\n\n');
-}
-
-function ensureInstructionLeadParagraph(content: string): string {
-  if (!/^\s*##\s+Instructions\s*$/m.test(content)) return content;
-  if (content.includes('Detailed instructions for the agent.')) return content;
-  const headingMatch = content.match(/^(#\s+.+)$/m);
-  if (!headingMatch) return content;
-
-  const heading = headingMatch[1];
-  const index = content.indexOf(heading);
-  if (index < 0) return content;
-  const before = content.slice(0, index + heading.length);
-  const after = content.slice(index + heading.length).trimStart();
-  return `${before}\n\nDetailed instructions for the agent.\n\n${after}`;
 }

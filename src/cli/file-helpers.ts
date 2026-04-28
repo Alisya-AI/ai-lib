@@ -6,17 +6,18 @@ const AILIB_BLOCK_START = '<!-- ailib:start -->';
 const AILIB_BLOCK_END = '<!-- ailib:end -->';
 
 export async function writeManagedFile({
+  workspaceDir,
   outPath,
   rendered,
   onConflict
 }: {
+  workspaceDir: string;
   outPath: string;
   rendered: string;
   onConflict: string;
 }) {
   await fs.mkdir(path.dirname(outPath), { recursive: true });
-  const backupPath = `${outPath}.bak`;
-  let wroteBackup = false;
+  const backupPath = resolveBackupPath({ workspaceDir, outPath });
 
   if (await exists(outPath)) {
     if (onConflict === 'skip') return;
@@ -29,19 +30,16 @@ export async function writeManagedFile({
         ? `${existing.slice(0, existing.indexOf(AILIB_BLOCK_START)).trimEnd()}\n`
         : `${existing.trimEnd()}\n`;
       const merged = `${withoutOld}\n${AILIB_BLOCK_START}\n${rendered.trim()}\n${AILIB_BLOCK_END}\n`;
+      await fs.mkdir(path.dirname(backupPath), { recursive: true });
       await fs.copyFile(outPath, backupPath);
-      wroteBackup = true;
       await fs.writeFile(outPath, merged, 'utf8');
       return;
     }
+    await fs.mkdir(path.dirname(backupPath), { recursive: true });
     await fs.copyFile(outPath, backupPath);
-    wroteBackup = true;
   }
 
   await fs.writeFile(outPath, `${rendered.trim()}\n`, 'utf8');
-  if (!wroteBackup && !(await exists(backupPath))) {
-    await fs.copyFile(outPath, backupPath);
-  }
 }
 
 export async function copySourceFile({
@@ -88,6 +86,14 @@ async function exists(filePath: string) {
   } catch {
     return false;
   }
+}
+
+function resolveBackupPath({ workspaceDir, outPath }: { workspaceDir: string; outPath: string }) {
+  const relOut = path.relative(path.resolve(workspaceDir), path.resolve(outPath));
+  if (!relOut || relOut.startsWith('..') || path.isAbsolute(relOut)) {
+    throw new Error(`Managed file must be inside workspace for backups: ${outPath}`);
+  }
+  return path.join(workspaceDir, '.ailib', 'backups', `${relOut}.bak`);
 }
 
 function ensure(condition: unknown, message: string): asserts condition {

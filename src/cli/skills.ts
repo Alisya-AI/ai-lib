@@ -5,6 +5,7 @@ import { resolveContext, resolveDefaultWorkspaceForMutation } from './context-re
 import { parseFrontmatter } from './file-helpers.ts';
 import { getStringFlag } from './flags.ts';
 import { skillsCatalogCommand } from './introspection.ts';
+import { convertSkillMarkdownFormat } from './skill-format.ts';
 import { renderSkillTemplate, type SkillTemplateFormat } from './skill-template.ts';
 import { skillsValidateCommand } from './skills-validate.ts';
 import type { CliFlags } from './types.ts';
@@ -239,10 +240,7 @@ function formatBuiltInSkillForTarget({
       ? frontmatter.description
       : DEFAULT_BUILTIN_DESCRIPTION;
   const body = extractBodyWithoutFrontmatter(source);
-  const withCursorSections = body
-    .replace(/^##\s+Purpose\s*$/m, '## When to Use')
-    .replace(/^##\s+Workflow\s*$/m, '## Instructions');
-  const withInstructionLead = ensureInstructionLeadParagraph(withCursorSections);
+  const withInstructionLead = convertSkillMarkdownFormat({ source: body, targetFormat: 'cursor' });
 
   return ['---', `name: ${name}`, `description: ${description}`, '---', '', withInstructionLead].join('\n');
 }
@@ -261,18 +259,4 @@ function extractBodyWithoutFrontmatter(source: string): string {
     }
   }
   return source;
-}
-
-function ensureInstructionLeadParagraph(content: string): string {
-  const trimmed = content.trimStart();
-  const headingMatch = trimmed.match(/^(#\s+.+)$/m);
-  if (!headingMatch) return content;
-  if (trimmed.includes('Detailed instructions for the agent.')) return content;
-
-  const heading = headingMatch[1];
-  const index = content.indexOf(heading);
-  if (index < 0) return content;
-  const before = content.slice(0, index + heading.length);
-  const after = content.slice(index + heading.length).trimStart();
-  return `${before}\n\nDetailed instructions for the agent.\n\n${after}`;
 }

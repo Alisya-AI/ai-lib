@@ -1,4 +1,4 @@
-import type { EffectiveWorkspaceConfig, Registry, WorkspaceConfig } from './types.ts';
+import type { EffectiveWorkspaceConfig, Registry, TargetOutputMode, WorkspaceConfig } from './types.ts';
 
 export function resolveWorkspaceLanguage({
   workspaceRaw,
@@ -50,10 +50,15 @@ export function buildEffectiveWorkspaceConfig({
   localSkills: string[];
   warnings: string[];
 }): EffectiveWorkspaceConfig {
+  const targetOutputMode = resolveTargetOutputMode({
+    workspaceRaw,
+    base
+  });
   return {
     $schema: workspaceRaw.$schema || base.$schema || 'https://ailib.dev/schema/config.schema.json',
     registry_ref: workspaceRaw.registry_ref || base.registry_ref,
     on_conflict: workspaceRaw.on_conflict || base.on_conflict || 'merge',
+    target_output_mode: targetOutputMode,
     language,
     modules,
     targets,
@@ -65,6 +70,18 @@ export function buildEffectiveWorkspaceConfig({
     localSkills,
     warnings
   };
+}
+
+export function resolveTargetOutputMode({
+  workspaceRaw,
+  base
+}: {
+  workspaceRaw: WorkspaceConfig;
+  base: WorkspaceConfig;
+}): TargetOutputMode {
+  const value = workspaceRaw.target_output_mode || base.target_output_mode || 'native';
+  ensure(value === 'native' || value === 'compat' || value === 'strict', `Unsupported target_output_mode: ${value}`);
+  return value;
 }
 
 export function splitListOwnership({ values, inheritedValues }: { values: string[]; inheritedValues: string[] }) {
