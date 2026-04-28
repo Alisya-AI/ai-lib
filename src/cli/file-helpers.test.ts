@@ -78,6 +78,15 @@ test('writeManagedFile writes backup under .ailib/backups for existing nested fi
   assert.equal(await fs.readFile(backup, 'utf8'), 'existing\n');
 });
 
+test('writeManagedFile rejects outPath outside workspace for backup safety', async () => {
+  const root = await tempDir();
+  const outside = path.join(path.dirname(root), 'outside-rules.md');
+  await assert.rejects(
+    writeManagedFile({ workspaceDir: root, outPath: outside, rendered: 'x', onConflict: 'overwrite' }),
+    /Managed file must be inside workspace/
+  );
+});
+
 test('copySourceFile copies from package source and validates existence', async () => {
   const root = await tempDir();
   const packageRoot = path.join(root, 'pkg');

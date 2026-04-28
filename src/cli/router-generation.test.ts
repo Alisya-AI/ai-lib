@@ -58,6 +58,14 @@ const registry: Registry = {
       output: '.github/copilot-instructions.md',
       display: 'GitHub Copilot',
       mode: 'copilot'
+    },
+    openai: {
+      output: 'AGENTS.md',
+      display: 'OpenAI Codex'
+    },
+    'claude-code': {
+      output: 'CLAUDE.md',
+      display: 'Claude Code'
     }
   }
 };
@@ -102,7 +110,7 @@ test('generateWorkspaceRouters writes target outputs and copilot bundle', async 
   await fs.mkdir(appDir, { recursive: true });
 
   const rootState = state(['cursor', 'copilot'], ['eslint'], ['pytest']);
-  const appState = state(['copilot'], ['eslint'], ['pytest']);
+  const appState = state(['copilot'], ['eslint'], ['pytest'], ['task-driven-gh-flow'], ['local-skill']);
   const allStates = new Map<string, WorkspaceState>([
     [rootDir, rootState],
     [appDir, appState]
@@ -138,6 +146,9 @@ test('generateWorkspaceRouters writes target outputs and copilot bundle', async 
   assert.match(rootModulesContext, /@\.ailib\/modules\/eslint\.md/);
   const appCommonContext = await fs.readFile(path.join(appDir, '.ailib/context/common.md'), 'utf8');
   assert.match(appCommonContext, /@\.\.\/\.\.\/\.ailib\/behavior\.md/);
+  const appSkillsContext = await fs.readFile(path.join(appDir, '.ailib/context/skills/copilot.md'), 'utf8');
+  assert.match(appSkillsContext, /@\.\.\/\.\.\/\.ailib\/skills\/copilot\/task-driven-gh-flow\.md/);
+  assert.match(appSkillsContext, /@\.ailib\/skills\/copilot\/local-skill\.md/);
 
   const copilotOutput = await fs.readFile(path.join(rootDir, '.github/copilot-instructions.md'), 'utf8');
   assert.match(copilotOutput, /## Workspace: \./);
@@ -196,4 +207,42 @@ test('generateWorkspaceRouters emits compatibility wrappers only in compat mode'
     registry
   });
   await assert.rejects(fs.readFile(path.join(strictDir, 'AGENTS.md'), 'utf8'));
+});
+
+test('generateWorkspaceRouters emits CLAUDE compatibility wrapper for openai in compat mode', async () => {
+  const workspaceDir = await tempDir();
+  const openAiCompat = state(['openai'], [], [], [], [], 'compat');
+  await generateWorkspaceRouters({
+    workspaceDir,
+    rootDir: workspaceDir,
+    state: openAiCompat,
+    onConflict: 'overwrite',
+    allStates: new Map<string, WorkspaceState>([[workspaceDir, openAiCompat]]),
+    registry
+  });
+
+  const agents = await fs.readFile(path.join(workspaceDir, 'AGENTS.md'), 'utf8');
+  assert.match(agents, /# ailib Router \(OpenAI Codex\)/);
+  const claudeCompat = await fs.readFile(path.join(workspaceDir, 'CLAUDE.md'), 'utf8');
+  assert.match(claudeCompat, /- role: compatibility/);
+  assert.match(claudeCompat, /- primary_target: openai/);
+  assert.match(claudeCompat, /@\.ailib\/context\/skills\/openai\.md/);
+});
+
+test('generateWorkspaceRouters prunes stale target skill context files', async () => {
+  const workspaceDir = await tempDir();
+  await fs.mkdir(path.join(workspaceDir, '.ailib/context/skills'), { recursive: true });
+  await fs.writeFile(path.join(workspaceDir, '.ailib/context/skills/stale.md'), 'stale', 'utf8');
+  const currentState = state(['cursor'], [], [], [], [], 'native');
+
+  await generateWorkspaceRouters({
+    workspaceDir,
+    rootDir: workspaceDir,
+    state: currentState,
+    onConflict: 'overwrite',
+    allStates: new Map<string, WorkspaceState>([[workspaceDir, currentState]]),
+    registry
+  });
+
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/context/skills/stale.md'), 'utf8'));
 });
