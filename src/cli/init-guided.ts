@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises';
+import type { Dirent } from 'node:fs';
 import path from 'node:path';
 import { exists, toPosix, uniqueList } from './utils.ts';
 import type { Registry, SkillDefinition } from './types.ts';
@@ -17,7 +18,7 @@ type GroupedChoice = {
 type PromptSession = {
   write: (line: string) => void;
   ask: (question: string) => Promise<string>;
-  close: () => void;
+  close?: () => void;
 };
 
 export type InitPromptIO = {
@@ -175,7 +176,7 @@ export async function resolveGuidedInitSelections({
       workspaceLanguageOverrides
     };
   } finally {
-    session.close();
+    session.close?.();
   }
 }
 
@@ -183,15 +184,16 @@ function createPromptSession(promptIO?: InitPromptIO): PromptSession | null {
   const interactive = promptIO?.interactive ?? Boolean(process.stdin.isTTY && process.stdout.isTTY);
   if (!interactive) return null;
 
-  const write = promptIO?.write ?? ((line: string) => process.stdout.write(line));
-  if (promptIO?.ask) {
-    return {
-      write,
-      ask: promptIO.ask,
-      close: promptIO.close || (() => {})
-    };
+  if (!promptIO?.ask) {
+    throw new Error('Interactive guided init requires prompt ask handler');
   }
-  throw new Error('Interactive guided init requires prompt ask handler');
+
+  const write = promptIO.write ?? ((line: string) => process.stdout.write(line));
+  return {
+    write,
+    ask: promptIO.ask,
+    close: promptIO.close
+  };
 }
 
 async function promptSingleChoice({
@@ -439,17 +441,13 @@ function groupSkillChoices(skills: Array<{ id: string; def: SkillDefinition }>):
   return [...grouped.entries()]
     .sort(([left], [right]) => left.localeCompare(right))
     .map(([type, choices]) => ({
-      heading: `Type: ${formatSkillType(type)}`,
+      heading: `Type: ${type
+        .split(/[-_\s]+/u)
+        .filter(Boolean)
+        .map((part) => `${part[0]?.toUpperCase() || ''}${part.slice(1)}`)
+        .join(' ')}`,
       choices: choices.sort((left, right) => left.id.localeCompare(right.id))
     }));
-}
-
-function formatSkillType(type: string) {
-  return type
-    .split(/[-_\s]+/u)
-    .filter(Boolean)
-    .map((part) => `${part[0]?.toUpperCase() || ''}${part.slice(1)}`)
-    .join(' ');
 }
 
 function expandRequiredSkills(selectedSkills: string[], skills: Record<string, SkillDefinition>) {
@@ -515,7 +513,7 @@ async function resolvePatternDirs(rootDir: string, pattern: string) {
 }
 
 async function readDirectoryEntries(dir: string) {
-  let entries: Array<{ name: string } & { isDirectory: () => boolean }> = [];
+  let entries: Dirent[] = [];
   try {
     entries = await fs.readdir(dir, { withFileTypes: true });
   } catch {
