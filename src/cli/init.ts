@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
 import { ensure } from './assertions.ts';
 import { detectProjectRoot, findNearestMonorepoRoot } from './context-resolution.ts';
 import { getStringFlag } from './flags.ts';
@@ -60,6 +61,7 @@ export async function initCommand({
     const defaultWorkspacePatterns = flags.bare === true ? [] : splitCsv(flags.workspaces);
     const workspacePatterns =
       flags.bare === true ? [] : defaultWorkspacePatterns.length ? defaultWorkspacePatterns : ['apps/*', 'services/*'];
+    const guidedPromptIO = promptIO || createDefaultPromptIO();
     const guided = await resolveGuidedInitSelections({
       registry,
       rootDir: projectRoot,
@@ -72,7 +74,7 @@ export async function initCommand({
         targets,
         skills
       },
-      promptIO
+      promptIO: guidedPromptIO
     });
     language = guided.language;
     modules = guided.modules;
@@ -152,7 +154,19 @@ export async function initCommand({
   process.stdout.write('ailib initialized\n');
 }
 
-async function upsertWorkspaceLanguageOverrides({
+function createDefaultPromptIO(): InitPromptIO {
+  const rl = createInterface({
+    input: process.stdin,
+    output: process.stdout
+  });
+  return {
+    ask: rl.question.bind(rl),
+    write: process.stdout.write.bind(process.stdout),
+    close: rl.close.bind(rl)
+  };
+}
+
+export async function upsertWorkspaceLanguageOverrides({
   rootDir,
   configFile,
   defaultLanguage,
