@@ -615,6 +615,7 @@ async function promptPresetName({
   existingPresetNames: string[];
 }) {
   const existing = new Set(existingPresetNames);
+  let selectedPresetName = '';
   for (;;) {
     const answer = (await session.ask('Preset name (letters, numbers, "-", "_" or "."): ')).trim();
     if (!answer) {
@@ -626,7 +627,8 @@ async function promptPresetName({
       continue;
     }
     if (!existing.has(answer)) {
-      return answer;
+      selectedPresetName = answer;
+      break;
     }
     const overwrite = await promptYesNo({
       question: `Preset '${answer}' exists. Overwrite it? [y/N]: `,
@@ -634,9 +636,11 @@ async function promptPresetName({
       session
     });
     if (overwrite) {
-      return answer;
+      selectedPresetName = answer;
+      break;
     }
   }
+  return selectedPresetName;
 }
 
 async function readPresetStore(presetsPath: string): Promise<InitPresetStore> {
