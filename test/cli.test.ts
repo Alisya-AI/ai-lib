@@ -79,6 +79,31 @@ async function runDoctorAndCapture(root: string) {
   return { output, exitCode };
 }
 
+async function withTtyState<T>(isTTY: boolean, fn: () => Promise<T>) {
+  const stdin = process.stdin as NodeJS.ReadStream & { isTTY?: boolean };
+  const stdout = process.stdout as NodeJS.WriteStream & { isTTY?: boolean };
+  const stdinDescriptor = Object.getOwnPropertyDescriptor(stdin, 'isTTY');
+  const stdoutDescriptor = Object.getOwnPropertyDescriptor(stdout, 'isTTY');
+
+  Object.defineProperty(stdin, 'isTTY', { configurable: true, value: isTTY });
+  Object.defineProperty(stdout, 'isTTY', { configurable: true, value: isTTY });
+
+  try {
+    return await fn();
+  } finally {
+    if (stdinDescriptor) {
+      Object.defineProperty(stdin, 'isTTY', stdinDescriptor);
+    } else {
+      Reflect.deleteProperty(stdin, 'isTTY');
+    }
+    if (stdoutDescriptor) {
+      Object.defineProperty(stdout, 'isTTY', stdoutDescriptor);
+    } else {
+      Reflect.deleteProperty(stdout, 'isTTY');
+    }
+  }
+}
+
 test('run prints help for empty argv and --help', async () => {
   const outputEmpty = await captureStdout(async () => {
     await run([], { packageRoot });
@@ -346,7 +371,9 @@ test('init supports generic target outputs including openai and gemini', async (
 
 test('plain init without selection flags falls back to defaults in non-interactive mode', async () => {
   const cwd = await makeProject();
-  await run(['init', '--bare'], { cwd, packageRoot });
+  await withTtyState(false, async () => {
+    await run(['init', '--bare'], { cwd, packageRoot });
+  });
 
   const config = JSON.parse(await fs.readFile(path.join(cwd, 'ailib.config.json'), 'utf8')) as {
     language?: string;
