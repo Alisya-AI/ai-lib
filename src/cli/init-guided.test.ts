@@ -508,3 +508,111 @@ test('resolveGuidedInitSelections aborts when user cancels after summary review'
     /Guided init cancelled by user/
   );
 });
+
+test('resolveGuidedInitSelections uses custom selector handlers when provided', async () => {
+  const rootDir = await tempDir();
+  const calls: string[] = [];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => '',
+      write: () => {},
+      selectMany: async ({ title }) => {
+        calls.push(`multi:${title}`);
+        if (title === 'Targets') return ['cursor'];
+        if (title === 'Modules (typescript)') return ['eslint'];
+        if (title === 'Skills') return ['incident-review'];
+        return [];
+      },
+      selectOne: async ({ title }) => {
+        calls.push(`single:${title}`);
+        if (title === 'Default language') return 'typescript';
+        throw new Error(`Unexpected single select: ${title}`);
+      },
+      confirm: async ({ question, defaultValue }) => {
+        calls.push(`confirm:${question}:${String(defaultValue)}`);
+        return true;
+      }
+    }
+  });
+
+  assert.deepEqual(result.targets, ['cursor']);
+  assert.equal(result.language, 'typescript');
+  assert.deepEqual(result.modules, ['eslint']);
+  assert.deepEqual(result.skills, ['incident-review']);
+  assert.ok(calls.includes('single:Default language'));
+  assert.ok(calls.includes('multi:Targets'));
+  assert.ok(calls.includes('multi:Modules (typescript)'));
+  assert.ok(calls.includes('multi:Skills'));
+});
+
+test('resolveGuidedInitSelections rejects invalid single-choice id from selector handler', async () => {
+  const rootDir = await tempDir();
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true,
+        ask: async () => '',
+        write: () => {},
+        selectMany: async ({ title }) => (title === 'Targets' ? ['cursor'] : []),
+        selectOne: async () => 'not-a-language',
+        confirm: async () => true
+      }
+    }),
+    /Invalid selection 'not-a-language' for Default language/
+  );
+});
+
+test('resolveGuidedInitSelections rejects invalid multi-choice id from selector handler', async () => {
+  const rootDir = await tempDir();
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true,
+        ask: async () => '',
+        write: () => {},
+        selectMany: async ({ title }) => {
+          if (title === 'Targets') return ['cursor'];
+          if (title === 'Modules (typescript)') return ['not-a-module'];
+          return [];
+        },
+        selectOne: async () => 'typescript',
+        confirm: async () => true
+      }
+    }),
+    /Invalid selection 'not-a-module' for Modules \(typescript\)/
+  );
+});
