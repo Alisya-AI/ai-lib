@@ -251,6 +251,55 @@ test('resolveGuidedInitSelections handles empty module and skill groups graceful
   assert.match(output, /\(none\)/);
 });
 
+test('resolveGuidedInitSelections evaluates module compatibility filters', async () => {
+  const rootDir = await tempDir();
+  const moduleCompatibleRegistry: Registry = {
+    ...registry,
+    skills: {
+      ...(registry.skills || {}),
+      'module-aware-skill': {
+        display: 'Module aware skill',
+        path: 'skills/module-aware-skill.md',
+        skill_type: 'reliability',
+        compatible: {
+          languages: ['typescript'],
+          modules: ['eslint'],
+          targets: ['cursor']
+        }
+      }
+    }
+  };
+
+  const answers = [
+    'cursor', // target
+    'typescript', // language
+    'eslint', // module
+    'none' // skills
+  ];
+
+  const result = await resolveGuidedInitSelections({
+    registry: moduleCompatibleRegistry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.targets, ['cursor']);
+  assert.deepEqual(result.modules, ['eslint']);
+});
+
 test('resolveGuidedInitSelections accepts comma-only input for optional multi-select', async () => {
   const rootDir = await tempDir();
   const answers = [

@@ -2,7 +2,7 @@ import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
-import { resolvePublishedVersionWithRetry } from './npm-release-publish-retry.ts';
+import { resolvePublishedVersionWithRetry } from './npm-release-publish-retry.js';
 
 const root = path.resolve(path.dirname(new URL(import.meta.url).pathname), '..');
 
