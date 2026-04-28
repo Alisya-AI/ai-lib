@@ -38,10 +38,29 @@ ailib init
 
 The guided flow asks for:
 
+- optional preset selection from `.ailib/init-presets.json` (when presets exist)
 - targets (multi-select)
 - default language
 - modules (multi-select)
 - skills grouped by `skill_type` (multi-select)
+- optional workspace language overrides (monorepo)
+
+Interactive picker UX includes:
+
+- arrow-key navigation
+- space to toggle/select
+- inline filter by typing (Backspace edits, Esc clears)
+- `Ctrl+A` to select all and `Ctrl+U` to clear (multi-select prompts)
+- `?` to toggle shortcut help
+
+Before apply, onboarding shows a summary plus a dry-run preview of files that will be created or updated.  
+No files are written until you explicitly confirm with `y` or `n` at the final apply prompt.
+
+After confirming apply, onboarding can optionally save the chosen setup as a named preset in:
+
+```text
+.ailib/init-presets.json
+```
 
 To preselect skills directly in non-interactive mode, use `--skills`:
 
