@@ -70,114 +70,180 @@ export async function resolveGuidedInitSelections({
   }
 
   try {
-    session.write('\nailib init guided setup\n');
-    session.write('Select options by number. Use comma-separated values for multi-select.\n\n');
+    session.write('\nWelcome to ailib init onboarding\n');
+    session.write('This setup wizard helps you pick language, modules, targets, and skills.\n');
+    session.write('Use numbers or IDs. Press Enter to accept defaults.\n');
+    session.write('For multi-select prompts, use comma-separated values.\n');
 
-    const targets = await promptMultiChoice({
-      title: 'Targets',
-      groups: [
-        {
-          heading: 'Available targets',
-          choices: Object.entries(registry.targets)
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([id, def]) => ({
-              id,
-              label: id,
-              description: def.display || def.output
-            }))
-        }
-      ],
-      defaultIds: defaults.targets,
-      allowEmpty: false,
-      emptyLabel: 'none',
-      session
-    });
-
-    const language = await promptSingleChoice({
-      title: 'Default language',
-      choices: Object.entries(registry.languages)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([id]) => ({ id, label: id })),
-      defaultId: defaults.language,
-      session
-    });
-
-    const modules = await promptMultiChoice({
-      title: `Modules (${language})`,
-      groups: [
-        {
-          heading: 'Available modules',
-          choices: Object.entries(registry.languages[language]?.modules || {})
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([id, def]) => ({
-              id,
-              label: id,
-              description: `slot: ${def.slot}`
-            }))
-        }
-      ],
-      defaultIds: defaults.modules,
-      allowEmpty: true,
-      emptyLabel: 'none',
-      session
-    });
-
-    const compatibleSkills = resolveCompatibleSkills({
-      registry,
-      language,
-      modules,
-      targets
-    });
-    const groupedSkillChoices = groupSkillChoices(compatibleSkills);
-    const skills = await promptMultiChoice({
-      title: 'Skills',
-      groups: groupedSkillChoices,
-      defaultIds: defaults.skills.filter((id) => compatibleSkills.some((skill) => skill.id === id)),
-      allowEmpty: true,
-      emptyLabel: 'none',
-      session
-    });
-    const expandedSkills = expandRequiredSkills(skills, registry.skills || {});
-    const addedDependencies = expandedSkills.filter((id) => !skills.includes(id));
-    if (addedDependencies.length) {
-      session.write(`Auto-selected required skills: ${addedDependencies.join(', ')}\n`);
-    }
-
-    let workspaceLanguageOverrides: Record<string, string> = {};
-    if (!bare && workspacePatterns.length) {
-      const candidates = await discoverWorkspaceCandidates(rootDir, workspacePatterns);
-      if (candidates.length) {
-        const configureOverrides = await promptYesNo({
-          question: 'Configure workspace-specific language overrides? [y/N]: ',
-          defaultValue: false,
-          session
-        });
-        if (configureOverrides) {
-          workspaceLanguageOverrides = await promptWorkspaceLanguageOverrides({
-            rootDir,
-            configFile,
-            candidates,
-            defaultLanguage: language,
-            languageChoices: Object.entries(registry.languages)
+    for (;;) {
+      session.write('\nStep 1/5: Choose targets\n');
+      const targets = await promptMultiChoice({
+        title: 'Targets',
+        groups: [
+          {
+            heading: 'Available targets',
+            choices: Object.entries(registry.targets)
               .sort(([a], [b]) => a.localeCompare(b))
-              .map(([id]) => ({ id, label: id })),
+              .map(([id, def]) => ({
+                id,
+                label: id,
+                description: def.display || def.output
+              }))
+          }
+        ],
+        defaultIds: defaults.targets,
+        allowEmpty: false,
+        emptyLabel: 'none',
+        session
+      });
+
+      session.write('\nStep 2/5: Choose default language\n');
+      const language = await promptSingleChoice({
+        title: 'Default language',
+        choices: Object.entries(registry.languages)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([id]) => ({ id, label: id })),
+        defaultId: defaults.language,
+        session
+      });
+
+      session.write('\nStep 3/5: Choose modules\n');
+      const modules = await promptMultiChoice({
+        title: `Modules (${language})`,
+        groups: [
+          {
+            heading: 'Available modules',
+            choices: Object.entries(registry.languages[language]?.modules || {})
+              .sort(([a], [b]) => a.localeCompare(b))
+              .map(([id, def]) => ({
+                id,
+                label: id,
+                description: `slot: ${def.slot}`
+              }))
+          }
+        ],
+        defaultIds: defaults.modules,
+        allowEmpty: true,
+        emptyLabel: 'none',
+        session
+      });
+
+      session.write('\nStep 4/5: Choose skills\n');
+      const compatibleSkills = resolveCompatibleSkills({
+        registry,
+        language,
+        modules,
+        targets
+      });
+      const groupedSkillChoices = groupSkillChoices(compatibleSkills);
+      const skills = await promptMultiChoice({
+        title: 'Skills',
+        groups: groupedSkillChoices,
+        defaultIds: defaults.skills.filter((id) => compatibleSkills.some((skill) => skill.id === id)),
+        allowEmpty: true,
+        emptyLabel: 'none',
+        session
+      });
+      const expandedSkills = expandRequiredSkills(skills, registry.skills || {});
+      const addedDependencies = expandedSkills.filter((id) => !skills.includes(id));
+      if (addedDependencies.length) {
+        session.write(`Auto-selected required skills: ${addedDependencies.join(', ')}\n`);
+      }
+
+      let workspaceLanguageOverrides: Record<string, string> = {};
+      if (!bare && workspacePatterns.length) {
+        session.write('\nStep 5/5: Workspace language overrides (optional)\n');
+        const candidates = await discoverWorkspaceCandidates(rootDir, workspacePatterns);
+        if (candidates.length) {
+          const configureOverrides = await promptYesNo({
+            question: 'Configure workspace-specific language overrides? [y/N]: ',
+            defaultValue: false,
             session
           });
+          if (configureOverrides) {
+            workspaceLanguageOverrides = await promptWorkspaceLanguageOverrides({
+              rootDir,
+              configFile,
+              candidates,
+              defaultLanguage: language,
+              languageChoices: Object.entries(registry.languages)
+                .sort(([a], [b]) => a.localeCompare(b))
+                .map(([id]) => ({ id, label: id })),
+              session
+            });
+          }
+        } else {
+          session.write('No workspace candidates detected from current workspace patterns.\n');
         }
       }
-    }
 
-    session.write('\n');
-    return {
-      language,
-      modules,
-      targets,
-      skills: expandedSkills,
-      workspaceLanguageOverrides
-    };
+      renderOnboardingSummary({
+        language,
+        modules,
+        targets,
+        skills: expandedSkills,
+        workspaceLanguageOverrides,
+        session
+      });
+
+      const confirmSelection = await promptYesNo({
+        question: 'Apply this setup? [Y/n]: ',
+        defaultValue: true,
+        session
+      });
+      if (confirmSelection) {
+        session.write('\n');
+        return {
+          language,
+          modules,
+          targets,
+          skills: expandedSkills,
+          workspaceLanguageOverrides
+        };
+      }
+
+      const restart = await promptYesNo({
+        question: 'Restart onboarding from the beginning? [Y/n]: ',
+        defaultValue: true,
+        session
+      });
+      if (!restart) {
+        throw new Error('Guided init cancelled by user');
+      }
+      session.write('\nRestarting guided onboarding...\n');
+    }
   } finally {
     session.close?.();
   }
+}
+
+function renderOnboardingSummary({
+  language,
+  modules,
+  targets,
+  skills,
+  workspaceLanguageOverrides,
+  session
+}: GuidedInitSelections & {
+  session: PromptSession;
+}) {
+  const workspaceOverrideLines = Object.entries(workspaceLanguageOverrides)
+    .sort(([left], [right]) => left.localeCompare(right))
+    .map(([workspace, selectedLanguage]) => `  - ${workspace}: ${selectedLanguage}`);
+  const summaryLines = [
+    '\nReview your onboarding selections',
+    `  language: ${language}`,
+    `  targets: ${targets.length ? targets.join(', ') : 'none'}`,
+    `  modules: ${modules.length ? modules.join(', ') : 'none'}`,
+    `  skills: ${skills.length ? skills.join(', ') : 'none'}`,
+    '  workspace language overrides:'
+  ];
+  if (workspaceOverrideLines.length) {
+    summaryLines.push(...workspaceOverrideLines);
+  } else {
+    summaryLines.push('  - none');
+  }
+  session.write(`${summaryLines.join('\n')}\n`);
 }
 
 function createPromptSession(promptIO?: InitPromptIO): PromptSession | null {

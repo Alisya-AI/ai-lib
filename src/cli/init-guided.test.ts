@@ -365,6 +365,46 @@ test('resolveGuidedInitSelections traverses double-star patterns and ignores mis
   assert.deepEqual(result.workspaceLanguageOverrides, {});
 });
 
+test('resolveGuidedInitSelections supports multiple workspace overrides in summary', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, 'apps', 'api'), { recursive: true });
+  await fs.mkdir(path.join(rootDir, 'services', 'ml'), { recursive: true });
+
+  const answers = [
+    '2', // target = cursor
+    '2', // language = typescript
+    'none', // modules
+    'none', // skills
+    'y', // configure workspace language overrides
+    '1', // apps/api => python
+    '1', // services/ml => python
+    'y' // confirm summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: false,
+    workspacePatterns: ['apps/*', 'services/*'],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.workspaceLanguageOverrides, {
+    'apps/api': 'python',
+    'services/ml': 'python'
+  });
+});
+
 test('resolveGuidedInitSelections supports default writer when prompt write is omitted', async () => {
   const rootDir = await tempDir();
   const answers = [
@@ -393,4 +433,78 @@ test('resolveGuidedInitSelections supports default writer when prompt write is o
 
   assert.deepEqual(result.modules, ['eslint']);
   assert.deepEqual(result.targets, ['cursor']);
+});
+
+test('resolveGuidedInitSelections restarts onboarding when user rejects summary', async () => {
+  const rootDir = await tempDir();
+  const answers = [
+    '1', // pass 1 target = claude-code
+    '2', // pass 1 language = typescript
+    '', // pass 1 modules defaults
+    '', // pass 1 skills defaults
+    'n', // reject summary
+    'y', // restart flow
+    '2', // pass 2 target = cursor
+    '1', // pass 2 language = python
+    'none', // pass 2 modules
+    'none', // pass 2 skills
+    'y' // accept summary
+  ];
+  const writes: string[] = [];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['claude-code'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: (line: string) => writes.push(line)
+    }
+  });
+
+  assert.deepEqual(result.targets, ['cursor']);
+  assert.equal(result.language, 'python');
+  assert.match(writes.join(''), /Review your onboarding selections/);
+  assert.match(writes.join(''), /Restarting guided onboarding/);
+});
+
+test('resolveGuidedInitSelections aborts when user cancels after summary review', async () => {
+  const rootDir = await tempDir();
+  const answers = [
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'n', // reject summary
+    'n' // do not restart
+  ];
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true,
+        ask: async () => answers.shift() || '',
+        write: () => {}
+      }
+    }),
+    /Guided init cancelled by user/
+  );
 });
