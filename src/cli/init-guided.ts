@@ -1,6 +1,5 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { createInterface } from 'node:readline/promises';
 import { exists, toPosix, uniqueList } from './utils.ts';
 import type { Registry, SkillDefinition } from './types.ts';
 
@@ -25,6 +24,7 @@ export type InitPromptIO = {
   interactive?: boolean;
   ask?: (question: string) => Promise<string>;
   write?: (line: string) => void;
+  close?: () => void;
 };
 
 export type GuidedInitSelections = {
@@ -188,19 +188,10 @@ function createPromptSession(promptIO?: InitPromptIO): PromptSession | null {
     return {
       write,
       ask: promptIO.ask,
-      close: () => {}
+      close: promptIO.close || (() => {})
     };
   }
-
-  const rl = createInterface({
-    input: process.stdin,
-    output: process.stdout
-  });
-  return {
-    write,
-    ask: (question: string) => rl.question(question),
-    close: () => rl.close()
-  };
+  throw new Error('Interactive guided init requires prompt ask handler');
 }
 
 async function promptSingleChoice({
@@ -219,14 +210,19 @@ async function promptSingleChoice({
   }
   const fallback = defaultId && choices.some((choice) => choice.id === defaultId) ? defaultId : choices[0].id;
   const indexMap = renderChoices([{ heading: title, choices }], session);
-  while (true) {
+  let selectedId = fallback;
+  for (;;) {
     const defaultIndex = indexMap.findIndex((entry) => entry.id === fallback) + 1;
     const answer = (await session.ask(`Select one [default: ${String(defaultIndex)}]: `)).trim();
-    if (!answer) return fallback;
+    if (!answer) break;
     const selected = resolveChoiceToken(answer, indexMap);
-    if (selected) return selected.id;
+    if (selected) {
+      selectedId = selected.id;
+      break;
+    }
     session.write(`Invalid selection '${answer}'. Try again.\n`);
   }
+  return selectedId;
 }
 
 async function promptMultiChoice({
@@ -253,7 +249,8 @@ async function promptMultiChoice({
     return [];
   }
 
-  while (true) {
+  let selectedIds: string[] = defaults;
+  for (;;) {
     const defaultIndexes = defaults
       .map((id) => indexMap.findIndex((entry) => entry.id === id) + 1)
       .filter((idx) => idx > 0);
@@ -261,15 +258,24 @@ async function promptMultiChoice({
     const answer = (
       await session.ask(`Select one or more [default: ${defaultText}; use comma-separated values]: `)
     ).trim();
-    if (!answer) return defaults;
-    if (allowEmpty && /^none$/iu.test(answer)) return [];
+    if (!answer) {
+      selectedIds = defaults;
+      break;
+    }
+    if (allowEmpty && /^none$/iu.test(answer)) {
+      selectedIds = [];
+      break;
+    }
 
     const tokens = answer
       .split(',')
       .map((token) => token.trim())
       .filter(Boolean);
     if (!tokens.length) {
-      if (allowEmpty) return [];
+      if (allowEmpty) {
+        selectedIds = [];
+        break;
+      }
       session.write('At least one selection is required.\n');
       continue;
     }
@@ -291,12 +297,10 @@ async function promptMultiChoice({
     }
 
     const deduped = uniqueList(resolved);
-    if (!allowEmpty && !deduped.length) {
-      session.write('At least one selection is required.\n');
-      continue;
-    }
-    return deduped;
+    selectedIds = deduped;
+    break;
   }
+  return selectedIds;
 }
 
 async function promptYesNo({
@@ -308,13 +312,21 @@ async function promptYesNo({
   defaultValue: boolean;
   session: PromptSession;
 }) {
-  while (true) {
+  let selected = defaultValue;
+  for (;;) {
     const answer = (await session.ask(question)).trim().toLowerCase();
-    if (!answer) return defaultValue;
-    if (['y', 'yes'].includes(answer)) return true;
-    if (['n', 'no'].includes(answer)) return false;
+    if (!answer) break;
+    if (['y', 'yes'].includes(answer)) {
+      selected = true;
+      break;
+    }
+    if (['n', 'no'].includes(answer)) {
+      selected = false;
+      break;
+    }
     session.write(`Please answer yes or no.\n`);
   }
+  return selected;
 }
 
 async function promptWorkspaceLanguageOverrides({

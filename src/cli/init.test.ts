@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
-import { initCommand } from './init.ts';
+import { initCommand, upsertWorkspaceLanguageOverrides } from './init.ts';
 import type { CliFlags, Registry, WorkspaceConfig } from './types.ts';
 import type { InitPromptIO } from './init-guided.ts';
 
@@ -170,4 +170,37 @@ test('initCommand guided flow writes monorepo language override configs', async 
   assert.equal(serviceConfig.extends, '../../ailib.config.json');
 
   await assert.rejects(fs.readFile(path.join(rootDir, 'apps', 'web', 'ailib.config.json'), 'utf8'));
+});
+
+test('upsertWorkspaceLanguageOverrides updates existing workspace config', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'services', 'ml');
+  await fs.mkdir(workspaceDir, { recursive: true });
+  await fs.writeFile(
+    path.join(workspaceDir, 'ailib.config.json'),
+    JSON.stringify(
+      {
+        $schema: 'https://ailib.dev/schema/config.schema.json',
+        extends: '../../ailib.config.json',
+        docs_path: './docs/',
+        modules: ['ruff']
+      },
+      null,
+      2
+    ) + '\n',
+    'utf8'
+  );
+
+  await upsertWorkspaceLanguageOverrides({
+    rootDir,
+    configFile: 'ailib.config.json',
+    defaultLanguage: 'typescript',
+    workspaceLanguageOverrides: { 'services/ml': 'python' }
+  });
+
+  const updated = JSON.parse(
+    await fs.readFile(path.join(workspaceDir, 'ailib.config.json'), 'utf8')
+  ) as WorkspaceConfig;
+  assert.equal(updated.language, 'python');
+  assert.deepEqual(updated.modules, ['ruff']);
 });

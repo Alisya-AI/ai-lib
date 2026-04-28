@@ -14,8 +14,8 @@ const registry: Registry = {
   version: 'test',
   slots: ['linter'],
   languages: {
-    typescript: { modules: { eslint: { slot: 'linter' } } },
-    python: { modules: { ruff: { slot: 'linter' } } }
+    typescript: { modules: { biome: { slot: 'linter' }, eslint: { slot: 'linter' } } },
+    python: { modules: { black: { slot: 'linter' }, ruff: { slot: 'linter' } } }
   },
   targets: {
     cursor: { output: '.cursor/rules/ailib.mdc' },
@@ -36,6 +36,15 @@ const registry: Registry = {
       path: 'skills/release-readiness.md',
       skill_type: 'reliability',
       requires: ['architecture-decision-flow'],
+      compatible: {
+        languages: ['typescript'],
+        targets: ['cursor', 'claude-code']
+      }
+    },
+    'incident-review': {
+      display: 'Incident review',
+      path: 'skills/incident-review.md',
+      skill_type: 'reliability',
       compatible: {
         languages: ['typescript'],
         targets: ['cursor', 'claude-code']
@@ -79,7 +88,7 @@ test('resolveGuidedInitSelections retries invalid input and auto-adds required s
     '1,2', // valid targets
     '2', // typescript
     '', // modules -> defaults (none)
-    '2', // release-readiness (auto-add architecture dependency)
+    '3', // release-readiness (auto-add architecture dependency)
     'maybe', // invalid yes/no answer
     'y', // confirm workspace overrides
     '1' // services/ml language = python
@@ -113,4 +122,226 @@ test('resolveGuidedInitSelections retries invalid input and auto-adds required s
   assert.match(writes.join(''), /Please answer yes or no/);
   assert.match(writes.join(''), /Auto-selected required skills/);
   assert.match(writes.join(''), /already has ailib\.config\.json/);
+});
+
+test('resolveGuidedInitSelections requires ask handler in interactive mode', async () => {
+  const rootDir = await tempDir();
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true
+      }
+    }),
+    /Interactive guided init requires prompt ask handler/
+  );
+});
+
+test('resolveGuidedInitSelections validates empty language choices and invalid single selections', async () => {
+  const rootDir = await tempDir();
+  const missingLanguagesRegistry: Registry = {
+    ...registry,
+    languages: {}
+  };
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry: missingLanguagesRegistry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true,
+        ask: async () => '',
+        write: () => {}
+      }
+    }),
+    /No available choices for Default language/
+  );
+});
+
+test('resolveGuidedInitSelections supports id tokens and retries invalid multi-select syntax', async () => {
+  const rootDir = await tempDir();
+  const answers = [
+    ',', // invalid empty token set for required targets multi-select
+    'cursor', // id token (non-numeric) for targets
+    'invalid-language', // invalid single choice token
+    'typescript', // id token (non-numeric) for language
+    'eslint', // id token for modules
+    'none' // explicit empty skills
+  ];
+  const writes: string[] = [];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: (line: string) => writes.push(line)
+    }
+  });
+
+  assert.deepEqual(result.targets, ['cursor']);
+  assert.deepEqual(result.modules, ['eslint']);
+  assert.deepEqual(result.skills, []);
+  const output = writes.join('');
+  assert.match(output, /At least one selection is required/);
+  assert.match(output, /Invalid selection 'invalid-language'/);
+});
+
+test('resolveGuidedInitSelections handles empty module and skill groups gracefully', async () => {
+  const rootDir = await tempDir();
+  const goOnlyRegistry: Registry = {
+    ...registry,
+    languages: {
+      go: { modules: {} }
+    }
+  };
+  const writes: string[] = [];
+  const result = await resolveGuidedInitSelections({
+    registry: goOnlyRegistry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'go',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => '',
+      write: (line: string) => writes.push(line)
+    }
+  });
+
+  assert.equal(result.language, 'go');
+  assert.deepEqual(result.modules, []);
+  assert.deepEqual(result.skills, []);
+  const output = writes.join('');
+  assert.match(output, /Modules \(go\): no compatible options/);
+  assert.match(output, /Skills: no compatible options/);
+  assert.match(output, /\(none\)/);
+});
+
+test('resolveGuidedInitSelections accepts comma-only input for optional multi-select', async () => {
+  const rootDir = await tempDir();
+  const answers = [
+    '1', // target
+    '2', // typescript
+    ',', // modules (allowEmpty=true, empty token set)
+    '' // skills defaults
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.modules, []);
+});
+
+test('resolveGuidedInitSelections traverses double-star patterns and ignores missing paths', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, 'apps', 'api'), { recursive: true });
+  await fs.mkdir(path.join(rootDir, 'services', 'worker'), { recursive: true });
+
+  const answers = [
+    '1', // target
+    '2', // typescript
+    '', // modules
+    '', // skills
+    'n' // skip workspace language override configuration
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: false,
+    workspacePatterns: ['**', 'missing/path'],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.equal(result.language, 'typescript');
+  assert.deepEqual(result.workspaceLanguageOverrides, {});
+});
+
+test('resolveGuidedInitSelections supports default writer when prompt write is omitted', async () => {
+  const rootDir = await tempDir();
+  const answers = [
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '' // skills default
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor'],
+      skills: ['architecture-decision-flow']
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || ''
+    }
+  });
+
+  assert.deepEqual(result.modules, ['eslint']);
+  assert.deepEqual(result.targets, ['cursor']);
 });
