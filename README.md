@@ -5,11 +5,13 @@
 ## What you get
 
 - One source of truth for AI tooling behavior (`ailib.config.json` + generated outputs).
-- Managed `.ailib/` pointer files from the built-in registry.
-- Target-specific instruction files (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`).
+- Managed `.ailib/` context files from the built-in registry (`core`, `modules`, `skills`, and shared router context).
+- Target-specific instruction wrappers (for example `CLAUDE.md`, `.github/copilot-instructions.md`, `.cursor/rules/ailib.mdc`) that reference shared `.ailib/context/*` files.
 - Reusable built-in skills plus custom workspace-local skills.
 - Monorepo support with root and workspace-level operations.
 - Health checks with `ailib doctor`.
+
+Managed target backups are written to `.ailib/backups/` (only for files that existed before write).
 
 ## Install
 
@@ -120,6 +122,14 @@ ailib skills validate --workspace=apps/web
 Use `ailib.local.json` when specific workspaces need different modules, slots, targets, or skills than your default baseline.
 
 See [docs/local-override-model.md](docs/local-override-model.md) for the schema, precedence rules, and examples.
+
+## Target output modes
+
+Control wrapper emission behavior with `target_output_mode` in `ailib.config.json`:
+
+- `native` (default): native output files only
+- `compat`: native outputs plus thin compatibility wrappers
+- `strict`: only explicitly selected native outputs
 
 ## Uninstall
 

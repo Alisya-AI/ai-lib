@@ -32,6 +32,9 @@
         "modules": {
           "$ref": "#/$defs/moduleScope"
         },
+        "skills": {
+          "$ref": "#/$defs/skillScope"
+        },
         "slots": {
           "$ref": "#/$defs/slotScope"
         }
@@ -62,6 +65,30 @@
       }
     },
     "moduleScope": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "add": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "remove": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "set": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "skillScope": {
       "type": "object",
       "additionalProperties": false,
       "properties": {

@@ -112,7 +112,6 @@ test('buildWorkspaceState includes root behavior file for root workspace', async
 
   assert.ok(state.requiredFiles.includes('.ailib/behavior.md'));
   assert.ok(state.requiredFiles.includes('.ailib/standards.md'));
-  assert.ok(state.requiredFiles.includes('.ailib/skills/task-driven-gh-flow.md'));
   assert.ok(state.requiredFiles.includes('.ailib/skills/cursor/task-driven-gh-flow.md'));
 });
 

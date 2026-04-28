@@ -36,6 +36,7 @@ test('normalizeRootConfig applies defaults', () => {
   const normalized = normalizeRootConfig({ language: 'typescript' }, registry);
   assert.equal(normalized.registry_ref, '2.1.0');
   assert.equal(normalized.on_conflict, 'merge');
+  assert.equal(normalized.target_output_mode, 'native');
   assert.deepEqual(normalized.targets, ['claude-code', 'cursor']);
   assert.equal(normalized.docs_path, 'docs/');
 });

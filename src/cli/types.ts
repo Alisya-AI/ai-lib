@@ -78,6 +78,7 @@ export interface WorkspaceConfig {
   extends?: string;
   registry_ref?: string;
   on_conflict?: string;
+  target_output_mode?: TargetOutputMode;
   language?: string;
   modules?: string[];
   targets?: string[];
@@ -86,6 +87,8 @@ export interface WorkspaceConfig {
   docs_path?: string;
   workspaces?: string[];
 }
+
+export type TargetOutputMode = 'native' | 'compat' | 'strict';
 
 export interface ListOverrideScope {
   add?: string[];
@@ -116,6 +119,7 @@ export interface EffectiveWorkspaceConfig extends WorkspaceConfig {
   modules: string[];
   targets: string[];
   skills: string[];
+  target_output_mode: TargetOutputMode;
   docs_path: string;
   inheritedModules: string[];
   localModules: string[];

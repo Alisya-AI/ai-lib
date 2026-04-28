@@ -25,13 +25,14 @@ Example root:
 
 ## Override scopes
 
-Each override block supports three scopes:
+Each override block supports four scopes:
 
 - `targets`
 - `modules`
+- `skills`
 - `slots`
 
-`targets` and `modules` support:
+`targets`, `modules`, and `skills` support:
 
 - `add: []`
 - `remove: []`
@@ -93,7 +94,7 @@ ailib doctor
 - Validation covers:
   - JSON structure and allowed keys
   - known workspace keys
-  - known targets/modules/slots
+  - known targets/modules/skills/slots
   - slot-to-module compatibility (`slots.<slot>.set` must match slot ownership)
 
 Example failure patterns:
@@ -138,6 +139,9 @@ Example failure patterns:
     ".": {
       "modules": {
         "add": ["prettier"]
+      },
+      "skills": {
+        "add": ["task-driven-gh-flow"]
       }
     },
     "apps/api": {

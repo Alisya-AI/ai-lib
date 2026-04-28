@@ -65,6 +65,7 @@ function state(localModules: string[], localSkills: string[] = [], targets: stri
       $schema: 'https://ailib.dev/schema/config.schema.json',
       registry_ref: 'test-registry',
       on_conflict: 'merge',
+      target_output_mode: 'native',
       language: 'typescript',
       modules: localModules,
       targets,
@@ -90,6 +91,7 @@ async function seedPackage(packageRoot: string) {
   await fs.mkdir(path.join(packageRoot, 'languages/typescript/modules'), { recursive: true });
   await fs.mkdir(path.join(packageRoot, 'skills'), { recursive: true });
   await fs.writeFile(path.join(packageRoot, 'core/behavior.md'), 'behavior', 'utf8');
+  await fs.writeFile(path.join(packageRoot, 'core/architecture.md'), 'architecture', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'core/development-standards.md'), 'dev', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'core/test-standards.md'), 'test', 'utf8');
   await fs.writeFile(path.join(packageRoot, 'languages/typescript/core.md'), 'lang-core', 'utf8');
@@ -132,6 +134,7 @@ test('ensureWorkspaceAssets copies core and module assets for root workspace', a
   });
 
   assert.equal(await fs.readFile(path.join(rootDir, '.ailib/behavior.md'), 'utf8'), 'behavior');
+  assert.equal(await fs.readFile(path.join(rootDir, '.ailib/architecture.md'), 'utf8'), 'architecture');
   assert.equal(await fs.readFile(path.join(rootDir, '.ailib/standards.md'), 'utf8'), 'lang-core');
   assert.equal(await fs.readFile(path.join(rootDir, '.ailib/modules/eslint.md'), 'utf8'), 'eslint');
 });

@@ -72,7 +72,7 @@ Expected result:
 
 - `ailib.config.json` created at repo root
 - `.ailib/` pointers and standards files generated
-- target outputs generated (for example `CLAUDE.md`, `.cursor/rules/ailib.mdc`)
+- target outputs generated as thin wrappers (for example `CLAUDE.md`, `.cursor/rules/ailib.mdc`) pointing to shared `.ailib/context/*` files
 
 ### 2) Update generated outputs
 
@@ -84,18 +84,19 @@ Use this after changing config, registry inputs, or module/target selection.
 
 ### 2.1) Backup and conflict behavior for managed files
 
-`ailib` writes a sibling backup file (`<target-file>.bak`) for managed outputs so consumers can recover prior content when needed.
+`ailib` writes managed backups under `.ailib/backups/` for recoverability without polluting repository root files.
 
 When backups are created or refreshed:
 
-- On first successful write of a managed file, `ailib` creates `<target-file>.bak` if it does not exist yet.
-- When a managed file already exists and `--on-conflict=overwrite` or `--on-conflict=merge` is used, `ailib` refreshes `<target-file>.bak` from the pre-write file content.
-- `--on-conflict=skip` and `--on-conflict=abort` do not modify existing files, so they do not create or refresh backups for those conflicts.
+- `ailib` creates or refreshes a backup only when the target file already exists before write.
+- For existing managed files, `--on-conflict=overwrite` and `--on-conflict=merge` snapshot pre-write content under `.ailib/backups/<target-path>.bak`.
+- `--on-conflict=skip` and `--on-conflict=abort` do not modify files, so they do not create or refresh backups for those conflicts.
+- First-write generation of a new managed file does not create a backup.
 
 User-facing conflict mode behavior:
 
-- `overwrite`: replace the target file with the freshly rendered managed content and keep a `.bak` snapshot for rollback.
-- `merge`: preserve non-managed content and rewrite only the managed block between `<!-- ailib:start -->` and `<!-- ailib:end -->`, with a `.bak` snapshot taken first.
+- `overwrite`: replace the target file with freshly rendered managed content and keep a backup snapshot in `.ailib/backups/`.
+- `merge`: preserve non-managed content and rewrite only the managed block between `<!-- ailib:start -->` and `<!-- ailib:end -->`, with a backup snapshot taken first.
 - `skip`: leave the existing file untouched and continue without writing this target.
 - `abort`: stop with a conflict error so you can resolve manually or rerun with a different conflict mode.
 
@@ -104,13 +105,13 @@ How consumers can recover from backups:
 1. Inspect differences between current and backup files:
 
 ```bash
-diff -u path/to/file path/to/file.bak
+diff -u path/to/file .ailib/backups/path/to/file.bak
 ```
 
 2. Restore the previous version from backup when needed:
 
 ```bash
-cp path/to/file.bak path/to/file
+cp .ailib/backups/path/to/file.bak path/to/file
 ```
 
 3. Re-run generation with your desired conflict mode:
@@ -118,6 +119,32 @@ cp path/to/file.bak path/to/file
 ```bash
 ailib update --on-conflict=merge
 ```
+
+Notes:
+
+- Legacy sibling `*.bak` files from older `ailib` versions are left untouched.
+- New updates do not create new sibling `*.bak` files.
+
+### 2.2) Target output modes (`native`, `compat`, `strict`)
+
+`ailib` supports three target-output modes through `target_output_mode` in `ailib.config.json`:
+
+- `native` (default): emit only native output files for selected targets.
+- `compat`: emit native outputs plus thin compatibility wrappers for cross-tool interoperability.
+- `strict`: emit only explicitly selected native outputs and suppress compatibility wrappers.
+
+Example:
+
+```json
+{
+  "language": "typescript",
+  "modules": ["eslint"],
+  "targets": ["cursor"],
+  "target_output_mode": "compat"
+}
+```
+
+In all modes, generated target files are thin routers pointing at shared `.ailib/context/common.md`, `.ailib/context/modules.md`, and target-scoped `.ailib/context/skills/<target>.md`.
 
 ### 3) Add/remove modules
 
