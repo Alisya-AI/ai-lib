@@ -11,6 +11,15 @@ async function tempDir() {
   return fs.mkdtemp(path.join(os.tmpdir(), 'ailib-init-'));
 }
 
+async function fileExists(filePath: string) {
+  try {
+    await fs.stat(filePath);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 const registry: Registry = {
   version: 'test-registry',
   slots: ['linter'],
@@ -122,7 +131,8 @@ test('initCommand guided flow selects targets language modules and skills', asyn
       '1,2', // targets
       '2', // default language = typescript
       '1', // modules (eslint)
-      '2,1' // skills (release-readiness + task-driven-gh-flow)
+      '2,1', // skills (release-readiness + task-driven-gh-flow)
+      'y' // apply summary
     ])
   });
 
@@ -156,7 +166,8 @@ test('initCommand guided flow writes monorepo language override configs', async 
       '', // skills -> none
       'y', // configure workspace overrides
       '', // apps/web -> keep default typescript
-      '1' // services/ml -> python
+      '1', // services/ml -> python
+      'y' // apply summary
     ])
   });
 
@@ -203,4 +214,65 @@ test('upsertWorkspaceLanguageOverrides updates existing workspace config', async
   ) as WorkspaceConfig;
   assert.equal(updated.language, 'python');
   assert.deepEqual(updated.modules, ['ruff']);
+});
+
+test('initCommand waits for onboarding apply confirmation before writing files', async () => {
+  const rootDir = await tempDir();
+  await fs.writeFile(path.join(rootDir, 'package.json'), '{"name":"root"}\n', 'utf8');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await fs.mkdir(packageRoot, { recursive: true });
+  await fs.writeFile(path.join(packageRoot, 'registry.json'), `${JSON.stringify(registry)}\n`, 'utf8');
+
+  let applyCalled = false;
+  let resolveConfirmReached: (() => void) | undefined;
+  const confirmReached = new Promise<void>((resolve) => {
+    resolveConfirmReached = resolve;
+  });
+  let releaseApplyConfirm: (() => void) | undefined;
+  const applyConfirmGate = new Promise<void>((resolve) => {
+    releaseApplyConfirm = resolve;
+  });
+
+  const runPromise = initCommand({
+    cwd: rootDir,
+    packageRoot,
+    flags: { _: [], bare: true } as CliFlags,
+    configFile: 'ailib.config.json',
+    canonicalSlot: (_registry, slot) => slot || null,
+    applyWorkspaceUpdate: async () => {
+      applyCalled = true;
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => '',
+      write: () => {},
+      selectMany: async ({ title }) => {
+        if (title === 'Targets') return ['cursor'];
+        if (title === 'Modules (typescript)') return ['eslint'];
+        if (title === 'Skills') return [];
+        return [];
+      },
+      selectOne: async ({ title }) => {
+        if (title === 'Default language') return 'typescript';
+        throw new Error(`Unexpected single select: ${title}`);
+      },
+      confirm: async ({ question }) => {
+        if (question.startsWith('Apply this setup?')) {
+          resolveConfirmReached?.();
+          await applyConfirmGate;
+          return true;
+        }
+        return false;
+      }
+    }
+  });
+
+  await confirmReached;
+  assert.equal(await fileExists(path.join(rootDir, 'ailib.config.json')), false);
+  assert.equal(applyCalled, false);
+
+  releaseApplyConfirm?.();
+  await runPromise;
+  assert.equal(await fileExists(path.join(rootDir, 'ailib.config.json')), true);
+  assert.equal(applyCalled, true);
 });

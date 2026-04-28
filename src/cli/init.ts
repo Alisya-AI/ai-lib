@@ -169,10 +169,13 @@ function createDefaultPromptIO(): InitPromptIO {
     output.write('\x1b[0J');
   };
   const readKeypress = () =>
-    new Promise<{ name?: string; ctrl?: boolean }>((resolve) => {
-      const onKeypress = (_chunk: string, key: { name?: string; ctrl?: boolean } = {}) => {
+    new Promise<{ name?: string; ctrl?: boolean; sequence?: string; chunk?: string }>((resolve) => {
+      const onKeypress = (chunk: string, key: { name?: string; ctrl?: boolean; sequence?: string } = {}) => {
         input.off('keypress', onKeypress);
-        resolve(key);
+        resolve({
+          ...key,
+          chunk
+        });
       };
       input.on('keypress', onKeypress);
     });
@@ -193,41 +196,96 @@ function createDefaultPromptIO(): InitPromptIO {
     groups,
     selectedIds,
     single,
-    allowEmpty
+    allowEmpty,
+    requireExplicitSingleSelection = false
   }: {
     title: string;
     groups: Array<{ heading: string; choices: Array<{ id: string; label: string; description?: string }> }>;
     selectedIds: string[];
     single: boolean;
     allowEmpty: boolean;
+    requireExplicitSingleSelection?: boolean;
   }) => {
-    const choices = groups.flatMap((group) => group.choices);
-    if (!choices.length) {
+    const allChoices = groups.flatMap((group) => group.choices);
+    if (!allChoices.length) {
       output.write(`${title}: no compatible options.\n`);
       return [];
     }
 
-    const selected = new Set(single ? [selectedIds[0] || choices[0].id] : selectedIds.filter(Boolean));
+    const selected = new Set(
+      single
+        ? selectedIds[0]
+          ? [selectedIds[0]]
+          : requireExplicitSingleSelection
+            ? []
+            : [allChoices[0].id]
+        : selectedIds.filter(Boolean)
+    );
+    let filterQuery = '';
+    let showHelp = true;
     let cursor = Math.max(
       0,
-      choices.findIndex((choice) => selected.has(choice.id))
+      allChoices.findIndex((choice) => selected.has(choice.id))
     );
+    if (cursor < 0) cursor = 0;
     let warning = '';
     let renderedLines = 0;
+    const isPrintable = (chunk: string | undefined) => Boolean(chunk && /^[\x20-\x7E]$/u.test(chunk));
+    const visibleGroups = () => {
+      const query = filterQuery.trim().toLowerCase();
+      const out: typeof groups = [];
+      for (const group of groups) {
+        const choices = group.choices.filter((choice) => {
+          if (!query) return true;
+          const searchText = `${choice.id} ${choice.label} ${choice.description || ''}`.toLowerCase();
+          return searchText.includes(query);
+        });
+        if (choices.length) {
+          out.push({
+            heading: group.heading,
+            choices
+          });
+        }
+      }
+      return out;
+    };
+    const visibleChoices = () => visibleGroups().flatMap((group) => group.choices);
+    const normalizeCursor = () => {
+      const visible = visibleChoices();
+      if (!visible.length) {
+        cursor = 0;
+        return visible;
+      }
+      if (cursor >= visible.length) {
+        cursor = visible.length - 1;
+      }
+      return visible;
+    };
 
     const render = () => {
       clearRenderedLines(renderedLines);
-      const lines = [
-        '',
-        title,
-        single
-          ? 'Use up/down arrows to move, space to select, enter to confirm.'
-          : 'Use up/down arrows to move, space to toggle, enter to confirm.'
-      ];
-      if (warning) lines.push(warning);
+      const groupsToRender = visibleGroups();
+      const choicesToRender = normalizeCursor();
+      const lines = ['', title, 'Use up/down to move and Enter to confirm.'];
+      if (showHelp) {
+        lines.push(
+          single
+            ? 'Space: select option, ?: hide help'
+            : 'Space: toggle option, Ctrl+A: select all, Ctrl+U: clear all, ?: hide help'
+        );
+        lines.push('Type to filter, Backspace to edit, Esc to clear filter.');
+      } else {
+        lines.push('Press ? to show keyboard help.');
+      }
+      lines.push(`Filter: ${filterQuery || '(none)'}`);
+      if (!single) {
+        lines.push(`Selected: ${String(selected.size)}`);
+      }
+      if (warning) lines.push(`Warning: ${warning}`);
+      if (!choicesToRender.length) lines.push('No matching options.');
 
       let index = 0;
-      for (const group of groups) {
+      for (const group of groupsToRender) {
         lines.push('');
         lines.push(group.heading);
         if (!group.choices.length) {
@@ -256,22 +314,72 @@ function createDefaultPromptIO(): InitPromptIO {
       render();
       for (;;) {
         const key = await readKeypress();
+        const choices = normalizeCursor();
         if (key.ctrl && key.name === 'c') {
           throw new Error('Guided init cancelled by user');
         }
-        if (key.name === 'up') {
-          cursor = (cursor - 1 + choices.length) % choices.length;
+        if (key.chunk === '?') {
+          showHelp = !showHelp;
           warning = '';
           render();
+          continue;
+        }
+        if (!single && key.ctrl && key.name === 'a') {
+          for (const choice of choices) {
+            selected.add(choice.id);
+          }
+          warning = '';
+          render();
+          continue;
+        }
+        if (!single && key.ctrl && key.name === 'u') {
+          if (!allowEmpty && selected.size > 0) {
+            warning = 'At least one selection is required.';
+          } else {
+            selected.clear();
+            warning = '';
+          }
+          render();
+          continue;
+        }
+        if (key.name === 'backspace') {
+          if (filterQuery.length) {
+            filterQuery = filterQuery.slice(0, -1);
+            warning = '';
+            render();
+          }
+          continue;
+        }
+        if (key.name === 'escape') {
+          if (filterQuery.length) {
+            filterQuery = '';
+            warning = '';
+            render();
+          }
+          continue;
+        }
+        if (key.name === 'up') {
+          if (choices.length) {
+            cursor = (cursor - 1 + choices.length) % choices.length;
+            warning = '';
+            render();
+          }
           continue;
         }
         if (key.name === 'down') {
-          cursor = (cursor + 1) % choices.length;
-          warning = '';
-          render();
+          if (choices.length) {
+            cursor = (cursor + 1) % choices.length;
+            warning = '';
+            render();
+          }
           continue;
         }
         if (key.name === 'space') {
+          if (!choices.length) {
+            warning = 'No matching options for current filter.';
+            render();
+            continue;
+          }
           const current = choices[cursor];
           if (single) {
             selected.clear();
@@ -292,6 +400,12 @@ function createDefaultPromptIO(): InitPromptIO {
           continue;
         }
         if (key.name === 'return' || key.name === 'enter') {
+          if (single && selected.size === 0 && requireExplicitSingleSelection) {
+            const current = choices[cursor];
+            if (current) {
+              selected.add(current.id);
+            }
+          }
           if (!allowEmpty && selected.size === 0) {
             warning = 'At least one selection is required.';
             render();
@@ -299,16 +413,22 @@ function createDefaultPromptIO(): InitPromptIO {
           }
           break;
         }
+        if (isPrintable(key.chunk)) {
+          filterQuery += key.chunk || '';
+          warning = '';
+          render();
+          continue;
+        }
       }
     });
 
     clearRenderedLines(renderedLines);
-    const ordered = choices.map((choice) => choice.id).filter((id) => selected.has(id));
+    const ordered = allChoices.map((choice) => choice.id).filter((id) => selected.has(id));
     if (single) {
-      const selectedLabel = choices.find((choice) => choice.id === ordered[0])?.label || ordered[0];
+      const selectedLabel = allChoices.find((choice) => choice.id === ordered[0])?.label || ordered[0];
       output.write(`${title}: ${selectedLabel}\n`);
     } else {
-      const selectedLabels = choices
+      const selectedLabels = allChoices
         .filter((choice) => selected.has(choice.id))
         .map((choice) => choice.label)
         .join(', ');
@@ -340,7 +460,7 @@ function createDefaultPromptIO(): InitPromptIO {
       allowEmpty: args.allowEmpty
     });
   };
-  const confirm = async ({ question, defaultValue }: ConfirmArgs) => {
+  const confirm = async ({ question, defaultValue, requireExplicit = false }: ConfirmArgs) => {
     const normalizedQuestion = question.replace(/\s*\[[^\]]+\]:?\s*$/u, '').trim() || 'Confirm';
     const selected = await runInteractiveSelect({
       title: normalizedQuestion,
@@ -353,9 +473,10 @@ function createDefaultPromptIO(): InitPromptIO {
           ]
         }
       ],
-      selectedIds: [defaultValue ? 'yes' : 'no'],
+      selectedIds: requireExplicit ? [] : [defaultValue ? 'yes' : 'no'],
       single: true,
-      allowEmpty: false
+      allowEmpty: false,
+      requireExplicitSingleSelection: requireExplicit
     });
     return selected[0] === 'yes';
   };
