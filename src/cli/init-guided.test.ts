@@ -260,6 +260,49 @@ test('resolveGuidedInitSelections handles empty module and skill groups graceful
   assert.match(output, /\(none\)/);
 });
 
+test('resolveGuidedInitSelections preview includes root target output when configured', async () => {
+  const rootDir = await tempDir();
+  const registryWithRootTarget: Registry = {
+    ...registry,
+    targets: {
+      ...registry.targets,
+      cursor: {
+        ...registry.targets.cursor,
+        root_output: '.cursor/rules/root.mdc'
+      }
+    }
+  };
+  const answers = [
+    '2', // target = cursor
+    '2', // language = typescript
+    '', // modules defaults
+    '', // skills defaults
+    'y' // apply summary
+  ];
+  const writes: string[] = [];
+  await resolveGuidedInitSelections({
+    registry: registryWithRootTarget,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: (line: string) => writes.push(line)
+    }
+  });
+
+  assert.match(writes.join(''), /Planned file changes after apply/);
+  assert.match(writes.join(''), /\.cursor\/rules\/root\.mdc/);
+});
+
 test('resolveGuidedInitSelections evaluates module compatibility filters', async () => {
   const rootDir = await tempDir();
   const moduleCompatibleRegistry: Registry = {
@@ -504,6 +547,69 @@ test('resolveGuidedInitSelections can load defaults from saved preset', async ()
   assert.deepEqual(result.modules, ['ruff']);
 });
 
+test('resolveGuidedInitSelections sorts preset choices and defaults to first entry', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify(
+      {
+        version: 1,
+        presets: {
+          'z-last': {
+            language: 'typescript',
+            modules: ['eslint'],
+            targets: ['cursor'],
+            skills: [],
+            workspaceLanguageOverrides: {}
+          },
+          'a-first': {
+            language: 'python',
+            modules: ['ruff'],
+            targets: ['claude-code'],
+            skills: [],
+            workspaceLanguageOverrides: {}
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+  const answers = [
+    'y', // load preset
+    '', // choose first preset after sorting => a-first
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y' // apply summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.equal(result.language, 'python');
+  assert.deepEqual(result.targets, ['claude-code']);
+  assert.deepEqual(result.modules, ['ruff']);
+});
+
 test('resolveGuidedInitSelections can save selected preset after apply', async () => {
   const rootDir = await tempDir();
   const answers = [
@@ -543,6 +649,364 @@ test('resolveGuidedInitSelections can save selected preset after apply', async (
   assert.deepEqual(parsed.presets?.['team-default']?.targets, ['cursor']);
 });
 
+test('resolveGuidedInitSelections retries invalid preset names and supports overwrite flow', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify(
+      {
+        version: 1,
+        presets: {
+          'team-default': {
+            language: 'typescript',
+            modules: ['eslint'],
+            targets: ['cursor'],
+            skills: [],
+            workspaceLanguageOverrides: {}
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+  const answers = [
+    'n', // do not load existing preset
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y', // apply summary
+    'y', // save preset
+    '', // invalid empty preset name
+    '@invalid', // invalid format
+    'team-default', // collides
+    'n', // do not overwrite
+    'team-default', // collides again
+    'y' // overwrite existing
+  ];
+  const writes: string[] = [];
+  await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['biome'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: (line: string) => writes.push(line)
+    }
+  });
+
+  const output = writes.join('');
+  assert.match(output, /Preset name cannot be empty/);
+  assert.match(output, /Invalid preset name/);
+  const savedRaw = await fs.readFile(path.join(rootDir, '.ailib', 'init-presets.json'), 'utf8');
+  const saved = JSON.parse(savedRaw) as {
+    presets?: Record<string, { modules?: string[] }>;
+  };
+  assert.deepEqual(saved.presets?.['team-default']?.modules, ['biome']);
+});
+
+test('resolveGuidedInitSelections overwrites existing preset when confirmed', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify(
+      {
+        version: 1,
+        presets: {
+          'team-default': {
+            language: 'typescript',
+            modules: ['eslint'],
+            targets: ['cursor'],
+            skills: [],
+            workspaceLanguageOverrides: {}
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+  const answers = [
+    'n', // do not load existing preset
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y', // apply summary
+    'y', // save preset
+    'team-default', // collides
+    'y' // overwrite existing
+  ];
+  await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['biome'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  const savedRaw = await fs.readFile(path.join(rootDir, '.ailib', 'init-presets.json'), 'utf8');
+  const saved = JSON.parse(savedRaw) as {
+    presets?: Record<string, { modules?: string[] }>;
+  };
+  assert.deepEqual(saved.presets?.['team-default']?.modules, ['biome']);
+});
+
+test('resolveGuidedInitSelections tolerates malformed preset store and continues', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(path.join(rootDir, '.ailib', 'init-presets.json'), '{\n', 'utf8');
+  const answers = [
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y' // apply summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.equal(result.language, 'typescript');
+});
+
+test('resolveGuidedInitSelections ignores non-object preset containers', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify({ version: 1, presets: [] }, null, 2)}\n`,
+    'utf8'
+  );
+  const answers = [
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y' // apply summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.targets, ['cursor']);
+});
+
+test('resolveGuidedInitSelections ignores missing presets payload', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify({ version: 1 }, null, 2)}\n`,
+    'utf8'
+  );
+  const answers = [
+    '', // targets defaults
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y' // apply summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: ['eslint'],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.equal(result.language, 'typescript');
+});
+
+test('resolveGuidedInitSelections normalizes preset workspace language overrides', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.mkdir(path.join(rootDir, 'apps', 'api'), { recursive: true });
+  await fs.mkdir(path.join(rootDir, 'apps', 'web'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify(
+      {
+        version: 1,
+        presets: {
+          'mono-python': {
+            language: 'typescript',
+            modules: [],
+            targets: ['cursor'],
+            skills: [],
+            workspaceLanguageOverrides: {
+              'apps/api': 'python',
+              'apps/web': 123
+            }
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+  const answers = [
+    'y', // load preset
+    '1', // mono-python
+    '', // targets defaults from preset
+    '', // language defaults from preset
+    '', // modules defaults from preset
+    '', // skills defaults from preset
+    '', // configure overrides (default yes due preset overrides)
+    '', // apps/api keep python default from preset
+    '', // apps/web keep default language (typescript)
+    'y' // apply summary
+  ];
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: false,
+    workspacePatterns: ['apps/*'],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.workspaceLanguageOverrides, { 'apps/api': 'python' });
+});
+
+test('resolveGuidedInitSelections normalizes preset list values by type guards', async () => {
+  const rootDir = await tempDir();
+  await fs.mkdir(path.join(rootDir, '.ailib'), { recursive: true });
+  await fs.writeFile(
+    path.join(rootDir, '.ailib', 'init-presets.json'),
+    `${JSON.stringify(
+      {
+        version: 1,
+        presets: {
+          normalized: {
+            language: 'typescript',
+            modules: ['eslint', 1],
+            targets: ['cursor', false],
+            skills: ['incident-review', 42],
+            workspaceLanguageOverrides: {
+              'apps/api': 'python',
+              'apps/web': 99
+            }
+          }
+        }
+      },
+      null,
+      2
+    )}\n`,
+    'utf8'
+  );
+
+  const answers = [
+    'y', // load preset
+    '1', // normalized
+    '', // targets default
+    '', // language default
+    '', // modules default
+    '', // skills default
+    'y' // apply summary
+  ];
+
+  const result = await resolveGuidedInitSelections({
+    registry,
+    rootDir,
+    configFile: 'ailib.config.json',
+    bare: true,
+    workspacePatterns: [],
+    defaults: {
+      language: 'typescript',
+      modules: [],
+      targets: ['cursor'],
+      skills: []
+    },
+    promptIO: {
+      interactive: true,
+      ask: async () => answers.shift() || '',
+      write: () => {}
+    }
+  });
+
+  assert.deepEqual(result.modules, ['eslint']);
+  assert.deepEqual(result.targets, ['cursor']);
+  assert.deepEqual(result.skills, ['incident-review']);
+});
+
 test('resolveGuidedInitSelections requires explicit yes or no for final apply in text mode', async () => {
   const rootDir = await tempDir();
   const answers = [
@@ -574,6 +1038,37 @@ test('resolveGuidedInitSelections requires explicit yes or no for final apply in
   });
 
   assert.match(writes.join(''), /Please answer yes or no\./);
+});
+
+test('resolveGuidedInitSelections rejects empty required multi-select from selector handler', async () => {
+  const rootDir = await tempDir();
+  await assert.rejects(
+    resolveGuidedInitSelections({
+      registry,
+      rootDir,
+      configFile: 'ailib.config.json',
+      bare: true,
+      workspacePatterns: [],
+      defaults: {
+        language: 'typescript',
+        modules: [],
+        targets: ['cursor'],
+        skills: []
+      },
+      promptIO: {
+        interactive: true,
+        ask: async () => '',
+        write: () => {},
+        selectMany: async ({ title }) => {
+          if (title === 'Targets') return [];
+          return [];
+        },
+        selectOne: async () => 'typescript',
+        confirm: async () => true
+      }
+    }),
+    /At least one selection is required for Targets/
+  );
 });
 
 test('resolveGuidedInitSelections restarts onboarding when user rejects summary', async () => {
