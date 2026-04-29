@@ -178,13 +178,10 @@ test('ensureWorkspaceAssets copies and prunes skill assets', async () => {
   });
 
   assert.equal(
-    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
-    'skill-flow'
-  );
-  assert.equal(
     await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
     'skill-flow'
   );
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'));
   await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/legacy-skill.md'), 'utf8'));
   assert.equal(await fs.readFile(path.join(workspaceDir, '.ailib/skills/custom.md'), 'utf8'), 'custom-skill');
 });
@@ -204,7 +201,7 @@ test('ensureWorkspaceAssets copies built-in skill assets from package sources', 
   });
 
   assert.equal(
-    await fs.readFile(path.join(workspaceDir, '.ailib/skills/architecture-decision-flow.md'), 'utf8'),
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/architecture-decision-flow.md'), 'utf8'),
     'architecture-flow'
   );
 });
@@ -232,7 +229,7 @@ test('ensureWorkspaceAssets prefers local custom skill over package source', asy
   });
 
   assert.equal(
-    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
     'workspace-local-skill'
   );
 });
@@ -251,7 +248,6 @@ test('ensureWorkspaceAssets renders target-specific skill format variants', asyn
     registry
   });
 
-  const legacy = await fs.readFile(path.join(workspaceDir, '.ailib/skills/target-format-skill.md'), 'utf8');
   const cursorRendered = await fs.readFile(
     path.join(workspaceDir, '.ailib/skills/cursor/target-format-skill.md'),
     'utf8'
@@ -261,12 +257,12 @@ test('ensureWorkspaceAssets renders target-specific skill format variants', asyn
     'utf8'
   );
 
-  assert.match(legacy, /## Purpose/);
   assert.match(cursorRendered, /## When to Use/);
   assert.match(cursorRendered, /## Instructions/);
   assert.match(cursorRendered, /Detailed instructions for the agent\./);
   assert.match(claudeRendered, /## Purpose/);
   assert.doesNotMatch(claudeRendered, /## When to Use/);
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/target-format-skill.md'), 'utf8'));
 });
 
 test('ensureWorkspaceAssets removes stale target skill directory when target is deselected', async () => {
@@ -341,8 +337,35 @@ test('ensureWorkspaceAssets prefers root local custom skill over package source'
   });
 
   assert.equal(
-    await fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'),
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
     'root-local-skill'
+  );
+});
+
+test('ensureWorkspaceAssets prunes selected legacy top-level skill files from previous versions', async () => {
+  const rootDir = await tempDir();
+  const workspaceDir = path.join(rootDir, 'apps/api');
+  const packageRoot = path.join(rootDir, 'pkg');
+  await seedPackage(packageRoot);
+  await fs.mkdir(path.join(workspaceDir, '.ailib/skills'), { recursive: true });
+  await fs.writeFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'legacy-copy', 'utf8');
+
+  await ensureWorkspaceAssets({
+    workspaceDir,
+    packageRoot,
+    state: state([], ['task-driven-gh-flow'], ['cursor', 'claude-code']),
+    rootDir,
+    registry
+  });
+
+  await assert.rejects(fs.readFile(path.join(workspaceDir, '.ailib/skills/task-driven-gh-flow.md'), 'utf8'));
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/cursor/task-driven-gh-flow.md'), 'utf8'),
+    'skill-flow'
+  );
+  assert.equal(
+    await fs.readFile(path.join(workspaceDir, '.ailib/skills/claude-code/task-driven-gh-flow.md'), 'utf8'),
+    'skill-flow'
   );
 });
 
