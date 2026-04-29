@@ -94,7 +94,6 @@ export async function ensureWorkspaceAssets({
       rootDir,
       outRoot
     });
-    await writeFileFromContent(path.join(outRoot, 'skills', `${skillId}.md`), source);
     for (const targetId of selectedTargetIds) {
       const targetDef = registry.targets[targetId];
       const targetFormat = resolveTargetSkillFormat({ targetId, targetDef });
@@ -108,7 +107,9 @@ export async function ensureWorkspaceAssets({
     for (const entry of await fs.readdir(skillDir)) {
       if (!entry.endsWith('.md')) continue;
       const id = entry.replace(/\.md$/u, '');
-      if (!localSkillSet.has(id) && registrySkills[id]) await rmIfExists(path.join(skillDir, entry));
+      // Top-level .ailib/skills/*.md files are legacy and should be removed.
+      // Current model keeps only target-scoped skill files in .ailib/skills/<target>/<skill>.md.
+      if (localSkillSet.has(id) || registrySkills[id]) await rmIfExists(path.join(skillDir, entry));
     }
   }
   for (const targetId of Object.keys(registry.targets || {})) {
